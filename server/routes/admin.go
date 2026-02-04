@@ -1,0 +1,152 @@
+// Package routes 注册路由
+package routes
+
+import (
+    controllers "spiritFruit/app/http/controllers/admin/v1"
+    "spiritFruit/app/http/controllers/admin/v1/auth"
+    "spiritFruit/app/http/middlewares"
+    "spiritFruit/pkg/config"
+
+    "github.com/gin-gonic/gin"
+)
+
+// RegisterAdminAPIRoutes 注册管理端路由
+func RegisterAdminAPIRoutes(r *gin.Engine) {
+    var v1 *gin.RouterGroup
+    if len(config.Get("app.api_domain")) == 0 {
+        v1 = r.Group("/admin/v1")
+    } else {
+        v1 = r.Group("/v1")
+    }
+
+    // 静态文件服务 - 直接注册到根路径
+    r.Static("/uploads", "./uploads")
+
+    // 认证路由组 - 无需认证
+    authGroup := v1.Group("/auth")
+    {
+        lgc := new(auth.LoginController)
+        authGroup.POST("/login/using-phone", lgc.LoginByPassword)
+    }
+
+    // 需要认证的路由组
+    {
+        // 上传图片相关路由
+        uploadGroup := v1.Group("/upload") 
+        {
+            uploadController := new(controllers.UploadsController)
+            uploadGroup.POST("/singleUpload", uploadController.Upload)
+        }
+
+        // 统计数据路由
+        statisticsController := new(controllers.StatisticsController)
+        protectedGroup := v1.Group("/statistics").Use(middlewares.AuthAdminJWT())
+        protectedGroup.GET("/statistics", statisticsController.StatisticsData)
+        protectedGroup.GET("/trend", statisticsController.GetTableTrend)
+        protectedGroup.GET("/detail", statisticsController.GetDetailStatistics)
+
+        
+        // 角色相关路由
+        charactersGroup := v1.Group("/characters").Use(middlewares.AuthAdminJWT())
+        {
+            charactersController := new(controllers.CharactersController)
+
+            // 基础CRUD路由
+            charactersGroup.GET("", charactersController.Index)         // 获取角色列表
+            charactersGroup.GET("/:id", charactersController.Show)      // 获取角色详情
+            charactersGroup.POST("", charactersController.Store)        // 创建角色
+            
+            
+
+            charactersGroup.PUT("/:id", charactersController.Update)    // 更新角色
+            charactersGroup.DELETE("/:id", charactersController.Delete) // 删除角色
+            // 短剧项目选择列表路由
+            charactersGroup.GET("/getProjectsSelectList", charactersController.GetProjectsSelectList) // 获取短剧项目选择列表
+        }
+        
+        // 短剧项目相关路由
+        projectsGroup := v1.Group("/projects").Use(middlewares.AuthAdminJWT())
+        {
+            projectsController := new(controllers.ProjectsController)
+
+            // 基础CRUD路由
+            projectsGroup.GET("", projectsController.Index)         // 获取短剧项目列表
+            projectsGroup.GET("/:id", projectsController.Show)      // 获取短剧项目详情
+            projectsGroup.POST("", projectsController.Store)        // 创建短剧项目
+            
+            
+
+            projectsGroup.PUT("/:id", projectsController.Update)    // 更新短剧项目
+            projectsGroup.DELETE("/:id", projectsController.Delete) // 删除短剧项目
+        }
+        
+        // 剧本相关路由
+        scriptsGroup := v1.Group("/scripts").Use(middlewares.AuthAdminJWT())
+        {
+            scriptsController := new(controllers.ScriptsController)
+
+            // 基础CRUD路由
+            scriptsGroup.GET("", scriptsController.Index)         // 获取剧本列表
+            scriptsGroup.GET("/:id", scriptsController.Show)      // 获取剧本详情
+            scriptsGroup.POST("", scriptsController.Store)        // 创建剧本
+            
+            
+
+            scriptsGroup.PUT("/:id", scriptsController.Update)    // 更新剧本
+            scriptsGroup.DELETE("/:id", scriptsController.Delete) // 删除剧本
+            // 短剧项目选择列表路由
+            scriptsGroup.GET("/getProjectsSelectList", scriptsController.GetProjectsSelectList) // 获取短剧项目选择列表
+        }
+        
+        // 镜头表相关路由
+        shotsGroup := v1.Group("/shots").Use(middlewares.AuthAdminJWT())
+        {
+            shotsController := new(controllers.ShotsController)
+
+            // 基础CRUD路由
+            shotsGroup.GET("", shotsController.Index)         // 获取镜头表列表
+            shotsGroup.GET("/:id", shotsController.Show)      // 获取镜头表详情
+            shotsGroup.POST("", shotsController.Store)        // 创建镜头表
+            
+            
+
+            shotsGroup.PUT("/:id", shotsController.Update)    // 更新镜头表
+            shotsGroup.DELETE("/:id", shotsController.Delete) // 删除镜头表
+            // 短剧项目选择列表路由
+            shotsGroup.GET("/getProjectsSelectList", shotsController.GetProjectsSelectList) // 获取短剧项目选择列表
+            // 剧本选择列表路由
+            shotsGroup.GET("/getScriptsSelectList", shotsController.GetScriptsSelectList) // 获取剧本选择列表
+        }
+        
+        // 系统管理员相关路由
+        adminsGroup := v1.Group("/admins").Use(middlewares.AuthAdminJWT())
+        {
+            adminsController := new(controllers.AdminsController)
+
+            // 基础CRUD路由
+            adminsGroup.GET("", adminsController.Index)         // 获取系统管理员列表
+            adminsGroup.GET("/:id", adminsController.Show)      // 获取系统管理员详情
+            adminsGroup.POST("", adminsController.Store)        // 创建系统管理员
+            
+            
+
+            adminsGroup.PUT("/:id", adminsController.Update)    // 更新系统管理员
+            adminsGroup.DELETE("/:id", adminsController.Delete) // 删除系统管理员
+        }
+        
+        // 系统菜单相关路由
+        sysBaseMenuController := new(controllers.SysBaseMenusesController)
+        sysBaseMenuGroup := v1.Group("/sys_base_menuses").Use(middlewares.AuthAdminJWT())
+        {
+            sysBaseMenuGroup.GET("/getMenuList", sysBaseMenuController.GetMenuList) // 获取系统菜单列表
+            // 基础CRUD路由
+            sysBaseMenuGroup.GET("", sysBaseMenuController.Index)         // 获取系统菜单列表
+            sysBaseMenuGroup.POST("", sysBaseMenuController.Store)        // 创建系统菜单
+            sysBaseMenuGroup.GET("/:id", sysBaseMenuController.Show)      // 获取系统菜单详情
+            sysBaseMenuGroup.PUT("/:id", sysBaseMenuController.Update)    // 更新系统菜单
+            sysBaseMenuGroup.DELETE("/:id", sysBaseMenuController.Delete) // 删除系统菜单
+            sysBaseMenuGroup.GET("/getSysBaseMenusTreeList", sysBaseMenuController.GetSysBaseMenusTreeList) // 获取树形菜单下拉列表
+        }
+        
+    }
+}

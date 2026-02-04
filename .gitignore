@@ -1,0 +1,6 @@
+server/uploads
+server/storage
+server/.idea
+
+web/node_modules
+web/dist
