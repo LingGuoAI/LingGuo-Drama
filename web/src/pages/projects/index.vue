@@ -89,7 +89,7 @@
                                     <span class="meta-time">{{ formatDate(item.createdAt) }}</span>
                                     <span class="meta-duration" v-if="item.totalDuration">{{
                                         formatDuration(item.totalDuration)
-                                        }}</span>
+                                    }}</span>
                                 </div>
                             </div>
                         </t-card>

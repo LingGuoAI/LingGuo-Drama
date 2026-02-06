@@ -1,20 +1,20 @@
 package v1
 
 import (
-    "spiritFruit/app/models/characters"
-    "spiritFruit/app/models/projects"
-    "spiritFruit/app/requests"
-    "spiritFruit/pkg/response"
-    "strconv"
-    "strings"
-    "time"
-    "spiritFruit/app/models"
-    "spiritFruit/pkg/database"
-    "github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
+	"spiritFruit/app/models"
+	"spiritFruit/app/models/characters"
+	"spiritFruit/app/models/projects"
+	"spiritFruit/app/requests"
+	"spiritFruit/pkg/database"
+	"spiritFruit/pkg/response"
+	"strconv"
+	"strings"
+	"time"
 )
 
 type CharactersController struct {
-    BaseADMINController
+	BaseADMINController
 }
 
 // Index 角色列表
@@ -34,64 +34,59 @@ type CharactersController struct {
 // @Failure 500 {object} response.ErrorResponse "服务器错误"
 // @Router /admin/v1/characters [get]
 func (ctrl *CharactersController) Index(c *gin.Context) {
-    // 构建搜索条件
-    where := ctrl.buildSearchConditions(c)
+	// 构建搜索条件
+	where := ctrl.buildSearchConditions(c)
 
-    // 获取分页参数
-    perPage := 10
-    if perPageStr := c.Query("per_page"); perPageStr != "" {
-        if pp, err := strconv.Atoi(perPageStr); err == nil && pp > 0 && pp <= 100 {
-            perPage = pp
-        }
-    }
+	// 获取分页参数
+	perPage := 10
+	if perPageStr := c.Query("pageSize"); perPageStr != "" {
+		if pp, err := strconv.Atoi(perPageStr); err == nil && pp > 0 && pp <= 100 {
+			perPage = pp
+		}
+	}
 
-    data, pager := characters.Paginate(c, perPage, where)
-    response.JSON(c, gin.H{
-        "code": 0,
-        "data": map[string]interface{}{
-            "total": pager.TotalCount,
-            "list":  data,
-        },
-        "message": "success",
-    })
+	data, pager := characters.Paginate(c, perPage, where)
+	response.JSON(c, gin.H{
+		"code": 0,
+		"data": map[string]interface{}{
+			"total": pager.TotalCount,
+			"list":  data,
+		},
+		"message": "success",
+	})
 }
 
 // buildSearchConditions 构建搜索条件
 func (ctrl *CharactersController) buildSearchConditions(c *gin.Context) map[string]interface{} {
-    where := map[string]interface{}{}
+	where := map[string]interface{}{}
 
+	// 所属项目ID搜索
 
-    // 所属项目ID搜索
-    
-    if projectId := strings.TrimSpace(c.Query("projectId")); projectId != "" {
-        where["project_id"] = projectId
-    }
-    
+	if projectId := strings.TrimSpace(c.Query("projectId")); projectId != "" {
+		where["project_id"] = projectId
+	}
 
-    // 角色名搜索
-    
-    if name := strings.TrimSpace(c.Query("name")); name != "" {
-        where["name"] = name
-    }
-    
+	// 角色名搜索
 
-    // 角色类型: main/supporting/minor搜索
-    
-    if roleType := strings.TrimSpace(c.Query("roleType")); roleType != "" {
-        where["role_type"] = roleType
-    }
-    
+	if name := strings.TrimSpace(c.Query("name")); name != "" {
+		where["name"] = name
+	}
 
-    // 性别(需从appearance解析或留空)搜索
-    
-    if gender := strings.TrimSpace(c.Query("gender")); gender != "" {
-        where["gender"] = gender
-    }
-    
+	// 角色类型: main/supporting/minor搜索
 
+	if roleType := strings.TrimSpace(c.Query("roleType")); roleType != "" {
+		where["role_type"] = roleType
+	}
 
-    return where
+	// 性别(需从appearance解析或留空)搜索
+
+	if gender := strings.TrimSpace(c.Query("gender")); gender != "" {
+		where["gender"] = gender
+	}
+
+	return where
 }
+
 // GetProjectsSelectList 获取短剧项目选择列表
 // @Summary 获取短剧项目选择列表
 // @Description 获取短剧项目的简化列表，用于角色中的短剧项目选择
@@ -102,12 +97,12 @@ func (ctrl *CharactersController) buildSearchConditions(c *gin.Context) map[stri
 // @Failure 500 {object} response.ErrorResponse "服务器错误"
 // @Router /admin/v1/characters/getProjectsSelectList [get]
 func (ctrl *CharactersController) GetProjectsSelectList(c *gin.Context) {
-    list:=projects.All()
-    response.JSON(c, gin.H{
-        "code":    0,
-        "data":    list,
-        "message": "success",
-    })
+	list := projects.All()
+	response.JSON(c, gin.H{
+		"code":    0,
+		"data":    list,
+		"message": "success",
+	})
 }
 
 // Show 角色详情
@@ -122,20 +117,20 @@ func (ctrl *CharactersController) GetProjectsSelectList(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse "服务器错误"
 // @Router /admin/v1/characters/{id} [get]
 func (ctrl *CharactersController) Show(c *gin.Context) {
-    charactersModel := characters.Get(c.Param("id"))
-    if charactersModel.ID == 0 {
-        response.JSON(c, gin.H{
-            "code":    404,
-            "message": "数据不存在",
-            "data":    nil,
-        })
-        return
-    }
-    response.JSON(c, gin.H{
-        "code":    0,
-        "data":    charactersModel,
-        "message": "success",
-    })
+	charactersModel := characters.Get(c.Param("id"))
+	if charactersModel.ID == 0 {
+		response.JSON(c, gin.H{
+			"code":    404,
+			"message": "数据不存在",
+			"data":    nil,
+		})
+		return
+	}
+	response.JSON(c, gin.H{
+		"code":    0,
+		"data":    charactersModel,
+		"message": "success",
+	})
 }
 
 // Store 创建角色
@@ -151,33 +146,33 @@ func (ctrl *CharactersController) Show(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse "服务器错误"
 // @Router /admin/v1/characters [post]
 func (ctrl *CharactersController) Store(c *gin.Context) {
-    request := requests.CharactersRequest{}
-    if ok := requests.Validate(c, &request, requests.CharactersSave); !ok {
-        return
-    }
-    charactersModel := characters.Characters{
-        ProjectId: &request.ProjectId,
-        Name: &request.Name,
-        RoleType: &request.RoleType,
-        Gender: &request.Gender,
-        AgeGroup: &request.AgeGroup,
-        Personality: &request.Personality,
-        AppearanceDesc: &request.AppearanceDesc,
-        VisualPrompt: &request.VisualPrompt,
-        AvatarUrl: &request.AvatarUrl,
-        VoiceId: &request.VoiceId,
-    }
+	request := requests.CharactersRequest{}
+	if ok := requests.Validate(c, &request, requests.CharactersSave); !ok {
+		return
+	}
+	charactersModel := characters.Characters{
+		ProjectId:      &request.ProjectId,
+		Name:           &request.Name,
+		RoleType:       &request.RoleType,
+		Gender:         &request.Gender,
+		AgeGroup:       &request.AgeGroup,
+		Personality:    &request.Personality,
+		AppearanceDesc: &request.AppearanceDesc,
+		VisualPrompt:   &request.VisualPrompt,
+		AvatarUrl:      &request.AvatarUrl,
+		VoiceId:        &request.VoiceId,
+	}
 
-    charactersModel.Create()
-    if charactersModel.ID > 0 {
-        response.JSON(c, gin.H{
-            "code":    0,
-            "data":    charactersModel,
-            "message": "success",
-        })
-    } else {
-    response.Abort500(c, "创建失败，请稍后尝试~")
-    }
+	charactersModel.Create()
+	if charactersModel.ID > 0 {
+		response.JSON(c, gin.H{
+			"code":    0,
+			"data":    charactersModel,
+			"message": "success",
+		})
+	} else {
+		response.Abort500(c, "创建失败，请稍后尝试~")
+	}
 }
 
 // Update 更新角色
@@ -195,60 +190,60 @@ func (ctrl *CharactersController) Store(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse "服务器错误"
 // @Router /admin/v1/characters/{id} [put]
 func (ctrl *CharactersController) Update(c *gin.Context) {
-    // 验证数据是否存在
-    id := c.Param("id")
-    existingCharacters := characters.Get(id)
-    if existingCharacters.ID == 0 {
-        response.JSON(c, gin.H{
-            "code":    404,
-            "message": "数据不存在",
-            "data":    nil,
-        })
-        return
-    }
+	// 验证数据是否存在
+	id := c.Param("id")
+	existingCharacters := characters.Get(id)
+	if existingCharacters.ID == 0 {
+		response.JSON(c, gin.H{
+			"code":    404,
+			"message": "数据不存在",
+			"data":    nil,
+		})
+		return
+	}
 
-    request := requests.CharactersRequest{}
-    if bindOk := requests.Validate(c, &request, requests.CharactersSave); !bindOk {
-        return
-    }
-    // 使用新的模型实例进行更新，避免关联对象的影响
-    updateCharacters := &characters.Characters{
-        BaseModel: models.BaseModel{ID: existingCharacters.ID},
-    }
+	request := requests.CharactersRequest{}
+	if bindOk := requests.Validate(c, &request, requests.CharactersSave); !bindOk {
+		return
+	}
+	// 使用新的模型实例进行更新，避免关联对象的影响
+	updateCharacters := &characters.Characters{
+		BaseModel: models.BaseModel{ID: existingCharacters.ID},
+	}
 
-    // 赋值字段
-    updateCharacters.ProjectId = &request.ProjectId
-    updateCharacters.Name = &request.Name
-    updateCharacters.RoleType = &request.RoleType
-    updateCharacters.Gender = &request.Gender
-    updateCharacters.AgeGroup = &request.AgeGroup
-    updateCharacters.Personality = &request.Personality
-    updateCharacters.AppearanceDesc = &request.AppearanceDesc
-    updateCharacters.VisualPrompt = &request.VisualPrompt
-    updateCharacters.AvatarUrl = &request.AvatarUrl
-    updateCharacters.VoiceId = &request.VoiceId
-    updateCharacters.UpdatedAt = time.Now()
-    updateCharacters.CreatedAt = existingCharacters.CreatedAt
+	// 赋值字段
+	updateCharacters.ProjectId = &request.ProjectId
+	updateCharacters.Name = &request.Name
+	updateCharacters.RoleType = &request.RoleType
+	updateCharacters.Gender = &request.Gender
+	updateCharacters.AgeGroup = &request.AgeGroup
+	updateCharacters.Personality = &request.Personality
+	updateCharacters.AppearanceDesc = &request.AppearanceDesc
+	updateCharacters.VisualPrompt = &request.VisualPrompt
+	updateCharacters.AvatarUrl = &request.AvatarUrl
+	updateCharacters.VoiceId = &request.VoiceId
+	updateCharacters.UpdatedAt = time.Now()
+	updateCharacters.CreatedAt = existingCharacters.CreatedAt
 
-    // 执行更新
-    result := database.DB.Save(updateCharacters)
+	// 执行更新
+	result := database.DB.Save(updateCharacters)
 
-    if result.Error != nil {
-        response.Abort500(c, "更新失败：" + result.Error.Error())
-        return
-    }
+	if result.Error != nil {
+		response.Abort500(c, "更新失败："+result.Error.Error())
+		return
+	}
 
-    if result.RowsAffected > 0 {
-        // 重新获取更新后的完整数据（包括关联）
-        updatedCharacters := characters.Get(id)
-        response.JSON(c, gin.H{
-            "code":    0,
-            "data":    updatedCharacters,
-            "message": "success",
-        })
-    } else {
-        response.Abort500(c, "更新失败，请稍后尝试~")
-    }
+	if result.RowsAffected > 0 {
+		// 重新获取更新后的完整数据（包括关联）
+		updatedCharacters := characters.Get(id)
+		response.JSON(c, gin.H{
+			"code":    0,
+			"data":    updatedCharacters,
+			"message": "success",
+		})
+	} else {
+		response.Abort500(c, "更新失败，请稍后尝试~")
+	}
 }
 
 // Delete 删除角色
@@ -264,25 +259,25 @@ func (ctrl *CharactersController) Update(c *gin.Context) {
 // @Failure 500 {object} response.ErrorResponse "服务器错误"
 // @Router /admin/v1/characters/{id} [delete]
 func (ctrl *CharactersController) Delete(c *gin.Context) {
-    charactersModel := characters.Get(c.Param("id"))
-    if charactersModel.ID == 0 {
-        response.JSON(c, gin.H{
-            "code":    404,
-            "message": "数据不存在",
-            "data":    nil,
-        })
-        return
-    }
+	charactersModel := characters.Get(c.Param("id"))
+	if charactersModel.ID == 0 {
+		response.JSON(c, gin.H{
+			"code":    404,
+			"message": "数据不存在",
+			"data":    nil,
+		})
+		return
+	}
 
-    rowsAffected := charactersModel.Delete()
-    if rowsAffected > 0 {
-        response.JSON(c, gin.H{
-        "code":    0,
-        "data":    "",
-        "message": "success",
-    })
-        return
-    }
+	rowsAffected := charactersModel.Delete()
+	if rowsAffected > 0 {
+		response.JSON(c, gin.H{
+			"code":    0,
+			"data":    "",
+			"message": "success",
+		})
+		return
+	}
 
-    response.Abort500(c, "删除失败，请稍后尝试~")
+	response.Abort500(c, "删除失败，请稍后尝试~")
 }
