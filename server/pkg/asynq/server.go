@@ -2,7 +2,6 @@ package asynq
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/hibiken/asynq"
 	"spiritFruit/pkg/config"
@@ -11,42 +10,46 @@ import (
 
 var server *asynq.Server
 
-// SetAsyncServerClient 以并发和队列选项初始化服务器
-func SetAsyncServerClient(ctx context.Context) {
+// StartServer 启动服务
+func StartServer(ctx context.Context, mux *asynq.ServeMux) {
+	// 1. 初始化 Redis 连接配置
 	redisConnOpt := asynq.RedisClientOpt{
 		Addr:     fmt.Sprintf("%v:%v", config.GetString("redis.host"), config.GetString("redis.port")),
 		Password: config.GetString("redis.password"),
-		DB:       config.GetInt("redis.database_asynq"),
+		DB:       config.GetInt("redis.database_async"),
 	}
 
-	mux := asynq.NewServeMux()
-	mux.HandleFunc("sora:generate_video", handelGenerateVideo)
-
+	// 2. 创建 Server 实例
 	server = asynq.NewServer(
 		redisConnOpt,
 		asynq.Config{
 			Concurrency: 10,
 			Queues: map[string]int{
-				"default":  6,
-				"critical": 4,
+				"critical": 6,
+				"default":  3,
+				"low":      1,
 			},
+			ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, task *asynq.Task, err error) {
+				console.Error(fmt.Sprintf("任务处理失败 [Type: %s]: %v", task.Type(), err))
+			}),
 		},
 	)
 
-	// 监听 context 取消，优雅关闭
+	// 3. 监听 Context 取消信号
 	go func() {
 		<-ctx.Done()
-		console.Success("Shutting down asynq server...")
-		server.Shutdown()
+		console.Success("正在关闭 Asynq Server...")
+		Shutdown()
 	}()
 
+	// 4. 启动服务
+	console.Success("Asynq Server 已启动，正在监听任务...")
 	if err := server.Run(mux); err != nil {
-		// 如果是因为 shutdown 导致的退出，不算错误
 		if ctx.Err() != nil {
-			console.Success("Asynq server stopped gracefully")
+			console.Success("Asynq Server 已优雅停止")
 			return
 		}
-		console.Exit(fmt.Sprintf("Failed to run asynq server with %s", err.Error()))
+		console.Exit(fmt.Sprintf("Asynq Server 启动失败: %s", err.Error()))
 	}
 }
 
@@ -55,18 +58,4 @@ func Shutdown() {
 	if server != nil {
 		server.Shutdown()
 	}
-}
-
-type GenerateVideoPaperPayload struct {
-	OrderSn string `json:"order_sn"`
-}
-
-func handelGenerateVideo(ctx context.Context, t *asynq.Task) error {
-	var p GenerateVideoPaperPayload
-	if err := json.Unmarshal(t.Payload(), &p); err != nil {
-		console.Error(fmt.Sprintf("Failed to unmarshal payload: %v", err))
-		return err
-	}
-
-	return fmt.Errorf("video generation timeout")
 }

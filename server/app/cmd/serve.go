@@ -1,16 +1,19 @@
 package cmd
 
 import (
+	"context"
+	"net/http"
 	"spiritFruit/bootstrap"
+	"spiritFruit/pkg/appctx"
 	"spiritFruit/pkg/config"
 	"spiritFruit/pkg/console"
 	"spiritFruit/pkg/logger"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 )
 
-// CmdServe represents the available web sub-command.
 var CmdServe = &cobra.Command{
 	Use:   "serve",
 	Short: "Start web server",
@@ -19,23 +22,38 @@ var CmdServe = &cobra.Command{
 }
 
 func runWeb(cmd *cobra.Command, args []string) {
-
-	// 设置 gin 的运行模式，支持 debug, release, test
-	// release 会屏蔽调试信息，官方建议生产环境中使用
-	// 非 release 模式 gin 终端打印太多信息，干扰到我们程序中的 Log
-	// 故此设置为 release，有特殊情况手动改为 debug 即可
 	gin.SetMode(gin.ReleaseMode)
 
-	// gin 实例
 	router := gin.New()
-
-	// 初始化路由绑定
 	bootstrap.SetupRoute(router)
 
-	// 运行服务器
-	err := router.Run(":" + config.Get("app.port"))
-	if err != nil {
-		logger.ErrorString("CMD", "serve", err.Error())
-		console.Exit("Unable to start server, error:" + err.Error())
+	// 使用 http.Server 替代 router.Run()
+	srv := &http.Server{
+		Addr:    ":" + config.Get("app.port"),
+		Handler: router,
 	}
+
+	// 在 goroutine 中启动服务器
+	go func() {
+		console.Success("Server started on port " + config.Get("app.port"))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.ErrorString("CMD", "serve", err.Error())
+			console.Exit("Unable to start server, error:" + err.Error())
+		}
+	}()
+
+	// 等待全局 context 被取消
+	<-appctx.GetContext().Done()
+
+	console.Warning("Shutting down server...")
+
+	// 创建一个带超时的 context 用于关闭（给正在处理的请求一些时间）
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		logger.ErrorString("CMD", "serve", "Server forced to shutdown: "+err.Error())
+	}
+
+	console.Success("Server exited properly")
 }

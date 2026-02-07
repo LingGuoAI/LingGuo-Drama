@@ -1,93 +1,68 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	redis "github.com/redis/go-redis/v9"
-	"github.com/spf13/cobra"
 	"os"
 	"os/signal"
+	"syscall"
+
+	"github.com/hibiken/asynq"
+	"github.com/spf13/cobra"
+
 	"spiritFruit/app/cmd"
+	"spiritFruit/app/jobs" // 引入任务处理逻辑
 	"spiritFruit/bootstrap"
 	btsConfig "spiritFruit/config"
 	"spiritFruit/pkg/appctx"
-	"spiritFruit/pkg/asynq"
+	myAsynq "spiritFruit/pkg/asynq" // 给包起个别名，方便区分
 	"spiritFruit/pkg/config"
 	"spiritFruit/pkg/console"
-	"syscall"
 )
 
 func init() {
-	// 加载 config 目录下的配置信息
+	// 加载 config 目录下的配置映射
 	btsConfig.Initialize()
-
-}
-
-// setupGracefulShutdown 设置优雅关闭
-func setupGracefulShutdown() {
-	// 初始化全局 context
-	ctx, cancel := appctx.Initialize()
-
-	go func() {
-		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-		sig := <-sigs
-		console.Warning(fmt.Sprintf("Received signal: %v, initiating graceful shutdown...", sig))
-
-		cancel()
-	}()
-
-	_ = ctx // 避免未使用警告
-}
-
-func testRedisConnection() error {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%v:%v", config.GetString("redis.host"), config.GetString("redis.port")),
-		Password: config.GetString("redis.password"),
-		DB:       config.GetInt("redis.database_asynq"),
-	})
-
-	ctx := context.Background()
-	_, err := rdb.Ping(ctx).Result()
-	return err
 }
 
 func main() {
+
+	// 设置优雅关闭信号监听
 	setupGracefulShutdown()
-	// 应用的主入口，默认调用 cmd.CmdServe 命令
+	// 初始化应用命令
 	var rootCmd = &cobra.Command{
-		Use:   "",
+		Use:   "spiritFruit",
 		Short: "A simple write project",
 		Long:  `Default will run "serve" command, you can use "-h" flag to see all subcommands`,
 
-		// rootCmd 的所有子命令都会执行以下代码
+		// PersistentPreRun 在任何子命令执行前都会运行
 		PersistentPreRun: func(command *cobra.Command, args []string) {
 
-			// 配置初始化，依赖命令行 --env 参数
+			// 1. 初始化配置和基础设施
 			config.InitConfig(cmd.Env)
-
-			// 初始化 Logger
 			bootstrap.SetupLogger()
-
-			// 初始化数据库
 			bootstrap.SetupDB()
-
-			// 初始化 Redis
 			bootstrap.SetupRedis()
-
-			// 测试 Redis 连接
-			if err := testRedisConnection(); err != nil {
-				console.Exit(fmt.Sprintf("Failed to connect to Redis with %s", err.Error()))
-			}
-
-			// 初始化缓存
 			bootstrap.SetupCache()
 
-			asynq.GetClient()
+			// 2. 初始化 Asynq 客户端 (用于投递任务)
+			myAsynq.GetClient()
 
-			// 使用共享的 context
-			go asynq.SetAsyncServerClient(appctx.GetContext())
+			// 在这里将 "任务类型字符串" 和 "处理函数" 绑定
+			mux := asynq.NewServeMux()
+			mux.HandleFunc(myAsynq.TypeGenerateScript, jobs.HandleGenerateScript)
+			mux.HandleFunc(myAsynq.TypeGenerateImage, jobs.HandleGenerateImage)
+
+			// 4. 启动 Asynq Server (消费者)
+			// 使用 goroutine 启动，避免阻塞主线程（Web Server）
+			// 传入 appctx 获取的全局 context，用于优雅关闭
+			go myAsynq.StartServer(appctx.GetContext(), mux)
+		},
+
+		// PersistentPostRun 在命令执行结束后运行
+		PersistentPostRun: func(command *cobra.Command, args []string) {
+			// 优雅关闭 Asynq Server
+			myAsynq.Shutdown()
+			console.Success("Application shutdown complete")
 		},
 	}
 
@@ -98,14 +73,34 @@ func main() {
 		cmd.CmdCache,
 	)
 
-	// 配置默认运行 Web 服务
+	// 注册默认命令 (serve)
 	cmd.RegisterDefaultCmd(rootCmd, cmd.CmdServe)
 
-	// 注册全局参数，--env
+	// 注册全局参数 (--env)
 	cmd.RegisterGlobalFlags(rootCmd)
 
 	// 执行主命令
 	if err := rootCmd.Execute(); err != nil {
 		console.Exit(fmt.Sprintf("Failed to run app with %v: %s", os.Args, err.Error()))
 	}
+}
+
+// setupGracefulShutdown 监听系统信号，触发 context 取消
+func setupGracefulShutdown() {
+	// 这里的 Initialize 返回的是全局 context 的 cancel 函数
+	_, cancel := appctx.Initialize()
+
+	go func() {
+		// 创建信号通道
+		sigs := make(chan os.Signal, 1)
+		// 监听 SIGINT (Ctrl+C) 和 SIGTERM (kill)
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+		// 阻塞直到收到信号
+		sig := <-sigs
+		console.Warning(fmt.Sprintf("Received signal: %v, initiating graceful shutdown...", sig))
+
+		// 调用 cancel，通知所有通过 appctx.GetContext() 获取 context 的组件（如 Asynq Server）停止工作
+		cancel()
+	}()
 }

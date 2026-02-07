@@ -8,7 +8,7 @@
                 <div class="header-title">
                     <span class="title">{{ project?.title || '加载中...' }}</span>
                     <t-tag :theme="getStatusTheme(project?.status)" variant="light">{{ getStatusText(project?.status)
-                    }}</t-tag>
+                        }}</t-tag>
                 </div>
             </div>
 
@@ -193,7 +193,7 @@
                                     <span class="name">{{ char.name }}</span>
                                     <t-tag size="small" :theme="getRoleTheme(char.role_type)">{{
                                         getRoleText(char.role_type)
-                                    }}</t-tag>
+                                        }}</t-tag>
                                 </div>
                                 <div class="desc text-ellipsis-2" :title="char.visual_prompt || char.appearance_desc">
                                     {{ char.visual_prompt || char.appearance_desc || '暂无描述' }}
