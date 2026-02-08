@@ -10,11 +10,11 @@ import (
 	"github.com/spf13/cobra"
 
 	"spiritFruit/app/cmd"
-	"spiritFruit/app/jobs" // 引入任务处理逻辑
+	"spiritFruit/app/jobs"
 	"spiritFruit/bootstrap"
 	btsConfig "spiritFruit/config"
 	"spiritFruit/pkg/appctx"
-	myAsynq "spiritFruit/pkg/asynq" // 给包起个别名，方便区分
+	myAsynq "spiritFruit/pkg/asynq"
 	"spiritFruit/pkg/config"
 	"spiritFruit/pkg/console"
 )
@@ -31,7 +31,7 @@ func main() {
 	// 初始化应用命令
 	var rootCmd = &cobra.Command{
 		Use:   "spiritFruit",
-		Short: "A simple write project",
+		Short: "An AI-powered backend for short drama script and image generation",
 		Long:  `Default will run "serve" command, you can use "-h" flag to see all subcommands`,
 
 		// PersistentPreRun 在任何子命令执行前都会运行

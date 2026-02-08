@@ -53,7 +53,7 @@ export const updateProjects = (id: number | string, data: any) => {
 // @Router /projects/{id} [get]
 export const findProjects = (id: number | string) => {
   return request.get({
-  url: `/projects/${id}`
+    url: `/projects/${id}`
   })
 }
 // @Tags Projects
