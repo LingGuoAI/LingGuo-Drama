@@ -47,10 +47,13 @@ func main() {
 			// 2. 初始化 Asynq 客户端 (用于投递任务)
 			myAsynq.GetClient()
 
-			// 在这里将 "任务类型字符串" 和 "处理函数" 绑定
 			mux := asynq.NewServeMux()
 			mux.HandleFunc(myAsynq.TypeGenerateScript, jobs.HandleGenerateScript)
 			mux.HandleFunc(myAsynq.TypeGenerateImage, jobs.HandleGenerateImage)
+			mux.HandleFunc(myAsynq.TypeGenerateCharacters, jobs.HandleGenerateCharacters)
+			mux.HandleFunc(myAsynq.TypeExtractScenes, jobs.HandleExtractScenes)
+			mux.HandleFunc(myAsynq.TypeGenerateSceneImage, jobs.HandleGenerateSceneImage)
+			mux.HandleFunc(myAsynq.TypeGenerateShots, jobs.HandleGenerateShots)
 
 			// 4. 启动 Asynq Server (消费者)
 			// 使用 goroutine 启动，避免阻塞主线程（Web Server）

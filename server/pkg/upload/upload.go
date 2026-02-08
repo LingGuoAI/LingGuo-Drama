@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"spiritFruit/pkg/str"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
-	"strings"
 	"path/filepath"
+	"spiritFruit/pkg/str"
+	"strings"
 	"time"
 )
 
@@ -143,4 +145,69 @@ func DecodeBase64Image(base64Str, fileNameValue string) (errStr string, filePath
 		return "保存图片失败", ""
 	}
 	return "", filePath
+}
+
+// SaveImageByte 通用文件保存逻辑 (供 Job 使用)
+// data: 图片的二进制数据
+// ext: 文件后缀 (e.g. ".png", ".jpg")
+// return: 相对路径 (e.g. "uploads/images/2024/02/08/xxx.png"), error
+func SaveImageByte(data []byte, ext string) (string, error) {
+	// 1. 创建上传目录 (保持与 UploadsTool 一致的结构)
+	uploadDir := "uploads/images/" + time.Now().Format("2006/01/02")
+	if err := os.MkdirAll(uploadDir, 0755); err != nil {
+		return "", fmt.Errorf("create dir failed: %v", err)
+	}
+
+	// 2. 生成唯一文件名
+	if !strings.HasPrefix(ext, ".") {
+		ext = "." + ext
+	}
+	fileName := uuid.New().String() + ext
+	filePath := path.Join(uploadDir, fileName)
+
+	// 3. 写入文件
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		return "", fmt.Errorf("write file failed: %v", err)
+	}
+
+	// 4. 返回相对路径 (注意：Windows下如果是反斜杠可能需要转义，这里假设是 Linux/Mac 风格或用于 Web URL)
+	// 为了前端访问方便，通常统一为 "/"
+	return strings.ReplaceAll(filePath, "\\", "/"), nil
+}
+
+// DownloadAndSave 从 URL 下载并保存 (针对 OpenAI 返回 URL 的情况)
+func DownloadAndSave(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	// 简单推断后缀，默认 png
+	return SaveImageByte(data, ".png")
+}
+
+// SaveBase64Image 保存 Base64 图片 (针对 Gemini 返回 DataURI 的情况)
+func SaveBase64Image(base64Str string) (string, error) {
+	// 去掉 data:image/png;base64, 前缀
+	parts := strings.Split(base64Str, ",")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid base64 format")
+	}
+
+	// 获取后缀 (简单解析)
+	mimeType := strings.Split(strings.Split(parts[0], ";")[0], ":")[1] // image/png
+	ext := "." + strings.Split(mimeType, "/")[1]
+
+	data, err := base64.StdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", err
+	}
+
+	return SaveImageByte(data, ext)
 }

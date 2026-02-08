@@ -54,3 +54,47 @@ func EnqueueGenerateImage(payload GenerateImagePayload) (*asynq.TaskInfo, error)
 	}
 	return info, nil
 }
+
+// EnqueueGenerateCharacters 投递角色生成任务
+func EnqueueGenerateCharacters(payload GenerateCharactersPayload) (*asynq.TaskInfo, error) {
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	// 角色生成不算特别耗时，放入 default 队列
+	task := asynq.NewTask(TypeGenerateCharacters, bytes)
+	return GetClient().Enqueue(task, asynq.Queue("default"))
+}
+
+// EnqueueExtractScenes 投递场景提取任务
+func EnqueueExtractScenes(payload ExtractScenesPayload) (*asynq.TaskInfo, error) {
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	// 场景提取涉及整集剧本分析，耗时较长，放入 default 队列
+	task := asynq.NewTask(TypeExtractScenes, bytes)
+	return GetClient().Enqueue(task, asynq.Queue("default"))
+}
+
+// EnqueueGenerateSceneImage 投递场景生图任务
+func EnqueueGenerateSceneImage(payload GenerateSceneImagePayload) (*asynq.TaskInfo, error) {
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	// 放入 default 队列
+	task := asynq.NewTask(TypeGenerateSceneImage, bytes)
+	return GetClient().Enqueue(task, asynq.Queue("default"))
+}
+
+// EnqueueGenerateShots 投递分镜生成任务
+func EnqueueGenerateShots(payload GenerateShotsPayload) (*asynq.TaskInfo, error) {
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	// 分镜生成耗时较长，建议放入 default 或 critical 队列
+	task := asynq.NewTask(TypeGenerateShots, bytes)
+	return GetClient().Enqueue(task, asynq.Queue("default"))
+}

@@ -80,7 +80,15 @@ func RegisterAdminAPIRoutes(r *gin.Engine) {
 		{
 			// 假设你创建了 TasksController
 			tasksController := new(controllers.TasksController)
-			tasksGroup.GET("/:id", tasksController.Show) // 查询任务详情(包含进度和结果)
+			aiController := new(controllers.AiController)
+			tasksGroup.GET("/:id", tasksController.Show)                                                // 查询任务详情(包含进度和结果)
+			tasksGroup.POST("/generateCharacters", aiController.GenerateCharacters)                     // 提取角色
+			tasksGroup.POST("/extractScenes", aiController.ExtractScenes)                               // 提取场景
+			tasksGroup.POST("/generateCharacterImage", aiController.GenerateCharacterImage)             // 单个角色生图
+			tasksGroup.POST("/batchGenerateCharacterImages", aiController.BatchGenerateCharacterImages) // 多个角色生图
+			tasksGroup.POST("/generateSceneImage", aiController.GenerateSceneImage)                     // 单个场景生图
+			tasksGroup.POST("/batchGenerateSceneImages", aiController.BatchGenerateSceneImages)         // 批量场景生图
+			tasksGroup.POST("/generateShots", aiController.GenerateShots)
 		}
 
 		// 剧本相关路由
@@ -98,6 +106,34 @@ func RegisterAdminAPIRoutes(r *gin.Engine) {
 			scriptsGroup.DELETE("/:id", scriptsController.Delete) // 删除剧本
 			// 短剧项目选择列表路由
 			scriptsGroup.GET("/getProjectsSelectList", scriptsController.GetProjectsSelectList) // 获取短剧项目选择列表
+		}
+
+		// 场景相关路由
+		scenesGroup := v1.Group("/scenes").Use(middlewares.AuthAdminJWT())
+		{
+			scenesController := new(controllers.ScenesController)
+
+			// 基础CRUD路由
+			scenesGroup.GET("", scenesController.Index)    // 获取场景列表
+			scenesGroup.GET("/:id", scenesController.Show) // 获取场景详情
+			scenesGroup.POST("", scenesController.Store)   // 创建场景
+
+			scenesGroup.PUT("/:id", scenesController.Update)    // 更新场景
+			scenesGroup.DELETE("/:id", scenesController.Delete) // 删除场景
+		}
+
+		// 道具相关路由
+		propsGroup := v1.Group("/props").Use(middlewares.AuthAdminJWT())
+		{
+			propsController := new(controllers.PropsController)
+
+			// 基础CRUD路由
+			propsGroup.GET("", propsController.Index)    // 获取道具列表
+			propsGroup.GET("/:id", propsController.Show) // 获取道具详情
+			propsGroup.POST("", propsController.Store)   // 创建道具
+
+			propsGroup.PUT("/:id", propsController.Update)    // 更新道具
+			propsGroup.DELETE("/:id", propsController.Delete) // 删除道具
 		}
 
 		// 镜头表相关路由
