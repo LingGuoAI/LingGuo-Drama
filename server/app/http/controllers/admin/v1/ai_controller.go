@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"spiritFruit/app/models/characters"
+	"spiritFruit/app/models/props"
 	"spiritFruit/app/models/scenes"
 	"spiritFruit/app/models/scripts"
 	"spiritFruit/app/requests"
@@ -26,7 +27,7 @@ func (ctrl *AiController) GenerateCharacters(c *gin.Context) {
 
 	// 2. 调用 TaskService
 	taskService := new(services.TaskService)
-	task, err := taskService.CreateGenerateCharactersTask(uint64(request.DramaID), request.Count, request.Outline)
+	task, err := taskService.CreateGenerateCharactersTask(uint64(request.ProjectId), request.Count, request.Outline)
 
 	if err != nil {
 		response.Abort500(c, "任务启动失败: "+err.Error())
@@ -51,21 +52,21 @@ func (ctrl *AiController) ExtractScenes(c *gin.Context) {
 		return
 	}
 
-	// 查询关联的项目ID (ExtractScenesRequest 只有 EpisodeID)
-	var episode scripts.Scripts
-	if err := database.DB.First(&episode, request.EpisodeID).Error; err != nil {
+	// 查询关联的项目ID
+	var scriptsInfo scripts.Scripts
+	if err := database.DB.First(&scriptsInfo, request.ScriptId).Error; err != nil {
 		response.Abort500(c, "未找到对应章节")
 		return
 	}
 	// 注意：episode.ProjectId 是指针
 	var projectID uint64
-	if episode.ProjectId != nil {
-		projectID = *episode.ProjectId
+	if scriptsInfo.ProjectId != nil {
+		projectID = *scriptsInfo.ProjectId
 	}
 
 	// 2. 调用 TaskService
 	taskService := new(services.TaskService)
-	task, err := taskService.CreateExtractScenesTask(projectID, uint64(request.EpisodeID))
+	task, err := taskService.CreateExtractScenesTask(projectID, uint64(request.ScriptId))
 
 	if err != nil {
 		response.Abort500(c, "任务启动失败: "+err.Error())
@@ -382,5 +383,160 @@ func (ctrl *AiController) GenerateShots(c *gin.Context) {
 		"data": map[string]interface{}{
 			"task_id": task.ID,
 		},
+	})
+}
+
+// ExtractProps 从剧本提取道具
+func (ctrl *AiController) ExtractProps(c *gin.Context) {
+	type Req struct {
+		EpisodeID uint64 `json:"episodeId" binding:"required"`
+	}
+	var req Req
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Abort500(c, "参数错误: "+err.Error())
+		return
+	}
+
+	// 查剧本信息
+	var script scripts.Scripts
+	if err := database.DB.First(&script, req.EpisodeID).Error; err != nil {
+		response.Abort500(c, "剧本不存在")
+		return
+	}
+
+	taskService := new(services.TaskService)
+	projectID := uint64(0)
+	if script.ProjectId != nil {
+		projectID = *script.ProjectId
+	}
+
+	// 创建任务
+	task, err := taskService.CreateExtractPropsTask(projectID, req.EpisodeID)
+	if err != nil {
+		response.Abort500(c, "任务创建失败: "+err.Error())
+		return
+	}
+
+	response.JSON(c, gin.H{
+		"code": 0,
+		"data": gin.H{
+			"task_id": task.ID,
+		},
+		"message": "道具提取任务已提交",
+	})
+}
+
+// GeneratePropImage 单个道具生图
+func (ctrl *AiController) GeneratePropImage(c *gin.Context) {
+	type Req struct {
+		PropID uint64 `json:"propId" binding:"required"`
+	}
+	var req Req
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Abort500(c, "参数错误: "+err.Error())
+		return
+	}
+
+	// 查找道具
+	var prop props.Props
+	if err := database.DB.First(&prop, req.PropID).Error; err != nil {
+		response.Abort500(c, "道具不存在")
+		return
+	}
+
+	// 构造 Prompt
+	prompt := ""
+	if prop.ImagePrompt != nil && *prop.ImagePrompt != "" {
+		prompt = *prop.ImagePrompt
+	} else {
+		// 如果没有专门的 ImagePrompt，使用描述或名字兜底
+		desc := ""
+		if prop.Description != nil {
+			desc = *prop.Description
+		}
+		name := ""
+		if prop.Name != nil {
+			name = *prop.Name
+		}
+		prompt = fmt.Sprintf("%s, %s", name, desc)
+	}
+
+	taskService := new(services.TaskService)
+	projectID := uint64(0)
+	if prop.ProjectId != nil {
+		projectID = *prop.ProjectId
+	}
+
+	task, err := taskService.CreatePropImageGenerationTask(projectID, req.PropID, prompt)
+	if err != nil {
+		response.Abort500(c, "任务创建失败: "+err.Error())
+		return
+	}
+
+	response.JSON(c, gin.H{
+		"code":    0,
+		"data":    gin.H{"task_id": task.ID},
+		"message": "生图任务已提交",
+	})
+}
+
+// BatchGeneratePropImages 批量道具生图
+func (ctrl *AiController) BatchGeneratePropImages(c *gin.Context) {
+	type Req struct {
+		PropIDs []uint64 `json:"propIds" binding:"required,min=1,max=20"`
+	}
+	var req Req
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Abort500(c, "参数错误: "+err.Error())
+		return
+	}
+
+	type TaskResult struct {
+		PropID uint64 `json:"prop_id"`
+		TaskID uint64 `json:"task_id"`
+	}
+	var results []TaskResult
+	taskService := new(services.TaskService)
+
+	for _, propID := range req.PropIDs {
+		var prop props.Props
+		if err := database.DB.First(&prop, propID).Error; err != nil {
+			continue
+		}
+
+		// 构造 Prompt
+		prompt := ""
+		if prop.ImagePrompt != nil && *prop.ImagePrompt != "" {
+			prompt = *prop.ImagePrompt
+		} else {
+			desc := ""
+			if prop.Description != nil {
+				desc = *prop.Description
+			}
+			name := ""
+			if prop.Name != nil {
+				name = *prop.Name
+			}
+			prompt = fmt.Sprintf("%s, %s", name, desc)
+		}
+
+		projectID := uint64(0)
+		if prop.ProjectId != nil {
+			projectID = *prop.ProjectId
+		}
+
+		task, err := taskService.CreatePropImageGenerationTask(projectID, propID, prompt)
+		if err == nil {
+			results = append(results, TaskResult{
+				PropID: propID,
+				TaskID: task.ID,
+			})
+		}
+	}
+
+	response.JSON(c, gin.H{
+		"code":    0,
+		"message": "批量任务已提交",
+		"data":    results,
 	})
 }

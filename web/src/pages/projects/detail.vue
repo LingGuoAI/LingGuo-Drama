@@ -9,7 +9,7 @@
                     <div class="title-row">
                         <span class="title">{{ project.title || '加载中...' }}</span>
                         <t-tag :theme="getStatusTheme(project.status)" variant="light">{{ getStatusText(project.status)
-                        }}</t-tag>
+                            }}</t-tag>
                     </div>
                     <div class="desc">创建时间: {{ formatDate(project.createdAt) }}</div>
                 </div>
@@ -37,11 +37,11 @@
                                     <t-descriptions :column="1" layout="vertical">
                                         <t-descriptions-item label="项目名称">{{ project.title }}</t-descriptions-item>
                                         <t-descriptions-item label="剧情简介">{{ project.description || '暂无简介'
-                                        }}</t-descriptions-item>
+                                            }}</t-descriptions-item>
                                         <t-descriptions-item label="视频比例">{{ getRatioLabel(project.settings)
-                                        }}</t-descriptions-item>
+                                            }}</t-descriptions-item>
                                         <t-descriptions-item label="总时长">{{ formatDuration(project.totalDuration)
-                                        }}</t-descriptions-item>
+                                            }}</t-descriptions-item>
                                     </t-descriptions>
                                 </t-card>
 
@@ -102,6 +102,9 @@
                             <div class="left-actions">
                                 <t-button theme="primary" @click="openCharacterDialog('create')"><template #icon><t-icon
                                             name="user-add" /></template>添加角色</t-button>
+                                <t-button theme="default" variant="outline" @click="openExtractCharDialog">
+                                    <template #icon><t-icon name="file-paste" /></template>从剧本提取
+                                </t-button>
                                 <t-button theme="default" variant="outline" :disabled="selectedCharIds.length === 0"
                                     @click="batchGenerate('char')" :loading="batchGeneratingChar">
                                     <template #icon><t-icon name="magic" /></template>批量生图
@@ -236,24 +239,61 @@
                 <t-tab-panel value="props" label="道具库">
                     <div class="tab-panel-content">
                         <div class="action-bar">
-                            <t-button theme="primary" @click="openPropDialog('create')"><template #icon><t-icon
-                                        name="gift" /></template>添加道具</t-button>
+                            <div class="left-actions">
+                                <t-button theme="primary" @click="openPropDialog('create')">
+                                    <template #icon><t-icon name="gift" /></template>添加道具
+                                </t-button>
+                                <t-button theme="default" variant="outline" @click="openExtractPropDialog">
+                                    <template #icon><t-icon name="file-paste" /></template>从剧本提取
+                                </t-button>
+                                <t-button theme="default" variant="outline" :disabled="selectedPropIds.length === 0"
+                                    @click="batchGenerate('prop')" :loading="batchGeneratingProp">
+                                    <template #icon><t-icon name="magic" /></template>批量生图
+                                </t-button>
+                            </div>
+
                             <t-input v-model="propSearch" placeholder="搜索道具..." style="width: 200px" @enter="loadProps">
                                 <template #suffix-icon><t-icon name="search" @click="loadProps" /></template>
                             </t-input>
                         </div>
 
+                        <div class="selection-bar" v-if="propList.length > 0">
+                            <t-checkbox :checked="checkAllProps" :indeterminate="isPropIndeterminate"
+                                @change="handleSelectAllProps">全选 ({{ selectedPropIds.length }})</t-checkbox>
+                        </div>
+
                         <div class="resource-grid">
-                            <t-card v-for="prop in propList" :key="prop.id" class="resource-card" :bordered="false">
+                            <t-card v-for="prop in propList" :key="prop.id" class="resource-card"
+                                :class="{ 'is-selected': selectedPropIds.includes(prop.id) }" :bordered="false">
+                                <div class="card-select">
+                                    <t-checkbox :checked="selectedPropIds.includes(prop.id)"
+                                        @change="() => togglePropSelection(prop.id)" />
+                                </div>
+
                                 <div class="res-cover">
                                     <t-image :src="getImageUrl(prop.imageUrl)" fit="contain" class="res-img"
                                         style="padding: 10px; background: #f9f9f9;" />
+
+                                    <div v-if="generatingPropIds.includes(prop.id)" class="loading-mask">
+                                        <t-loading size="small" text="生成中..." />
+                                    </div>
+
                                     <div class="res-overlay">
+                                        <t-tooltip content="AI生成图片">
+                                            <t-button shape="circle" theme="success" size="small"
+                                                @click="singleGenerate('prop', prop)">
+                                                <template #icon><t-icon name="magic" /></template>
+                                            </t-button>
+                                        </t-tooltip>
+
                                         <t-button shape="circle" theme="primary" size="small"
-                                            @click="openPropDialog('edit', prop)"><t-icon name="edit" /></t-button>
+                                            @click="openPropDialog('edit', prop)">
+                                            <template #icon><t-icon name="edit" /></template>
+                                        </t-button>
                                         <t-popconfirm content="确认删除该道具？" @confirm="handleDeleteProp(prop.id)">
-                                            <t-button shape="circle" theme="danger" size="small"><t-icon
-                                                    name="delete" /></t-button>
+                                            <t-button shape="circle" theme="danger" size="small">
+                                                <template #icon><t-icon name="delete" /></template>
+                                            </t-button>
                                         </t-popconfirm>
                                     </div>
                                 </div>
@@ -289,6 +329,35 @@
                         :options="[{ label: '主角', value: 'main' }, { label: '配角', value: 'supporting' }]" /></t-form-item>
                 <t-form-item label="外貌描述" name="appearanceDesc"><t-textarea
                         v-model="charFormData.appearanceDesc" /></t-form-item>
+            </t-form>
+        </t-dialog>
+
+        <t-dialog v-model:visible="extractCharDialog.visible" header="从剧本提取角色"
+            :confirm-btn="{ content: '开始提取', theme: 'primary', loading: extractCharDialog.loading }"
+            @confirm="handleExtractFromScript">
+            <t-form :data="extractCharForm" label-align="top">
+                <t-form-item label="选择剧集" name="scriptId" help="将分析该集剧本内容，自动提取登场角色">
+                    <t-select v-model="extractCharForm.scriptId" placeholder="请选择剧集" filterable>
+                        <t-option v-for="ep in episodeList" :key="ep.id" :value="ep.id"
+                            :label="`第 ${ep.episodeNo} 集 - ${ep.title}`" />
+                    </t-select>
+                </t-form-item>
+                <t-form-item label="提取数量" name="count">
+                    <t-input-number v-model="extractCharForm.count" :min="1" :max="20" />
+                </t-form-item>
+            </t-form>
+        </t-dialog>
+
+        <t-dialog v-model:visible="extractPropDialog.visible" header="从剧本提取道具"
+            :confirm-btn="{ content: '开始提取', theme: 'primary', loading: extractPropDialog.loading }"
+            @confirm="handleExtractPropsFromScript">
+            <t-form :data="extractPropForm" label-align="top">
+                <t-form-item label="选择剧集" name="scriptId" help="AI将分析该集剧本，自动提取关键道具">
+                    <t-select v-model="extractPropForm.scriptId" placeholder="请选择剧集" filterable>
+                        <t-option v-for="ep in episodeList" :key="ep.id" :value="ep.id"
+                            :label="`第 ${ep.episodeNo} 集 - ${ep.title}`" />
+                    </t-select>
+                </t-form-item>
             </t-form>
         </t-dialog>
 
@@ -344,24 +413,23 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin } from 'tdesign-vue-next'
-import {
-    ArrowLeftIcon, AddIcon, SearchIcon, EditIcon, DeleteIcon,
-    RefreshIcon, UserAddIcon, ImageIcon, GiftIcon, CheckCircleIcon, MagicIcon
-} from 'tdesign-icons-vue-next'
 import dayjs from 'dayjs'
 
 // API
 import { findProjects } from '@/api/projects'
-import { getScriptsList, createScripts } from '@/api/scripts'
+import { getScriptsList, createScripts, findScripts } from '@/api/scripts'
 import { getCharactersList, createCharacters, updateCharacters, deleteCharacters } from '@/api/characters'
 import { getScenesList, createScenes, updateScenes, deleteScenes } from '@/api/scenes'
 import { getPropsList, createProps, updateProps, deleteProps } from '@/api/props'
-// 任务API
 import {
     generateCharacterImageTask,
     batchGenerateCharacterImagesTask,
     generateSceneImageTask,
     batchGenerateSceneImagesTask,
+    generatePropImageTask,
+    batchGeneratePropImagesTask,
+    generateCharactersTask,
+    extractPropsTask,
     findTasks
 } from '@/api/tasks'
 
@@ -371,53 +439,71 @@ const route = useRoute()
 const router = useRouter()
 const projectId = route.params.id as string
 
-// === 状态 ===
+// ==========================================
+// 1. 状态定义
+// ==========================================
+
 const loading = ref(false)
 const project = ref<any>({})
 const activeTab = ref('overview')
 
-// 剧集
+// --- 剧集 ---
 const episodeList = ref<any[]>([])
 
-// 角色
+// --- 角色 ---
 const characterList = ref<any[]>([])
 const charSearch = ref('')
 const charPagination = reactive({ current: 1, pageSize: 12, total: 0 })
 const charDialog = reactive({ visible: false, mode: 'create', loading: false })
 const charFormData = ref<any>({})
 const charFileList = ref([])
-// 角色生图状态
+// 角色生图/提取
 const selectedCharIds = ref<number[]>([])
 const generatingCharIds = ref<number[]>([])
 const batchGeneratingChar = ref(false)
+const parsingCharacters = ref(false)
+const extractCharDialog = reactive({ visible: false, loading: false })
+const extractCharForm = ref<{ scriptId: number | null, count: number }>({ scriptId: null, count: 5 })
 
-// 场景
+// --- 场景 ---
 const sceneList = ref<any[]>([])
 const sceneSearch = ref('')
 const scenePagination = reactive({ current: 1, pageSize: 12, total: 0 })
 const sceneDialog = reactive({ visible: false, mode: 'create', loading: false })
 const sceneFormData = ref<any>({})
 const sceneFileList = ref([])
-// 场景生图状态
+// 场景生图
 const selectedSceneIds = ref<number[]>([])
 const generatingSceneIds = ref<number[]>([])
 const batchGeneratingScene = ref(false)
 
-// 道具
+// --- 道具 ---
 const propList = ref<any[]>([])
 const propSearch = ref('')
 const propPagination = reactive({ current: 1, pageSize: 12, total: 0 })
 const propDialog = reactive({ visible: false, mode: 'create', loading: false })
 const propFormData = ref<any>({})
 const propFileList = ref([])
+// 道具生图/提取
+const selectedPropIds = ref<number[]>([])
+const generatingPropIds = ref<number[]>([])
+const batchGeneratingProp = ref(false)
+const parsingProps = ref(false)
+const extractPropDialog = reactive({ visible: false, loading: false })
+// 明确类型定义
+const extractPropForm = ref<{ scriptId: number | null }>({ scriptId: null })
 
+// --- 上传配置 ---
 const getAuthToken = () => localStorage.getItem('token')
 const uploadConfig = reactive({
     action: import.meta.env.VITE_API_URL + '/admin/v1/upload/singleUpload',
     headers: computed(() => ({ 'Authorization': `${getAuthToken()}` })),
 })
 
-// === 初始化 ===
+// ==========================================
+// 2. 初始化逻辑
+// ==========================================
+
 const init = async () => {
     loading.value = true
     try {
@@ -436,7 +522,6 @@ const loadProjectInfo = async () => {
     if (res.code === 0) project.value = res.data
 }
 
-// === 剧集逻辑 ===
 const loadEpisodes = async () => {
     const res = await getScriptsList({ projectId, page: 1, pageSize: 100 })
     if (res.code === 0) {
@@ -444,111 +529,218 @@ const loadEpisodes = async () => {
         episodeList.value = list.sort((a: any, b: any) => Number(a.episodeNo) - Number(b.episodeNo))
     }
 }
+
 const handleAddEpisode = () => {
     const maxEpisodeNo = episodeList.value.reduce((max, item) => Math.max(max, Number(item.episodeNo || 0)), 0)
     const nextEp = maxEpisodeNo + 1
     router.push(`/admin/projects/chapter/${projectId}/${nextEp}`)
 }
-const enterEpisode = (ep: any) => {
-    router.push(`/admin/projects/chapter/${projectId}/${ep.episodeNo}`)
-}
-
-// === 生图通用逻辑 (轮询) ===
+const enterEpisode = (ep: any) => { router.push(`/admin/projects/chapter/${projectId}/${ep.episodeNo}`) }
 const pollTask = async (taskId: string, onSuccess: () => void, onFail: () => void) => {
     const timer = setInterval(async () => {
         try {
             const res = await findTasks(taskId)
+            // 兼容性处理：不同后端可能返回结构不同
             const data = res.data?.data || res.data
             const status = data?.status
-            if (status === 'completed' || status === 2) {
-                clearInterval(timer); onSuccess()
+
+            console.log(`Polling task ${taskId}: status=${status}`, data) // Debug
+
+            if (status === 'completed' || status === 2 || status === 'succeeded') {
+                clearInterval(timer)
+                onSuccess()
             } else if (status === 'failed' || status === 3) {
-                clearInterval(timer); MessagePlugin.error('任务执行失败'); onFail()
+                clearInterval(timer)
+                // 只有明确失败才弹窗，避免打扰
+                console.error(`Task ${taskId} failed:`, data?.error)
+                onFail()
             }
-        } catch { clearInterval(timer); onFail() }
+            // else: pending/processing，继续轮询
+        } catch (e) {
+            console.error(`Polling error for task ${taskId}:`, e)
+            // 不要因为一次网络抖动就停止轮询，可以设置最大重试次数，或者暂时忽略错误
+            // clearInterval(timer); onFail() // <-- 暂时注释掉这行，防止因为偶发 500 错误导致状态消失
+        }
     }, 2000)
 }
 
-// 单个生图入口：明确使用 generateCharacterImageTask / generateSceneImageTask
-const singleGenerate = async (type: 'char' | 'scene', item: any) => {
-    const generatingList = type === 'char' ? generatingCharIds : generatingSceneIds
-    const loadFunc = type === 'char' ? loadCharacters : loadScenes
+// ==========================================
+// 3. 核心交互函数
+// ==========================================
 
-    // 防止重复点击
-    if (generatingList.value.includes(item.id)) return
-    generatingList.value.push(item.id)
+// --- 道具提取逻辑 ---
+const openExtractPropDialog = () => {
+    extractPropForm.value.scriptId = null
+    if (episodeList.value.length > 0) {
+        extractPropForm.value.scriptId = episodeList.value[0].id
+    }
+    extractPropDialog.visible = true
+}
 
+const handleExtractPropsFromScript = async () => {
+    if (!extractPropForm.value.scriptId) return MessagePlugin.warning('请选择剧集')
+    extractPropDialog.loading = true
     try {
-        let res
-        if (type === 'char') {
-            // 使用单个角色生图接口
-            // 注意：请确保 api/tasks.ts 中定义了 generateCharacterImageTask 且参数名匹配后端 (通常是 characterId)
-            res = await generateCharacterImageTask({ characterId: item.id })
-        } else {
-            // 使用单个场景生图接口
-            res = await generateSceneImageTask({ sceneId: item.id })
-        }
-
-        // 兼容不同的后端返回结构
-        const taskId = res.data?.data?.task_id || res.data?.taskId || res.data?.task_id
-
-        if (taskId) {
-            MessagePlugin.success('任务已提交')
+        const res = await extractPropsTask({ episodeId: extractPropForm.value.scriptId })
+        const taskId = res.data?.task_id || res.data?.taskId
+        if ((res.code === 0 || res.status === 200) && taskId) {
+            MessagePlugin.success('提取任务已提交')
+            extractPropDialog.visible = false
+            parsingProps.value = true
             pollTask(taskId,
-                () => { // Success
-                    const idx = generatingList.value.indexOf(item.id)
-                    if (idx > -1) generatingList.value.splice(idx, 1)
-                    loadFunc()
-                },
-                () => { // Fail
-                    const idx = generatingList.value.indexOf(item.id)
-                    if (idx > -1) generatingList.value.splice(idx, 1)
-                }
+                () => { parsingProps.value = false; MessagePlugin.success('道具提取完成'); loadProps() },
+                () => { parsingProps.value = false; MessagePlugin.error('道具提取失败') }
             )
         } else {
-            throw new Error('未获取到任务ID')
+            throw new Error(res.message || '任务提交失败')
         }
-    } catch (e) {
-        MessagePlugin.error('任务提交失败')
-        const idx = generatingList.value.indexOf(item.id)
-        if (idx > -1) generatingList.value.splice(idx, 1)
+    } catch (e: any) {
+        MessagePlugin.error(e.message || '操作异常')
+    } finally {
+        extractPropDialog.loading = false
     }
 }
 
-// 批量生图处理：仅处理批量逻辑
-const processBatchGeneration = async (type: 'char' | 'scene', ids: number[]) => {
-    const generatingList = type === 'char' ? generatingCharIds : generatingSceneIds
-    const loadFunc = type === 'char' ? loadCharacters : loadScenes
-    const apiFunc = type === 'char' ? batchGenerateCharacterImagesTask : batchGenerateSceneImagesTask
+// --- 角色提取逻辑 ---
+const openExtractCharDialog = () => {
+    extractCharForm.value.scriptId = null
+    extractCharForm.value.count = 5
+    if (episodeList.value.length > 0) extractCharForm.value.scriptId = episodeList.value[0].id
+    extractCharDialog.visible = true
+}
+const handleExtractFromScript = async () => {
+    if (!extractCharForm.value.scriptId) return MessagePlugin.warning('请选择剧集')
+    extractCharDialog.loading = true
+    try {
+        const scriptRes = await findScripts(extractCharForm.value.scriptId)
+        if (scriptRes.code !== 0 || !scriptRes.data?.content) {
+            MessagePlugin.error('获取剧本失败'); extractCharDialog.loading = false; return
+        }
+        const res = await generateCharactersTask({
+            projectId: projectId,
+            count: extractCharForm.value.count,
+            outline: scriptRes.data.content
+        })
+        const taskId = res.data?.data?.task_id || res.data?.taskId
+        if ((res.code === 0 || res.status === 200) && taskId) {
+            MessagePlugin.success('提取任务已提交')
+            extractCharDialog.visible = false
+            parsingCharacters.value = true
+            pollTask(taskId,
+                () => { parsingCharacters.value = false; MessagePlugin.success('角色提取完成'); loadCharacters() },
+                () => { parsingCharacters.value = false; MessagePlugin.error('角色提取失败') }
+            )
+        }
+    } catch { MessagePlugin.error('操作异常') } finally { extractCharDialog.loading = false }
+}
 
-    // 标记状态
-    ids.forEach(id => { if (!generatingList.value.includes(id)) generatingList.value.push(id) })
+// --- 生图逻辑 (单体/批量) ---
+const singleGenerate = async (type: 'char' | 'scene' | 'prop', item: any) => {
+    // ... (保持原有逻辑)
+    const generatingList = type === 'char' ? generatingCharIds : (type === 'scene' ? generatingSceneIds : generatingPropIds)
+    const loadFunc = type === 'char' ? loadCharacters : (type === 'scene' ? loadScenes : loadProps)
+    if (generatingList.value.includes(item.id)) return
+    generatingList.value.push(item.id)
+    try {
+        let res
+        if (type === 'char') res = await generateCharacterImageTask({ characterId: item.id })
+        else if (type === 'scene') res = await generateSceneImageTask({ sceneId: item.id })
+        else res = await generatePropImageTask({ propId: item.id })
+        const taskId = res.data?.data?.task_id || res.data?.taskId || res.data?.task_id
+        if (taskId) {
+            MessagePlugin.success('任务已提交')
+            pollTask(taskId,
+                () => { const idx = generatingList.value.indexOf(item.id); if (idx > -1) generatingList.value.splice(idx, 1); loadFunc() },
+                () => { const idx = generatingList.value.indexOf(item.id); if (idx > -1) generatingList.value.splice(idx, 1) }
+            )
+        } else { throw new Error('无任务ID') }
+    } catch { MessagePlugin.error('任务提交失败'); const idx = generatingList.value.indexOf(item.id); if (idx > -1) generatingList.value.splice(idx, 1) }
+}
+
+const batchGenerate = async (type: 'char' | 'scene' | 'prop') => {
+    let selectedIds: number[] = []
+    let generatingRef
+    let generatingList: number[] = []
+    if (type === 'char') { selectedIds = selectedCharIds.value; generatingRef = batchGeneratingChar; generatingList = generatingCharIds.value }
+    else if (type === 'scene') { selectedIds = selectedSceneIds.value; generatingRef = batchGeneratingScene; generatingList = generatingSceneIds.value }
+    else { selectedIds = selectedPropIds.value; generatingRef = batchGeneratingProp; generatingList = generatingPropIds.value }
+
+    if (selectedIds.length === 0) return
+    generatingRef.value = true
+    const idsToGen = selectedIds.filter(id => !generatingList.includes(id))
+    try { if (idsToGen.length > 0) await processBatchGeneration(type, idsToGen) } finally { generatingRef.value = false }
+}
+
+const processBatchGeneration = async (type: 'char' | 'scene' | 'prop', ids: number[]) => {
+    // 1. 获取对应的状态引用
+    const generatingList = type === 'char' ? generatingCharIds : (type === 'scene' ? generatingSceneIds : generatingPropIds)
+    const loadFunc = type === 'char' ? loadCharacters : (type === 'scene' ? loadScenes : loadProps)
+    const apiFunc = type === 'char' ? batchGenerateCharacterImagesTask : (type === 'scene' ? batchGenerateSceneImagesTask : batchGeneratePropImagesTask)
+
+    let payload: any
+    if (type === 'char') payload = { characterIds: ids }
+    else if (type === 'scene') payload = { sceneIds: ids }
+    else payload = { propIds: ids }
+
+    // 2. 立即将 ID 加入 Loading 列表 (UI 变为生成中)
+    ids.forEach(id => {
+        if (!generatingList.value.includes(id)) generatingList.value.push(id)
+    })
 
     try {
-        const res = await apiFunc(type === 'char' ? { characterIds: ids } : { sceneIds: ids })
-        const taskList = res.data?.data || []
+        // 3. 发起批量请求
+        const res = await apiFunc(payload)
 
-        if (taskList.length > 0) {
-            MessagePlugin.success(`已提交 ${taskList.length} 个生图任务`)
+        // 兼容不同的后端返回结构
+        const taskList = res.data?.data || res.data || []
+
+        if (res.code === 0 && taskList.length > 0) {
+            MessagePlugin.success(`已提交 ${taskList.length} 个任务`)
+
+            // ===============================================
+            // 🟢 新增代码：提交成功后，清空当前类型的选择状态
+            // ===============================================
+            if (type === 'char') selectedCharIds.value = []
+            else if (type === 'scene') selectedSceneIds.value = []
+            else selectedPropIds.value = []
+            // ===============================================
+
+            // 4. 为每个任务启动轮询
             taskList.forEach((item: any) => {
-                const id = type === 'char' ? item.character_id : item.scene_id
+                // 动态获取ID字段
+                const id = type === 'char' ? item.character_id : (type === 'scene' ? item.scene_id : item.prop_id)
                 const taskId = item.task_id
 
-                pollTask(taskId,
-                    () => {
-                        const idx = generatingList.value.indexOf(id)
-                        if (idx > -1) generatingList.value.splice(idx, 1)
-                        loadFunc()
-                    },
-                    () => {
-                        const idx = generatingList.value.indexOf(id)
-                        if (idx > -1) generatingList.value.splice(idx, 1)
-                    }
-                )
+                if (id && taskId) {
+                    pollTask(taskId,
+                        () => { // Success
+                            // 移除 Loading 状态
+                            const idx = generatingList.value.indexOf(id)
+                            if (idx > -1) generatingList.value.splice(idx, 1)
+                            // 刷新列表显示图片
+                            loadFunc()
+                        },
+                        () => { // Fail
+                            // 移除 Loading 状态
+                            const idx = generatingList.value.indexOf(id)
+                            if (idx > -1) generatingList.value.splice(idx, 1)
+                        }
+                    )
+                }
+            })
+        } else {
+            // 如果没有创建任何任务
+            MessagePlugin.warning('未创建新任务')
+            // 清除 Loading
+            ids.forEach(id => {
+                const idx = generatingList.value.indexOf(id)
+                if (idx > -1) generatingList.value.splice(idx, 1)
             })
         }
     } catch (e) {
-        MessagePlugin.error('任务提交失败')
+        console.error(e)
+        MessagePlugin.error('批量提交失败')
+        // 发生异常，清除所有相关的 Loading 状态
         ids.forEach(id => {
             const idx = generatingList.value.indexOf(id)
             if (idx > -1) generatingList.value.splice(idx, 1)
@@ -556,96 +748,51 @@ const processBatchGeneration = async (type: 'char' | 'scene', ids: number[]) => 
     }
 }
 
-// 批量生图入口
-const batchGenerate = async (type: 'char' | 'scene') => {
-    const selectedIds = type === 'char' ? selectedCharIds.value : selectedSceneIds.value
-    const generatingRef = type === 'char' ? batchGeneratingChar : batchGeneratingScene
+// ==========================================
+// 4. 增删改查 (Loaders & CRUD)
+// ==========================================
 
-    if (selectedIds.length === 0) return
-    generatingRef.value = true
-
-    // 过滤掉已经在生成中的
-    const idsToGen = selectedIds.filter(id => {
-        const list = type === 'char' ? generatingCharIds.value : generatingSceneIds.value
-        return !list.includes(id)
-    })
-
-    try {
-        if (idsToGen.length > 0) {
-            await processBatchGeneration(type, idsToGen)
-        }
-    } finally {
-        generatingRef.value = false
-    }
-}
-
-// === 角色逻辑 ===
+// --- 角色 ---
 const loadCharacters = async () => {
-    const res = await getCharactersList({
-        projectId, page: charPagination.current, pageSize: charPagination.pageSize, name: charSearch.value || undefined
-    })
-    if (res.code === 0) {
-        characterList.value = res.data.list || []
-        charPagination.total = res.data.total || 0
-    }
+    const res = await getCharactersList({ projectId, page: charPagination.current, pageSize: charPagination.pageSize, name: charSearch.value || undefined })
+    if (res.code === 0) { characterList.value = res.data.list || []; charPagination.total = res.data.total || 0 }
 }
-// 角色选择
-const checkAllChars = computed(() => characterList.value.length > 0 && selectedCharIds.value.length === characterList.value.length)
-const isCharIndeterminate = computed(() => selectedCharIds.value.length > 0 && selectedCharIds.value.length < characterList.value.length)
-const handleSelectAllChars = (checked: boolean) => { selectedCharIds.value = checked ? characterList.value.map((c: any) => c.id) : [] }
-const toggleCharSelection = (id: number) => { const idx = selectedCharIds.value.indexOf(id); idx > -1 ? selectedCharIds.value.splice(idx, 1) : selectedCharIds.value.push(id) }
-
-// ... 角色增删改 (保持原样) ...
 const openCharacterDialog = (mode: string, row?: any) => {
     charDialog.mode = mode; charDialog.visible = true; charFileList.value = []
-    charFormData.value = mode === 'edit' && row ? { ...row } : { projectId: Number(projectId), name: '', roleType: 'main', appearanceDesc: '' }
+    if (mode === 'edit' && row) { charFormData.value = { ...row }; if (row.avatarUrl) charFileList.value = [{ url: getImageUrl(row.avatarUrl), name: 'avatar' }] }
+    else { charFormData.value = { projectId: Number(projectId), name: '', roleType: 'main', appearanceDesc: '' } }
 }
 const submitCharacter = async () => {
     charDialog.loading = true
     try {
-        const isEdit = charDialog.mode === 'edit'
-        const api = isEdit ? updateCharacters : createCharacters
-        const payload = { ...charFormData.value }
+        const isEdit = charDialog.mode === 'edit'; const api = isEdit ? updateCharacters : createCharacters; const payload = { ...charFormData.value }
         if (isEdit) await api(charFormData.value.id, payload); else await api(payload)
         MessagePlugin.success(isEdit ? '更新成功' : '创建成功'); charDialog.visible = false; loadCharacters()
     } catch { MessagePlugin.error('操作失败') } finally { charDialog.loading = false }
 }
 const handleDeleteCharacter = async (id: number) => { await deleteCharacters(id); MessagePlugin.success('删除成功'); loadCharacters() }
 
-// === 场景逻辑 ===
+// --- 场景 ---
 const loadScenes = async () => {
-    const res = await getScenesList({
-        projectId, page: scenePagination.current, pageSize: scenePagination.pageSize, name: sceneSearch.value || undefined
-    })
-    if (res.code === 0) {
-        sceneList.value = res.data.list || []
-        scenePagination.total = res.data.total || 0
-    }
+    const res = await getScenesList({ projectId, page: scenePagination.current, pageSize: scenePagination.pageSize, name: sceneSearch.value || undefined })
+    if (res.code === 0) { sceneList.value = res.data.list || []; scenePagination.total = res.data.total || 0 }
 }
-// 场景选择
-const checkAllScenes = computed(() => sceneList.value.length > 0 && selectedSceneIds.value.length === sceneList.value.length)
-const isSceneIndeterminate = computed(() => selectedSceneIds.value.length > 0 && selectedSceneIds.value.length < sceneList.value.length)
-const handleSelectAllScenes = (checked: boolean) => { selectedSceneIds.value = checked ? sceneList.value.map((s: any) => s.id) : [] }
-const toggleSceneSelection = (id: number) => { const idx = selectedSceneIds.value.indexOf(id); idx > -1 ? selectedSceneIds.value.splice(idx, 1) : selectedSceneIds.value.push(id) }
-
-// ... 场景增删改 ...
 const openSceneDialog = (mode: string, row?: any) => {
     sceneDialog.mode = mode; sceneDialog.visible = true; sceneFileList.value = []
-    sceneFormData.value = mode === 'edit' && row ? { ...row } : { projectId: Number(projectId), name: '', location: '', time: '', atmosphere: '' }
+    if (mode === 'edit' && row) { sceneFormData.value = { ...row }; if (row.visualPrompt) sceneFileList.value = [{ url: getImageUrl(row.visualPrompt), name: 'scene' }] }
+    else { sceneFormData.value = { projectId: Number(projectId), name: '', location: '', time: '', atmosphere: '' } }
 }
 const submitScene = async () => {
     sceneDialog.loading = true
     try {
-        const isEdit = sceneDialog.mode === 'edit'
-        const api = isEdit ? updateScenes : createScenes
-        const payload = { ...sceneFormData.value }
+        const isEdit = sceneDialog.mode === 'edit'; const api = isEdit ? updateScenes : createScenes; const payload = { ...sceneFormData.value }
         if (isEdit) await api(sceneFormData.value.id, payload); else await api(payload)
         MessagePlugin.success(isEdit ? '更新成功' : '创建成功'); sceneDialog.visible = false; loadScenes()
     } catch { MessagePlugin.error('操作失败') } finally { sceneDialog.loading = false }
 }
 const handleDeleteScene = async (id: number) => { await deleteScenes(id); MessagePlugin.success('删除成功'); loadScenes() }
 
-// === 道具逻辑 ===
+// --- 道具 ---
 const loadProps = async () => {
     try {
         const res = await getPropsList({ projectId, page: propPagination.current, pageSize: propPagination.pageSize, name: propSearch.value || undefined })
@@ -654,31 +801,50 @@ const loadProps = async () => {
 }
 const openPropDialog = (mode: string, row?: any) => {
     propDialog.mode = mode; propDialog.visible = true; propFileList.value = []
-    propFormData.value = mode === 'edit' && row ? { ...row } : { projectId: Number(projectId), name: '', type: '', description: '', imagePrompt: '', imageUrl: '' }
+    if (mode === 'edit' && row) {
+        propFormData.value = { ...row }
+        if (row.imageUrl) propFileList.value = [{ url: getImageUrl(row.imageUrl), name: 'prop' }]
+    } else {
+        propFormData.value = { projectId: Number(projectId), name: '', type: '', description: '', imagePrompt: '', imageUrl: '' }
+    }
 }
 const submitProp = async () => {
     propDialog.loading = true
     try {
-        const isEdit = propDialog.mode === 'edit'
-        const api = isEdit ? updateProps : createProps
-        const payload = { ...propFormData.value }
+        const isEdit = propDialog.mode === 'edit'; const api = isEdit ? updateProps : createProps; const payload = { ...propFormData.value }
         if (isEdit) await api(propFormData.value.id, payload); else await api(payload)
         MessagePlugin.success(isEdit ? '更新成功' : '创建成功'); propDialog.visible = false; loadProps()
     } catch { MessagePlugin.error('操作失败') } finally { propDialog.loading = false }
 }
 const handleDeleteProp = async (id: number) => { await deleteProps(id); MessagePlugin.success('删除成功'); loadProps() }
 
-// === 通用 ===
+// --- 其他 Helper ---
 const handleUploadSuccess = (ctx: any, type: string) => {
     if (ctx.response?.code === 0 || ctx.response?.code === 200) {
-        const url = ctx.response.data?.url || ctx.response.data?.file_url
-        const fullUrl = url.startsWith('http') ? url : import.meta.env.VITE_API_URL.replace(/\/admin\/v1$/, '') + url
+        const fullUrl = ctx.response.data?.url || ctx.response.data?.file_url
         if (type === 'char') charFormData.value.avatarUrl = fullUrl
         else if (type === 'scene') sceneFormData.value.visualPrompt = fullUrl
         else if (type === 'prop') propFormData.value.imageUrl = fullUrl
     }
 }
 
+// 选择逻辑
+const checkAllChars = computed(() => characterList.value.length > 0 && selectedCharIds.value.length === characterList.value.length)
+const isCharIndeterminate = computed(() => selectedCharIds.value.length > 0 && selectedCharIds.value.length < characterList.value.length)
+const handleSelectAllChars = (checked: boolean) => { selectedCharIds.value = checked ? characterList.value.map((c: any) => c.id) : [] }
+const toggleCharSelection = (id: number) => { const idx = selectedCharIds.value.indexOf(id); idx > -1 ? selectedCharIds.value.splice(idx, 1) : selectedCharIds.value.push(id) }
+
+const checkAllScenes = computed(() => sceneList.value.length > 0 && selectedSceneIds.value.length === sceneList.value.length)
+const isSceneIndeterminate = computed(() => selectedSceneIds.value.length > 0 && selectedSceneIds.value.length < sceneList.value.length)
+const handleSelectAllScenes = (checked: boolean) => { selectedSceneIds.value = checked ? sceneList.value.map((s: any) => s.id) : [] }
+const toggleSceneSelection = (id: number) => { const idx = selectedSceneIds.value.indexOf(id); idx > -1 ? selectedSceneIds.value.splice(idx, 1) : selectedSceneIds.value.push(id) }
+
+const checkAllProps = computed(() => propList.value.length > 0 && selectedPropIds.value.length === propList.value.length)
+const isPropIndeterminate = computed(() => selectedPropIds.value.length > 0 && selectedPropIds.value.length < propList.value.length)
+const handleSelectAllProps = (checked: boolean) => { selectedPropIds.value = checked ? propList.value.map((p: any) => p.id) : [] }
+const togglePropSelection = (id: number) => { const idx = selectedPropIds.value.indexOf(id); idx > -1 ? selectedPropIds.value.splice(idx, 1) : selectedPropIds.value.push(id) }
+
+// 格式化
 const goBack = () => router.push('/admin/projects/list')
 const getStatusText = (s: number) => ['草稿', '连载中', '已完结'][s] || '未知'
 const getStatusTheme = (s: number) => ['default', 'primary', 'success'][s] || 'default'
@@ -903,7 +1069,7 @@ onMounted(init)
                 /* 防止图片底部留白 */
             }
 
-            /* 修复 Loading 遮罩层级 */
+            /* Loading 遮罩层级 */
             .loading-mask {
                 position: absolute;
                 inset: 0;
@@ -915,7 +1081,7 @@ onMounted(init)
                 /* 确保 loading 在最上层 */
             }
 
-            /* 修复操作遮罩层级 */
+            /* 操作遮罩层级 */
             .res-overlay {
                 position: absolute;
                 inset: 0;

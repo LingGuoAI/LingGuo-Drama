@@ -76,18 +76,18 @@ func (s *TaskService) CreateImageGenerationTask(projectID, charID uint64, prompt
 }
 
 // CreateGenerateCharactersTask 创建角色生成任务
-func (s *TaskService) CreateGenerateCharactersTask(dramaID uint64, count int, outline string) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreateGenerateCharactersTask(projectID uint64, count int, outline string) (*async_tasks.AsyncTask, error) {
 	// 1. 构造 Payload 数据
 	payload := asynq.GenerateCharactersPayload{
-		DramaID: dramaID,
-		Count:   count,
-		Outline: outline,
+		ProjectID: projectID,
+		Count:     count,
+		Outline:   outline,
 	}
 	payloadBytes, _ := json.Marshal(payload)
 
 	// 2. 先在数据库创建记录 (状态: Pending)
 	task := async_tasks.AsyncTask{
-		ProjectID: dramaID,                      // 关联项目ID
+		ProjectID: projectID,                    // 关联项目ID
 		Type:      asynq.TypeGenerateCharacters, // 使用 asynq 包中定义的类型常量
 		Status:    async_tasks.StatusPending,
 		Payload:   string(payloadBytes),
@@ -108,17 +108,17 @@ func (s *TaskService) CreateGenerateCharactersTask(dramaID uint64, count int, ou
 }
 
 // CreateExtractScenesTask 创建场景提取任务
-func (s *TaskService) CreateExtractScenesTask(projectID, episodeID uint64) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreateExtractScenesTask(projectID, scriptId uint64) (*async_tasks.AsyncTask, error) {
 	// 1. 构造 Payload 数据
 	payload := asynq.ExtractScenesPayload{
-		EpisodeID: episodeID,
+		ScriptID: scriptId,
 	}
 	payloadBytes, _ := json.Marshal(payload)
 
 	// 2. 先在数据库创建记录
 	task := async_tasks.AsyncTask{
 		ProjectID: projectID, // 尽量关联到项目ID，方便前端查询
-		RelID:     episodeID, // 关联的章节ID
+		RelID:     scriptId,  // 关联的章节ID
 		Type:      asynq.TypeExtractScenes,
 		Status:    async_tasks.StatusPending,
 		Payload:   string(payloadBytes),
@@ -196,6 +196,67 @@ func (s *TaskService) CreateGenerateShotsTask(projectID, scriptID uint64, model 
 
 	// 4. 投递到 Asynq
 	_, err := asynq.EnqueueGenerateShots(payload)
+	if err != nil {
+		task.MarkAsFailed(err)
+		return &task, err
+	}
+
+	return &task, nil
+}
+
+// CreatePropImageGenerationTask 创建道具生图任务
+func (s *TaskService) CreatePropImageGenerationTask(projectID, propID uint64, prompt string) (*async_tasks.AsyncTask, error) {
+	// 1. 构造 Payload
+	payload := asynq.GeneratePropImagePayload{
+		ProjectID: projectID,
+		PropID:    propID,
+		Prompt:    prompt,
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	// 2. 创建数据库记录
+	task := async_tasks.AsyncTask{
+		ProjectID: projectID,
+		RelID:     propID, // 关联的道具ID
+		Type:      asynq.TypeGeneratePropImage,
+		Status:    async_tasks.StatusPending,
+		Payload:   string(payloadBytes),
+	}
+	task.Create()
+
+	// 3. 注入 AsyncTaskID
+	payload.AsyncTaskID = task.ID
+
+	// 4. 投递到 Asynq
+	_, err := asynq.EnqueueGeneratePropImage(payload)
+	if err != nil {
+		task.MarkAsFailed(err)
+		return &task, err
+	}
+
+	return &task, nil
+}
+
+// CreateExtractPropsTask 创建剧本提取道具任务
+func (s *TaskService) CreateExtractPropsTask(projectID, episodeID uint64) (*async_tasks.AsyncTask, error) {
+	payload := asynq.ExtractPropsPayload{
+		ProjectID: projectID,
+		EpisodeID: episodeID,
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	task := async_tasks.AsyncTask{
+		ProjectID: projectID,
+		RelID:     episodeID, // 关联的剧集ID
+		Type:      asynq.TypeExtractProps,
+		Status:    async_tasks.StatusPending,
+		Payload:   string(payloadBytes),
+	}
+	task.Create()
+
+	payload.AsyncTaskID = task.ID
+
+	_, err := asynq.EnqueueExtractProps(payload)
 	if err != nil {
 		task.MarkAsFailed(err)
 		return &task, err

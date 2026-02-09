@@ -54,6 +54,8 @@ func main() {
 			mux.HandleFunc(myAsynq.TypeExtractScenes, jobs.HandleExtractScenes)
 			mux.HandleFunc(myAsynq.TypeGenerateSceneImage, jobs.HandleGenerateSceneImage)
 			mux.HandleFunc(myAsynq.TypeGenerateShots, jobs.HandleGenerateShots)
+			mux.HandleFunc(myAsynq.TypeExtractProps, jobs.HandleExtractPropsTask)
+			mux.HandleFunc(myAsynq.TypeGeneratePropImage, jobs.HandleGeneratePropImageTask)
 
 			// 4. 启动 Asynq Server (消费者)
 			// 使用 goroutine 启动，避免阻塞主线程（Web Server）

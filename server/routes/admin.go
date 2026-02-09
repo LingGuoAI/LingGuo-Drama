@@ -88,7 +88,11 @@ func RegisterAdminAPIRoutes(r *gin.Engine) {
 			tasksGroup.POST("/batchGenerateCharacterImages", aiController.BatchGenerateCharacterImages) // 多个角色生图
 			tasksGroup.POST("/generateSceneImage", aiController.GenerateSceneImage)                     // 单个场景生图
 			tasksGroup.POST("/batchGenerateSceneImages", aiController.BatchGenerateSceneImages)         // 批量场景生图
-			tasksGroup.POST("/generateShots", aiController.GenerateShots)
+			tasksGroup.POST("/generateShots", aiController.GenerateShots)                               // 拆分分镜
+			// 道具相关
+			tasksGroup.POST("/extractProps", aiController.ExtractProps)                       // 提取道具
+			tasksGroup.POST("/generatePropImage", aiController.GeneratePropImage)             // 单个道具生图
+			tasksGroup.POST("/batchGeneratePropImages", aiController.BatchGeneratePropImages) // 批量道具生图
 		}
 
 		// 剧本相关路由

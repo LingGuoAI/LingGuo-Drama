@@ -98,3 +98,25 @@ func EnqueueGenerateShots(payload GenerateShotsPayload) (*asynq.TaskInfo, error)
 	task := asynq.NewTask(TypeGenerateShots, bytes)
 	return GetClient().Enqueue(task, asynq.Queue("default"))
 }
+
+// EnqueueExtractProps 投递[从剧本提取道具]任务
+func EnqueueExtractProps(payload ExtractPropsPayload) (*asynq.TaskInfo, error) {
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	// 提取任务属于文本分析，耗时中等，放入 default 队列
+	task := asynq.NewTask(TypeExtractProps, bytes)
+	return GetClient().Enqueue(task, asynq.Queue("default"))
+}
+
+// EnqueueGeneratePropImage 投递[道具生图]任务
+func EnqueueGeneratePropImage(payload GeneratePropImagePayload) (*asynq.TaskInfo, error) {
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	// 生图任务耗时较长，放入 default 队列
+	task := asynq.NewTask(TypeGeneratePropImage, bytes)
+	return GetClient().Enqueue(task, asynq.Queue("default"))
+}

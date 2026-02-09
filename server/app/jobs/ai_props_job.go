@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"spiritFruit/app/models/async_tasks"
-	"spiritFruit/app/models/characters"
-	"spiritFruit/app/models/projects"
+	"spiritFruit/app/models/projects" // 如果需要项目风格
+	"spiritFruit/app/models/props"
+	"spiritFruit/app/models/scripts"
 	myAsynq "spiritFruit/pkg/asynq"
 	"spiritFruit/pkg/config"
 	"spiritFruit/pkg/console"
@@ -18,10 +19,10 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-// HandleGenerateCharacters 处理角色生成任务
-func HandleGenerateCharacters(ctx context.Context, t *asynq.Task) error {
+// HandleExtractPropsTask 处理道具提取任务
+func HandleExtractPropsTask(ctx context.Context, t *asynq.Task) error {
 	// 1. 解析参数
-	var p myAsynq.GenerateCharactersPayload
+	var p myAsynq.ExtractPropsPayload
 	if err := json.Unmarshal(t.Payload(), &p); err != nil {
 		return fmt.Errorf("json unmarshal failed: %v", err)
 	}
@@ -30,51 +31,39 @@ func HandleGenerateCharacters(ctx context.Context, t *asynq.Task) error {
 	taskModel := async_tasks.AsyncTask{}
 	if err := database.DB.First(&taskModel, p.AsyncTaskID).Error; err != nil {
 		console.Error(fmt.Sprintf("Task %d not found in DB", p.AsyncTaskID))
-		return nil // 任务不存在，直接结束
+		return nil
 	}
 
 	// [Stage 1] 状态变更为 Processing，进度 -> 10%
 	taskModel.MarkAsProcessing()
-	console.Success(fmt.Sprintf("任务[%d] - 开始生成角色", p.AsyncTaskID))
+	console.Success(fmt.Sprintf("任务[%d] - 开始从剧本提取道具", p.AsyncTaskID))
 
-	// 3. 获取项目信息
-	var projectModel projects.Projects
-	if err := database.DB.First(&projectModel, p.ProjectID).Error; err != nil {
-		err = fmt.Errorf("project not found: %v", err)
+	// 3. 获取剧本内容
+	var scriptModel scripts.Scripts
+	if err := database.DB.First(&scriptModel, p.EpisodeID).Error; err != nil {
+		err = fmt.Errorf("script not found: %v", err)
 		taskModel.MarkAsFailed(err)
-		return nil // 项目不存在，无需重试
+		return nil
 	}
 
-	// 处理字段默认值
-	projectTitle := ""
-	if projectModel.Title != nil {
-		projectTitle = *projectModel.Title
-	}
-	projectDesc := ""
-	if projectModel.Description != nil {
-		projectDesc = *projectModel.Description
-	}
-	projectGenre := "都市"
-	if projectModel.Genre != nil {
-		projectGenre = *projectModel.Genre
-	}
-	projectStyle := "realistic"
-	if projectModel.Style != nil {
-		projectStyle = *projectModel.Style
+	// 尝试获取项目风格 (用于 Prompt 优化，可选)
+	var projectModel projects.Projects
+	projectStyle := "realistic" // 默认风格
+	if scriptModel.ProjectId != nil {
+		if err := database.DB.First(&projectModel, *scriptModel.ProjectId).Error; err == nil {
+			if projectModel.Style != nil {
+				projectStyle = *projectModel.Style
+			}
+		}
 	}
 
 	// [Stage 2] 准备 Prompt 和 AI 配置，进度 -> 20%
 	taskModel.UpdateProgress(20)
 
-	// 准备 Prompt
 	promptGen := prompt.NewGenerator()
-	systemPrompt := promptGen.GetCharacterExtractionPrompt(projectStyle)
+	systemPrompt := promptGen.GetPropExtractionPrompt(projectStyle)
 
-	outlineText := p.Outline
-	if outlineText == "" {
-		outlineText = fmt.Sprintf("剧名：%s\n简介：%s\n类型：%s", projectTitle, projectDesc, projectGenre)
-	}
-	userPrompt := promptGen.FormatUserPrompt("character_request", outlineText, p.Count)
+	userPrompt := fmt.Sprintf("剧本内容：\n%s", *scriptModel.Content)
 
 	// 准备 AI 配置
 	aiConfig := openai.Config{
@@ -92,37 +81,35 @@ func HandleGenerateCharacters(ctx context.Context, t *asynq.Task) error {
 	taskModel.UpdateProgress(30)
 	console.Success(fmt.Sprintf("任务[%d] - Sending prompt to AI", p.AsyncTaskID))
 
-	// 构造请求
 	req := openai.ScriptRequest{
 		Messages: []openai.ChatMessage{
-			{Role: "system", Content: systemPrompt}, // 注意：部分模型(如Gemini)可能自动合并system到user
+			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: userPrompt},
 		},
-		Temperature: 0.7,
+		Temperature: 0.5, // 提取任务温度低一点更稳定
 	}
 
-	// 调用 AI
 	aiResp, err := aiProvider.GenerateScript(req)
 	if err != nil {
 		console.Error(fmt.Sprintf("AI生成失败: %v", err))
 		taskModel.MarkAsFailed(err)
-		return err // 返回 err 触发重试
+		return err
 	}
 	// [Stage 4] 解析结果，进度 -> 60%
 	taskModel.UpdateProgress(60)
 
-	var aiResult []struct {
+	type ExtractedProp struct {
 		Name        string `json:"name"`
-		Role        string `json:"role"`
+		Type        string `json:"type"`
 		Description string `json:"description"`
-		Personality string `json:"personality"`
-		Appearance  string `json:"appearance"`
+		ImagePrompt string `json:"image_prompt"`
 	}
+	var aiResult []ExtractedProp
 
 	if err := utils.SafeParseAIJSON(aiResp, &aiResult); err != nil {
 		err = fmt.Errorf("failed to parse AI response: %v", err)
 		taskModel.MarkAsFailed(err)
-		return nil // 解析失败通常是 AI 输出格式错，重试意义不大
+		return nil
 	}
 
 	// [Stage 5] 数据入库，进度 -> 80%
@@ -132,30 +119,23 @@ func HandleGenerateCharacters(ctx context.Context, t *asynq.Task) error {
 	count := 0
 	projID := p.ProjectID
 
-	for _, char := range aiResult {
+	for _, item := range aiResult {
 		// 查重
 		var existCount int64
-		tx.Model(&characters.Characters{}).Where("project_id = ? AND name = ?", projID, char.Name).Count(&existCount)
+		tx.Model(&props.Props{}).Where("project_id = ? AND name = ?", projID, item.Name).Count(&existCount)
 		if existCount > 0 {
 			continue
 		}
 
-		roleType := char.Role
-		pers := char.Personality
-		appDesc := char.Appearance
-		// 简单的 Visual Prompt 生成逻辑
-		visualPrompt := fmt.Sprintf("%s, %s, %s", char.Appearance, projectStyle, "high quality, best quality")
-
-		newChar := characters.Characters{
-			ProjectId:      &projID,
-			Name:           &char.Name,
-			RoleType:       &roleType,
-			Personality:    &pers,
-			AppearanceDesc: &appDesc,
-			VisualPrompt:   &visualPrompt,
+		newProp := props.Props{
+			ProjectId:   &projID,
+			Name:        &item.Name,
+			Type:        &item.Type,
+			Description: &item.Description,
+			ImagePrompt: &item.ImagePrompt,
 		}
 
-		if err := tx.Create(&newChar).Error; err != nil {
+		if err := tx.Create(&newProp).Error; err != nil {
 			tx.Rollback()
 			err = fmt.Errorf("db create failed: %v", err)
 			taskModel.MarkAsFailed(err)
@@ -169,6 +149,6 @@ func HandleGenerateCharacters(ctx context.Context, t *asynq.Task) error {
 	resultInfo := fmt.Sprintf(`{"generated_count": %d, "provider": "%s"}`, count, aiConfig.Provider)
 	taskModel.MarkAsSuccess(resultInfo)
 
-	console.Success(fmt.Sprintf("任务[%d] - 角色生成完成，新增 %d 个角色", p.AsyncTaskID, count))
+	console.Success(fmt.Sprintf("任务[%d] - 道具提取完成，新增 %d 个道具", p.AsyncTaskID, count))
 	return nil
 }

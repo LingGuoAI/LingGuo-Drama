@@ -30,7 +30,7 @@ export const generateScriptTask = (data: {
 
 // 2. AI生成角色 (从剧本提取)
 export const generateCharactersTask = (data: {
-  dramaId: number | string;
+  projectId: number | string;
   count: number;
   outline?: string;
 }) => {
@@ -41,7 +41,7 @@ export const generateCharactersTask = (data: {
 };
 
 // 3. AI提取场景 (从剧本提取)
-export const extractScenesTask = (data: { episodeId: number | string }) => {
+export const extractScenesTask = (data: { scriptId: number | string }) => {
   return request.post({
     url: "/tasks/extractScenes",
     data,
@@ -89,6 +89,30 @@ export const generateSceneImageTask = (data: { sceneId: number }) => {
 export const batchGenerateSceneImagesTask = (data: { sceneIds: number[] }) => {
   return request.post({
     url: "/tasks/batchGenerateSceneImages",
+    data,
+  });
+};
+
+// 9. 从剧本提取道具
+export const extractPropsTask = (data: { episodeId: number | string }) => {
+  return request.post({
+    url: "/tasks/extractProps",
+    data,
+  });
+};
+
+// 10. 单个生成道具图片
+export const generatePropImageTask = (data: { propId: number | string }) => {
+  return request.post({
+    url: "/tasks/generatePropImage",
+    data,
+  });
+};
+
+// 11. 批量生成道具图片
+export const batchGeneratePropImagesTask = (data: { propIds: number[] }) => {
+  return request.post({
+    url: "/tasks/batchGeneratePropImages",
     data,
   });
 };

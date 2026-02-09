@@ -41,7 +41,7 @@ func HandleExtractScenes(ctx context.Context, t *asynq.Task) error {
 	// 3. 获取剧本章节内容
 	var episode scripts.Scripts
 	// Preload Projectss 拿到风格 Style
-	if err := database.DB.Preload("Projectss").First(&episode, p.EpisodeID).Error; err != nil {
+	if err := database.DB.Preload("Projectss").First(&episode, p.ScriptID).Error; err != nil {
 		err = fmt.Errorf("episode script not found: %v", err)
 		taskModel.MarkAsFailed(err)
 		return nil

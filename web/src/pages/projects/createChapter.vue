@@ -11,7 +11,6 @@
                     }}</t-tag>
                 </div>
             </div>
-
             <div class="header-center">
                 <t-steps :current="currentStep" readonly theme="dot" class="workflow-steps">
                     <t-step-item :title="`第 ${currentScriptNumber} 集剧本`" content="撰写剧本" />
@@ -19,7 +18,6 @@
                     <t-step-item title="分镜拆解" content="场景提取与分镜" />
                 </t-steps>
             </div>
-
             <div class="header-right">
                 <t-button theme="default" variant="outline" size="small" @click="initData">
                     <template #icon><t-icon name="refresh" /></template>
@@ -28,15 +26,13 @@
         </div>
 
         <div class="stage-area" v-loading="loading">
-
             <div v-show="currentStep === 0" class="stage-wrapper">
                 <t-card :bordered="false" class="full-height-card">
                     <div v-if="!hasScriptContent && !showScriptInput" class="empty-state-wrapper">
                         <t-empty :description="`尚未创建第 ${currentScriptNumber} 集内容`">
                             <template #action>
                                 <t-button theme="primary" size="large" @click="startCreateChapter">
-                                    <template #icon><t-icon name="file-add" /></template>
-                                    开始创作
+                                    <template #icon><t-icon name="file-add" /></template> 开始创作
                                 </t-button>
                             </template>
                         </t-empty>
@@ -47,18 +43,16 @@
                             <div class="toolbar-title">剧本编辑器 (第 {{ currentScriptNumber }} 集)</div>
                             <t-button theme="primary" variant="outline" @click="handleGenerateScriptAI"
                                 :loading="generatingScript">
-                                <template #icon><t-icon name="magic" /></template>
-                                AI 灵感生成
+                                <template #icon><t-icon name="magic" /></template> AI 灵感生成
                             </t-button>
                         </div>
-                        <t-textarea v-model="scriptContent" placeholder="请输入剧本内容，建议包含场景描述、人物对话等..."
-                            class="script-textarea" :autosize="{ minRows: 15 }" :disabled="generatingScript" />
+                        <t-textarea v-model="scriptContent" placeholder="请输入剧本内容..." class="script-textarea"
+                            :autosize="{ minRows: 15 }" :disabled="generatingScript" />
                         <div class="editor-footer">
                             <t-button theme="default" style="margin-right: 12px" @click="cancelEdit">取消</t-button>
                             <t-button theme="primary" @click="handleSaveScript(false)" :loading="saving"
                                 :disabled="!scriptContent.trim()">
-                                <template #icon><t-icon name="check" /></template>
-                                保存章节
+                                <template #icon><t-icon name="check" /></template> 保存章节
                             </t-button>
                         </div>
                     </div>
@@ -68,20 +62,17 @@
                             <div class="ph-left">
                                 <h3>第 {{ currentScriptNumber }} 集剧本</h3>
                                 <t-tag theme="success" variant="light">已保存</t-tag>
-                                <span class="update-time" v-if="currentScriptData.updatedAt">
-                                    更新于: {{ formatTime(currentScriptData.updatedAt) }}
-                                </span>
+                                <span class="update-time" v-if="currentScriptData.updatedAt">更新于: {{
+                                    formatTime(currentScriptData.updatedAt) }}</span>
                             </div>
                             <t-button theme="primary" variant="text" @click="enterEditMode">
                                 <template #icon><t-icon name="edit" /></template>修改剧本
                             </t-button>
                         </div>
-
                         <div class="preview-content">
                             <t-textarea :value="currentScriptData.content" readonly class="readonly-textarea"
                                 :autosize="{ minRows: 10 }" />
                         </div>
-
                         <div class="step-actions">
                             <t-button theme="primary" size="large" @click="nextStep">
                                 下一步：角色定妆 <template #suffix><t-icon name="chevron-right" /></template>
@@ -96,98 +87,57 @@
                     <div class="toolbar-section">
                         <div class="toolbar-left">
                             <t-checkbox :checked="checkAll" :indeterminate="isIndeterminate" @change="handleSelectAll"
-                                :disabled="characterList.length === 0">
-                                全选 ({{ selectedCharacterIds.length }}/{{ characterList.length }})
-                            </t-checkbox>
+                                :disabled="characterList.length === 0">全选 ({{ selectedCharacterIds.length }}/{{
+                                characterList.length }})</t-checkbox>
                         </div>
                         <div class="toolbar-right">
                             <t-button theme="default" variant="outline" :loading="parsingCharacters"
-                                @click="parseScriptToCharacters">
-                                <template #icon><t-icon name="user-search" /></template>
-                                从剧本智能提取
-                            </t-button>
-
+                                @click="parseScriptToCharacters"><template #icon><t-icon
+                                        name="user-search" /></template>从剧本智能提取</t-button>
                             <t-button theme="primary" variant="outline" :disabled="selectedCharacterIds.length === 0"
-                                :loading="batchGenerating" @click="batchGenerateCharacterImages">
-                                <template #icon><t-icon name="magic" /></template>
-                                批量生成选中形象
-                            </t-button>
-
-                            <t-button theme="success" @click="nextStep" :disabled="!allCharactersHaveImages">
-                                下一步：分镜拆解 <template #suffix><t-icon name="chevron-right" /></template>
-                            </t-button>
+                                :loading="batchGenerating" @click="batchGenerateCharacterImages"><template #icon><t-icon
+                                        name="magic" /></template>批量生成选中形象</t-button>
+                            <t-button theme="success" @click="nextStep" :disabled="!allCharactersHaveImages">下一步：分镜拆解
+                                <template #suffix><t-icon name="chevron-right" /></template></t-button>
                         </div>
                     </div>
-
                     <div class="character-grid">
                         <div class="char-card add-card" @click="openAddCharacterDialog">
-                            <div class="add-content">
-                                <t-icon name="add" size="32px" />
-                                <span>手动添加角色</span>
-                            </div>
+                            <div class="add-content"><t-icon name="add" size="32px" /><span>手动添加角色</span></div>
                         </div>
-
                         <div v-for="char in characterList" :key="char.id" class="char-card"
                             :class="{ 'is-selected': selectedCharacterIds.includes(char.id) }">
-                            <div class="card-select">
-                                <t-checkbox :checked="selectedCharacterIds.includes(char.id)"
-                                    @change="() => toggleSelection(char.id)" />
-                            </div>
-
+                            <div class="card-select"><t-checkbox :checked="selectedCharacterIds.includes(char.id)"
+                                    @change="() => toggleSelection(char.id)" /></div>
                             <div class="char-image">
                                 <t-image v-if="char.avatarUrl" :src="getImageUrl(char.avatarUrl)" fit="cover"
                                     class="img-box" />
-                                <div v-else class="img-placeholder">
-                                    <t-avatar size="large">{{ char.name ? char.name[0] : '?' }}</t-avatar>
-                                </div>
-
-                                <div v-if="generatingCharacterIds.includes(char.id)" class="loading-mask">
-                                    <t-loading text="AI生成中..." size="small"></t-loading>
-                                </div>
+                                <div v-else class="img-placeholder"><t-avatar size="large">{{ char.name ? char.name[0] :
+                                        '?'
+                                        }}</t-avatar></div>
+                                <div v-if="generatingCharacterIds.includes(char.id)" class="loading-mask"><t-loading
+                                        text="AI生成中..." size="small"></t-loading></div>
                             </div>
-
                             <div class="char-info">
-                                <div class="info-head">
-                                    <span class="name">{{ char.name }}</span>
-                                    <t-tag size="small" :theme="getRoleTheme(char.roleType)">{{
-                                        getRoleText(char.roleType)
-                                    }}</t-tag>
+                                <div class="info-head"><span class="name">{{ char.name }}</span><t-tag size="small"
+                                        :theme="getRoleTheme(char.roleType)">{{ getRoleText(char.roleType) }}</t-tag>
                                 </div>
-                                <div class="desc text-ellipsis-2" :title="char.visualPrompt || char.appearanceDesc">
-                                    {{ char.visualPrompt || char.appearanceDesc || '暂无描述' }}
-                                </div>
+                                <div class="desc text-ellipsis-2" :title="char.visualPrompt || char.appearanceDesc">{{
+                                    char.visualPrompt || char.appearanceDesc || '暂无描述' }}</div>
                                 <t-link theme="primary" size="small"
                                     @click="openEditCharacterDialog(char)">编辑详情</t-link>
                             </div>
-
                             <div class="char-actions">
-                                <t-tooltip content="AI生成形象">
-                                    <t-button shape="circle" size="small" theme="primary"
+                                <t-tooltip content="AI生成形象"><t-button shape="circle" size="small" theme="primary"
                                         :disabled="generatingCharacterIds.includes(char.id)"
-                                        @click="generateCharacterImage(char)">
-                                        <t-icon name="magic" />
-                                    </t-button>
-                                </t-tooltip>
-
-                                <t-tooltip content="编辑详情/上传图片">
-                                    <t-button shape="circle" size="small" variant="outline"
-                                        @click="openEditCharacterDialog(char)">
-                                        <t-icon name="edit" />
-                                    </t-button>
-                                </t-tooltip>
-
-                                <t-tooltip content="从库选择">
-                                    <t-button shape="circle" size="small" variant="outline"
-                                        @click="openCharacterLibrary(char)">
-                                        <t-icon name="folder-open" />
-                                    </t-button>
-                                </t-tooltip>
-
-                                <t-popconfirm content="确认删除?" @confirm="deleteCharacter(char)">
-                                    <t-button shape="circle" size="small" theme="danger" variant="text">
-                                        <t-icon name="delete" />
-                                    </t-button>
-                                </t-popconfirm>
+                                        @click="generateCharacterImage(char)"><t-icon
+                                            name="magic" /></t-button></t-tooltip>
+                                <t-tooltip content="编辑详情/上传图片"><t-button shape="circle" size="small" variant="outline"
+                                        @click="openEditCharacterDialog(char)"><t-icon
+                                            name="edit" /></t-button></t-tooltip>
+                                <t-popconfirm content="确认删除?" @confirm="deleteCharacter(char)"><t-button shape="circle"
+                                        size="small" theme="danger" variant="text"><t-icon
+                                            name="delete" /></t-button></t-popconfirm>
                             </div>
                         </div>
                     </div>
@@ -207,8 +157,7 @@
                                     :loading="extractingScenes">
                                     <template #icon><t-icon name="image" /></template> 提取场景
                                 </t-button>
-                                <t-button theme="default" @click="regenerateShots"
-                                    :disabled="!currentScriptData?.shots?.length">
+                                <t-button theme="default" @click="regenerateShots" :disabled="!shotList?.length">
                                     <template #icon><t-icon name="refresh" /></template> 重新拆分
                                 </t-button>
                             </div>
@@ -223,85 +172,53 @@
                                     <template #icon><t-icon name="add" /></template>新增
                                 </t-button>
                             </div>
-
                             <div class="scene-batch-bar">
                                 <t-checkbox :checked="checkAllScenes" :indeterminate="isSceneIndeterminate"
                                     @change="handleSelectAllScenes">全选</t-checkbox>
                                 <t-tooltip content="批量生成选中场景图片">
                                     <t-button shape="square" variant="outline" size="small"
                                         :disabled="selectedSceneIds.length === 0" @click="batchGenerateSceneImages"
-                                        :loading="batchGeneratingScenes">
-                                        <t-icon name="magic" />
-                                    </t-button>
+                                        :loading="batchGeneratingScenes"><t-icon name="magic" /></t-button>
                                 </t-tooltip>
                             </div>
-
                             <div class="scene-list">
                                 <div v-for="scene in sceneList" :key="scene.id" class="scene-item"
                                     :class="{ 'is-selected': selectedSceneIds.includes(scene.id) }">
                                     <div class="scene-image-area">
-                                        <div class="scene-select-box">
-                                            <t-checkbox :checked="selectedSceneIds.includes(scene.id)"
-                                                @change="() => toggleSceneSelection(scene.id)" />
+                                        <div class="scene-select-box"><t-checkbox
+                                                :checked="selectedSceneIds.includes(scene.id)"
+                                                @change="() => toggleSceneSelection(scene.id)" /></div>
+                                        <t-image v-if="scene.visualPrompt" :src="getImageUrl(scene.visualPrompt)"
+                                            fit="cover" class="s-img" @click="openEditSceneDialog(scene)" />
+                                        <div v-else class="img-placeholder" @click="openEditSceneDialog(scene)"><t-icon
+                                                name="image" size="24px" /><span class="placeholder-text">点击上传</span>
                                         </div>
-
-                                        <t-image v-if="scene.visualPrompt && scene.visualPrompt.startsWith('http')"
-                                            :src="getImageUrl(scene.visualPrompt)" fit="cover" class="s-img"
-                                            @click="openEditSceneDialog(scene)">
-                                            <template #error>
-                                                <div class="img-placeholder" @click="openEditSceneDialog(scene)">
-                                                    <t-icon name="image" size="24px" />
-                                                    <span class="placeholder-text">点击上传</span>
-                                                </div>
-                                            </template>
-                                        </t-image>
-                                        <div v-else class="img-placeholder" @click="openEditSceneDialog(scene)">
-                                            <t-icon name="image" size="24px" />
-                                            <span class="placeholder-text">点击上传</span>
-                                        </div>
-
                                         <div v-if="generatingSceneIds.includes(scene.id)" class="loading-mask">
-                                            <t-loading size="small" text="AI生成中..." />
-                                        </div>
+                                            <t-loading size="small" text="AI生成中..." /></div>
                                     </div>
-
                                     <div class="scene-content">
-                                        <div class="scene-header-row">
-                                            <span class="scene-name" :title="scene.name">{{ scene.name }}</span>
-                                            <t-tag size="small" variant="light" theme="warning">{{ scene.time }}</t-tag>
-                                        </div>
+                                        <div class="scene-header-row"><span class="scene-name" :title="scene.name">{{
+                                                scene.name
+                                                }}</span><t-tag size="small" variant="light" theme="warning">{{
+                                                scene.time }}</t-tag></div>
                                         <div class="scene-loc"><t-icon name="location" /> {{ scene.location }}</div>
                                         <div class="scene-desc text-ellipsis-2" :title="scene.atmosphere">{{
                                             scene.atmosphere || '暂无描述' }}
                                         </div>
                                     </div>
-
                                     <div class="scene-footer">
                                         <t-row :gutter="0" style="width: 100%; text-align: center;">
-                                            <t-col :span="4">
-                                                <t-tooltip content="AI生成图片">
-                                                    <t-button variant="text" size="small" block
-                                                        @click="generateSceneImage(scene)"
-                                                        :disabled="generatingSceneIds.includes(scene.id)">
-                                                        <t-icon name="magic" />
-                                                    </t-button>
-                                                </t-tooltip>
-                                            </t-col>
-                                            <t-col :span="4">
-                                                <t-tooltip content="编辑详情/上传图">
-                                                    <t-button variant="text" size="small" block
-                                                        @click="openEditSceneDialog(scene)">
-                                                        <t-icon name="edit" />
-                                                    </t-button>
-                                                </t-tooltip>
-                                            </t-col>
-                                            <t-col :span="4">
-                                                <t-popconfirm content="确定删除该场景吗?" @confirm="deleteScene(scene)">
-                                                    <t-button variant="text" theme="danger" size="small" block>
-                                                        <t-icon name="delete" />
-                                                    </t-button>
-                                                </t-popconfirm>
-                                            </t-col>
+                                            <t-col :span="4"><t-tooltip content="AI生成图片"><t-button variant="text"
+                                                        size="small" block @click="generateSceneImage(scene)"
+                                                        :disabled="generatingSceneIds.includes(scene.id)"><t-icon
+                                                            name="magic" /></t-button></t-tooltip></t-col>
+                                            <t-col :span="4"><t-tooltip content="编辑详情/上传图"><t-button variant="text"
+                                                        size="small" block @click="openEditSceneDialog(scene)"><t-icon
+                                                            name="edit" /></t-button></t-tooltip></t-col>
+                                            <t-col :span="4"><t-popconfirm content="确定删除该场景吗?"
+                                                    @confirm="deleteScene(scene)"><t-button variant="text"
+                                                        theme="danger" size="small" block><t-icon
+                                                            name="delete" /></t-button></t-popconfirm></t-col>
                                         </t-row>
                                     </div>
                                 </div>
@@ -309,11 +226,11 @@
                         </div>
 
                         <div class="shots-panel" :class="{ 'full-width': sceneList.length === 0 }">
-                            <div class="panel-header" v-if="sceneList.length > 0">分镜列表</div>
+                            <div class="panel-header" v-if="sceneList.length > 0">分镜列表 ({{ shotList.length }})</div>
 
-                            <div v-if="currentScriptData?.shots && currentScriptData.shots.length > 0">
-                                <t-table :data="currentScriptData.shots" :columns="shotColumns" row-key="id" stripe
-                                    hover :max-height="600" table-layout="auto">
+                            <div v-if="shotList.length > 0">
+                                <t-table :data="shotList" :columns="shotColumns" row-key="id" stripe hover
+                                    :max-height="600" table-layout="auto">
                                     <template #shotInfo="{ row }">
                                         <t-space size="small" direction="vertical" style="gap: 2px">
                                             <t-tag size="small" variant="light" theme="primary" v-if="row.shotType">{{
@@ -324,41 +241,31 @@
                                                 row.cameraMove }}</t-tag>
                                         </t-space>
                                     </template>
-
                                     <template #sceneInfo="{ row }">
                                         <div style="font-size: 12px; line-height: 1.4;">
-                                            <div style="font-weight: bold; margin-bottom: 2px;">{{ row.location || '-'
-                                            }}</div>
-                                            <div style="color: var(--td-text-color-secondary);">{{ row.time || '-' }}
-                                            </div>
+                                            <div style="font-weight: bold; margin-bottom: 2px;">{{
+                                                getSceneName(row.sceneId) }}</div>
                                         </div>
                                     </template>
-
                                     <template #visual="{ row }">
                                         <div style="font-size: 12px;">
                                             <div v-if="row.action"
                                                 style="margin-bottom: 4px; color: var(--td-text-color-primary);">
-                                                <strong>[动作]</strong> {{ row.action }}
-                                            </div>
+                                                <strong>[动作]</strong> {{ row.action }}</div>
                                             <div style="color: var(--td-text-color-secondary);" class="text-ellipsis-2"
-                                                :title="row.visualDesc">
-                                                <strong>[画面]</strong> {{ row.visualDesc }}
-                                            </div>
+                                                :title="row.visualDesc"><strong>[画面]</strong> {{ row.visualDesc }}</div>
                                         </div>
                                     </template>
-
-                                    <template #duration="{ row }">{{ row.durationMs ? row.durationMs / 1000 : 0
-                                    }}s</template>
-
-                                    <template #operation="{ row, rowIndex }">
-                                        <t-link theme="primary" @click="editShot(row, rowIndex)">编辑</t-link>
+                                    <template #duration="{ row }">{{ row.duration }}s</template>
+                                    <template #operation="{ row }">
+                                        <t-link theme="primary" @click="openEditShotDialog(row)">编辑</t-link>
                                     </template>
                                 </t-table>
 
                                 <div class="step-actions mt-4">
                                     <t-button theme="default" @click="prevStep">上一步</t-button>
-                                    <t-button theme="success" @click="finishWorkflow">
-                                        完成创作 <template #icon><t-icon name="check-circle" /></template>
+                                    <t-button theme="success" @click="goToScriptEditor">
+                                        进入专业制作 <template #icon><t-icon name="arrow-right" /></template>
                                     </t-button>
                                 </div>
                             </div>
@@ -380,70 +287,28 @@
                     </div>
                 </t-card>
             </div>
-
         </div>
 
         <t-dialog v-model:visible="addCharacterDialogVisible" :header="isEditMode ? '编辑角色' : '添加新角色'" width="600px"
             :confirm-btn="{ content: '保存', theme: 'primary', loading: saving }" @confirm="handleCharacterSubmit">
             <t-form :data="newCharacter" label-align="top">
                 <t-form-item label="角色形象" name="avatarUrl">
-                    <div class="image-upload-container">
-                        <div v-if="characterFileList && characterFileList.length > 0" class="uploaded-images-container">
-                            <div v-for="(file, index) in characterFileList" :key="index" class="uploaded-item">
-                                <div class="image-preview-wrapper">
-                                    <t-image-viewer :close-on-overlay="true" :images="[getImageUrl(file.url)]">
-                                        <template #trigger="{ open }">
-                                            <t-image :src="getImageUrl(file.url)" @click="open" fit="cover"
-                                                class="image-preview" />
-                                        </template>
-                                    </t-image-viewer>
-                                    <div class="image-overlay">
-                                        <t-button theme="danger" variant="text" size="small"
-                                            @click="handleImageRemove(index)" class="overlay-btn">
-                                            <t-icon name="delete" />
-                                        </t-button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="reupload-section">
-                                <t-upload v-model="tempReuploadList" :action="uploadConfig.action"
-                                    :headers="uploadConfig.headers" accept="image/*" :show-image-filename="false"
-                                    :auto-upload="true" :max="1" :size-limit="uploadConfig.sizeLimit"
-                                    :before-upload="beforeUpload"
-                                    @success="(ctx) => handleUploadSuccess(ctx, true, 'character')"
-                                    @fail="handleUploadFail" class="reupload-component">
-                                    <template #trigger>
-                                        <t-button theme="default" variant="outline" size="small" :loading="uploading">
-                                            <template #icon><t-icon
-                                                    :name="uploading ? 'loading' : 'refresh'" /></template>
-                                            {{ uploading ? '上传中...' : '更换图片' }}
-                                        </t-button>
-                                    </template>
-                                </t-upload>
-                            </div>
+                    <t-upload v-model="characterFileList" :action="uploadConfig.action" :headers="uploadConfig.headers"
+                        :show-file-list="false" accept="image/*"
+                        @success="(ctx) => handleUploadSuccess(ctx, false, 'character')">
+                        <div class="upload-trigger" v-if="!newCharacter.avatarUrl"
+                            style="width:120px;height:120px;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                            <t-icon name="add" size="24px" />
                         </div>
-
-                        <t-upload v-else v-model="tempFileList" :action="uploadConfig.action"
-                            :headers="uploadConfig.headers" accept="image/*" :show-image-filename="false"
-                            :auto-upload="true" :max="1" :size-limit="uploadConfig.sizeLimit"
-                            :before-upload="beforeUpload"
-                            @success="(ctx) => handleUploadSuccess(ctx, false, 'character')" @fail="handleUploadFail">
-                            <template #trigger>
-                                <div class="upload-trigger">
-                                    <t-icon name="upload" size="32px" />
-                                    <div class="upload-text">
-                                        <div class="upload-title">点击上传</div>
-                                    </div>
-                                </div>
-                            </template>
-                        </t-upload>
-                    </div>
+                        <t-image v-else :src="getImageUrl(newCharacter.avatarUrl)" fit="cover"
+                            style="width:120px;height:120px" />
+                    </t-upload>
                 </t-form-item>
                 <t-form-item label="角色名称" name="name" required><t-input v-model="newCharacter.name" /></t-form-item>
                 <t-form-item label="类型" name="roleType"><t-select v-model="newCharacter.roleType"
                         :options="roleOptions" /></t-form-item>
-                <t-form-item label="外貌描述" name="appearanceDesc"><t-textarea v-model="newCharacter.appearanceDesc"
-                        placeholder="详细描述..." :autosize="{ minRows: 3, maxRows: 6 }" /></t-form-item>
+                <t-form-item label="外貌描述" name="appearanceDesc"><t-textarea
+                        v-model="newCharacter.appearanceDesc" /></t-form-item>
             </t-form>
         </t-dialog>
 
@@ -451,56 +316,54 @@
             :confirm-btn="{ content: '保存', theme: 'primary', loading: saving }" @confirm="handleSceneSubmit">
             <t-form :data="newScene" label-align="top">
                 <t-form-item label="场景参考图" name="visualPrompt">
-                    <div class="image-upload-container">
-                        <div v-if="sceneFileList.length > 0" class="uploaded-images-container">
-                            <div class="image-preview-wrapper" style="width: 100%; height: 200px;">
-                                <t-image-viewer :images="[getImageUrl(sceneFileList[0].url)]">
-                                    <template #trigger="{ open }"><t-image :src="getImageUrl(sceneFileList[0].url)"
-                                            @click="open" fit="cover" class="image-preview" /></template>
-                                </t-image-viewer>
-                                <div class="image-overlay">
-                                    <t-button theme="danger" variant="text" @click="handleSceneImageRemove"><t-icon
-                                            name="delete" /></t-button>
-                                </div>
-                            </div>
-                            <div class="reupload-section">
-                                <t-upload v-model="tempSceneReuploadList" :action="uploadConfig.action"
-                                    :headers="uploadConfig.headers" accept="image/*" :show-image-filename="false"
-                                    :auto-upload="true" :max="1" :size-limit="uploadConfig.sizeLimit"
-                                    :before-upload="beforeUpload"
-                                    @success="(ctx) => handleUploadSuccess(ctx, true, 'scene')"
-                                    @fail="handleUploadFail">
-                                    <template #trigger><t-button theme="default" variant="outline" size="small"
-                                            :loading="uploading"><template #icon><t-icon
-                                                    :name="uploading ? 'loading' : 'refresh'" /></template>更换图片</t-button></template>
-                                </t-upload>
-                            </div>
+                    <t-upload v-model="sceneFileList" :action="uploadConfig.action" :headers="uploadConfig.headers"
+                        :show-file-list="false" accept="image/*"
+                        @success="(ctx) => handleUploadSuccess(ctx, false, 'scene')">
+                        <div class="upload-trigger" v-if="!newScene.visualPrompt"
+                            style="width:100%;height:160px;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;cursor:pointer">
+                            <t-icon name="add" size="24px" />
                         </div>
-                        <t-upload v-else v-model="tempSceneFileList" :action="uploadConfig.action"
-                            :headers="uploadConfig.headers" accept="image/*" :show-image-filename="false"
-                            :auto-upload="true" :max="1" :size-limit="uploadConfig.sizeLimit"
-                            :before-upload="beforeUpload" @success="(ctx) => handleUploadSuccess(ctx, false, 'scene')"
-                            @fail="handleUploadFail">
-                            <template #trigger>
-                                <div class="upload-trigger" style="height: 160px; width: 100%"><t-icon name="upload"
-                                        size="32px" />
-                                    <div class="upload-text">点击上传场景图</div>
-                                </div>
-                            </template>
-                        </t-upload>
-                    </div>
+                        <t-image v-else :src="getImageUrl(newScene.visualPrompt)" fit="cover"
+                            style="width:100%;height:160px" />
+                    </t-upload>
                 </t-form-item>
-
-                <t-form-item label="场景名称" name="name" required><t-input v-model="newScene.name"
-                        placeholder="例如：街道-白天" /></t-form-item>
+                <t-form-item label="场景名称" name="name" required><t-input v-model="newScene.name" /></t-form-item>
                 <t-row :gutter="16">
                     <t-col :span="6"><t-form-item label="地点" name="location"><t-input
                                 v-model="newScene.location" /></t-form-item></t-col>
                     <t-col :span="6"><t-form-item label="时间" name="time"><t-select v-model="newScene.time"
                                 :options="['白天', '夜晚', '黄昏', '清晨'].map(v => ({ label: v, value: v }))" /></t-form-item></t-col>
                 </t-row>
-                <t-form-item label="氛围/描述" name="atmosphere"><t-textarea v-model="newScene.atmosphere"
-                        placeholder="描述环境氛围..." :autosize="{ minRows: 3 }" /></t-form-item>
+                <t-form-item label="氛围/描述" name="atmosphere"><t-textarea v-model="newScene.atmosphere" /></t-form-item>
+            </t-form>
+        </t-dialog>
+
+        <t-dialog v-model:visible="shotDialog.visible" header="编辑分镜" width="650px"
+            :confirm-btn="{ content: '保存修改', theme: 'primary', loading: shotDialog.loading }"
+            @confirm="handleShotSubmit">
+            <t-form :data="shotFormData" label-align="top">
+                <t-row :gutter="16">
+                    <t-col :span="6"><t-form-item label="所属场景" name="sceneId"><t-select v-model="shotFormData.sceneId"
+                                :options="sceneOptions" filterable placeholder="关联场景" /></t-form-item></t-col>
+                    <t-col :span="6"><t-form-item label="时长 (秒)" name="duration"><t-input-number
+                                v-model="shotFormData.duration" /></t-form-item></t-col>
+                </t-row>
+                <t-form-item label="画面描述" name="visualDesc"><t-textarea v-model="shotFormData.visualDesc"
+                        :autosize="{ minRows: 2 }" /></t-form-item>
+                <t-form-item label="人物动作" name="action"><t-textarea v-model="shotFormData.action"
+                        :autosize="{ minRows: 2 }" /></t-form-item>
+                <t-form-item label="台词/对白" name="dialogue"><t-textarea v-model="shotFormData.dialogue"
+                        :autosize="{ minRows: 2 }" /></t-form-item>
+                <t-row :gutter="16">
+                    <t-col :span="4"><t-form-item label="景别" name="shotType"><t-select v-model="shotFormData.shotType"
+                                :options="['特写', '近景', '中景', '全景', '远景'].map(v => ({ label: v, value: v }))" /></t-form-item></t-col>
+                    <t-col :span="4"><t-form-item label="角度" name="cameraAngle"><t-select
+                                v-model="shotFormData.cameraAngle"
+                                :options="['平视', '俯视', '仰视'].map(v => ({ label: v, value: v }))" /></t-form-item></t-col>
+                    <t-col :span="4"><t-form-item label="运镜" name="cameraMove"><t-select
+                                v-model="shotFormData.cameraMove"
+                                :options="['固定', '推', '拉', '摇', '移', '跟'].map(v => ({ label: v, value: v }))" /></t-form-item></t-col>
+                </t-row>
             </t-form>
         </t-dialog>
 
@@ -514,7 +377,8 @@ import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
 import {
     ArrowLeftIcon, MagicIcon, FileAddIcon, EditIcon, CheckIcon,
     ChevronRightIcon, RefreshIcon, UserSearchIcon, FilmIcon,
-    UploadIcon, FolderOpenIcon, DeleteIcon, PlusIcon, ImageIcon, LocationIcon, AddIcon
+    UploadIcon, FolderOpenIcon, DeleteIcon, PlusIcon, ImageIcon, LocationIcon, AddIcon,
+    CheckCircleIcon, ArrowRightIcon
 } from 'tdesign-icons-vue-next'
 import dayjs from 'dayjs'
 
@@ -523,6 +387,7 @@ import { findProjects } from '@/api/projects'
 import { createScripts, updateScripts, getScriptsList, findScripts } from '@/api/scripts'
 import { getCharactersList, createCharacters, updateCharacters, deleteCharacters } from '@/api/characters'
 import { getScenesList, createScenes, updateScenes, deleteScenes } from '@/api/scenes'
+import { updateShots, getShotsList } from '@/api/shots'
 import {
     generateScriptTask, generateCharactersTask, extractScenesTask, generateShotsTask, findTasks,
     batchGenerateCharacterImagesTask, batchGenerateSceneImagesTask, generateSceneImageTask
@@ -540,6 +405,7 @@ const currentScriptData = ref<any>({})
 const currentScriptNumber = ref(Number(route.params.episodeNumber) || 1)
 const characterList = ref<any[]>([])
 const sceneList = ref<any[]>([])
+const shotList = ref<any[]>([]) // 分镜列表
 
 // 编辑器 & 任务状态
 const showScriptInput = ref(false)
@@ -559,7 +425,7 @@ const generatingCharacterIds = ref<number[]>([])
 const selectedSceneIds = ref<number[]>([])
 const generatingSceneIds = ref<number[]>([])
 
-// 弹窗状态 (角色)
+// 弹窗状态
 const addCharacterDialogVisible = ref(false)
 const isEditMode = ref(false)
 const newCharacter = ref({ id: undefined, name: '', roleType: 'supporting', appearanceDesc: '', personality: '', gender: '', avatarUrl: '' })
@@ -568,13 +434,15 @@ const characterFileList = ref<any[]>([])
 const tempFileList = ref([])
 const tempReuploadList = ref([])
 
-// 弹窗状态 (场景)
 const addSceneDialogVisible = ref(false)
 const isSceneEditMode = ref(false)
 const newScene = ref({ id: undefined, name: '', location: '', time: '白天', atmosphere: '', visualPrompt: '' })
 const sceneFileList = ref<any[]>([])
 const tempSceneFileList = ref([])
 const tempSceneReuploadList = ref([])
+
+const shotDialog = reactive({ visible: false, loading: false })
+const shotFormData = ref<any>({})
 
 const getAuthToken = () => localStorage.getItem('token')
 const uploadConfig = reactive({
@@ -591,15 +459,20 @@ const isIndeterminate = computed(() => selectedCharacterIds.value.length > 0 && 
 const allCharactersHaveImages = computed(() => characterList.value.length > 0 && characterList.value.every((c: any) => !!(c.avatarUrl || c.image_url)))
 const checkAllScenes = computed(() => sceneList.value.length > 0 && selectedSceneIds.value.length === sceneList.value.length)
 const isSceneIndeterminate = computed(() => selectedSceneIds.value.length > 0 && selectedSceneIds.value.length < sceneList.value.length)
+const sceneOptions = computed(() => sceneList.value.map(s => ({ label: s.name, value: s.id })))
 
-// ========== 3. 工具函数 (轮询) ==========
+const getSceneName = (id: number) => {
+    const s = sceneList.value.find(item => item.id === id)
+    return s ? s.name : '-'
+}
+
+// ========== 3. 工具函数 ==========
 const pollTask = async (taskId: string, onSuccess: () => void, onFail: () => void) => {
     const timer = setInterval(async () => {
         try {
             const res = await findTasks(taskId)
             const data = res.data?.data || res.data
             const status = data?.status
-
             if (status === 'completed' || status === 2) {
                 clearInterval(timer)
                 onSuccess()
@@ -608,10 +481,7 @@ const pollTask = async (taskId: string, onSuccess: () => void, onFail: () => voi
                 MessagePlugin.error(data?.error || '任务执行失败')
                 onFail()
             }
-        } catch {
-            clearInterval(timer)
-            onFail()
-        }
+        } catch { clearInterval(timer); onFail() }
     }, 2000)
 }
 const formatTime = (val: string) => dayjs(val).format('YYYY-MM-DD HH:mm')
@@ -620,86 +490,63 @@ const getStatusText = (s: any) => s === 2 ? '已完成' : '制作中'
 const getRoleTheme = (role: string) => ({ main: 'danger', supporting: 'primary', minor: 'default' }[role] || 'default')
 const getRoleText = (role: string) => ({ main: '主角', supporting: '配角', minor: '路人' }[role] || '未知')
 
-// ========== 4. 初始化逻辑 ==========
+// ========== 4. 初始化 & 导航 ==========
 const initData = async () => {
     loading.value = true
     try {
         await Promise.all([loadProjectInfo(), loadCharacters(), loadScenes()])
         await loadScriptDetail()
+        if (currentScriptData.value?.id) await loadShots(currentScriptData.value.id)
     } catch (e) { console.error(e) } finally { loading.value = false }
 }
 
-const loadProjectInfo = async () => {
-    const res = await findProjects(route.params.id as string)
-    if (res.code === 0) project.value = res.data
+const goToScriptEditor = () => {
+    router.push({
+        name: 'ScriptEditor',
+        params: { dramaId: project.value.id, episodeNumber: currentScriptNumber.value }
+    })
 }
 
-const loadCharacters = async () => {
-    try {
-        const res = await getCharactersList({ projectId: route.params.id as string, pageSize: 100 })
-        if (res.code === 0) {
-            const data = res.data
-            characterList.value = Array.isArray(data) ? data : (data.list || [])
-        }
-    } catch (e) { console.error(e) }
-}
-
-const loadScenes = async () => {
-    try {
-        const res = await getScenesList({ projectId: route.params.id as string, pageSize: 100 })
-        if (res.code === 0) {
-            const data = res.data
-            sceneList.value = Array.isArray(data) ? data : (data.list || [])
-        }
-    } catch (e) { console.error(e) }
-}
-
+// ========== 5. 数据加载 ==========
+const loadProjectInfo = async () => { const res = await findProjects(route.params.id as string); if (res.code === 0) project.value = res.data }
+const loadCharacters = async () => { const res = await getCharactersList({ projectId: route.params.id as string, pageSize: 100 }); if (res.code === 0) characterList.value = Array.isArray(res.data) ? res.data : (res.data?.list || []) }
+const loadScenes = async () => { const res = await getScenesList({ projectId: route.params.id as string, pageSize: 100 }); if (res.code === 0) sceneList.value = Array.isArray(res.data) ? res.data : (res.data?.list || []) }
 const loadScriptDetail = async () => {
-    try {
-        const listRes = await getScriptsList({ projectId: route.params.id, page: 1, pageSize: 100 })
-        if (listRes.code === 0) {
-            const list = Array.isArray(listRes.data) ? listRes.data : (listRes.data?.list || [])
-            const targetScript = list.find((s: any) => Number(s.episodeNo) === currentScriptNumber.value)
-            if (targetScript) {
-                const detailRes = await findScripts(targetScript.id)
-                if (detailRes.code === 0) {
-                    currentScriptData.value = detailRes.data
-                    if (detailRes.data.content) showScriptInput.value = false
-                }
-            } else {
-                currentScriptData.value = {}
-                showScriptInput.value = false
+    const listRes = await getScriptsList({ projectId: route.params.id, page: 1, pageSize: 100 })
+    if (listRes.code === 0) {
+        const list = Array.isArray(listRes.data) ? listRes.data : (listRes.data?.list || [])
+        const targetScript = list.find((s: any) => Number(s.episodeNo) === currentScriptNumber.value)
+        if (targetScript) {
+            const detailRes = await findScripts(targetScript.id)
+            if (detailRes.code === 0) {
+                currentScriptData.value = detailRes.data
+                if (detailRes.data.content) showScriptInput.value = false
             }
-        }
-    } catch { MessagePlugin.error('加载剧本失败') }
+        } else { currentScriptData.value = {}; showScriptInput.value = false }
+    }
+}
+const loadShots = async (scriptId: number) => {
+    const res = await getShotsList({ scriptId: scriptId, pageSize: 1000 })
+    if (res.code === 0) shotList.value = res.data?.list || res.data || []
 }
 
-// ========== 5. 剧本操作 ==========
+// ========== 6. 剧本生成 ==========
 const startCreateChapter = () => { scriptContent.value = ''; showScriptInput.value = true }
 const enterEditMode = () => { scriptContent.value = currentScriptData.value.content || ''; showScriptInput.value = true }
 const cancelEdit = () => { showScriptInput.value = false; if (!currentScriptData.value.id) scriptContent.value = '' }
-
 const handleGenerateScriptAI = async () => {
     if (!project.value?.title) return MessagePlugin.warning('项目信息缺失')
     if (!currentScriptData.value.id) { try { await handleSaveScript(true) } catch { return } }
     generatingScript.value = true
     try {
-        const res = await generateScriptTask({
-            projectId: project.value.id,
-            scriptId: currentScriptData.value.id,
-            prompt: `基于项目《${project.value.title}》生成第${currentScriptNumber.value}集剧本`
-        })
-
-        // 兼容任务ID获取路径
+        const res = await generateScriptTask({ projectId: project.value.id, scriptId: currentScriptData.value.id, prompt: `基于项目《${project.value.title}》生成第${currentScriptNumber.value}集剧本` })
         const taskId = res.data?.data?.task_id || res.data?.taskId || res.data?.task_id
-
         if ((res.code === 0 || res.status === 200 || res.status === 0) && taskId) {
             MessagePlugin.loading('AI 正在创作剧本...')
             pollTask(taskId, () => { generatingScript.value = false; MessagePlugin.success('AI 创作完成'); loadScriptDetail() }, () => generatingScript.value = false)
         } else { MessagePlugin.error('生成失败'); generatingScript.value = false }
     } catch { generatingScript.value = false; MessagePlugin.error('请求失败') }
 }
-
 const handleSaveScript = async (silent = false) => {
     if (!scriptContent.value.trim() && !silent) return MessagePlugin.warning('内容不能为空')
     if (!silent) saving.value = true
@@ -712,259 +559,138 @@ const handleSaveScript = async (silent = false) => {
     finally { if (!silent) saving.value = false }
 }
 
-// ========== 6. 角色 & 场景 批量逻辑 ==========
-
+// ========== 7. 角色 & 场景 批量生图 ==========
 const parseScriptToCharacters = async () => {
-    if (!project.value?.id) return
-    parsingCharacters.value = true
+    if (!project.value?.id) return; parsingCharacters.value = true
     try {
-        const res = await generateCharactersTask({ dramaId: project.value.id, count: 5 })
-
+        const res = await generateCharactersTask({ projectId: project.value.id, count: 5 })
         const taskId = res.data?.data?.task_id || res.data?.taskId || res.data?.task_id
-
-        if ((res.code === 0 || res.status === 200 || res.status === 0) && taskId) {
+        if (taskId) {
             MessagePlugin.loading('AI 正在提取角色...')
             pollTask(taskId, () => { parsingCharacters.value = false; MessagePlugin.success('角色提取完成'); loadCharacters() }, () => parsingCharacters.value = false)
         } else { MessagePlugin.error('提交失败'); parsingCharacters.value = false }
     } catch { parsingCharacters.value = false }
 }
-
 const runBatchGeneration = async (type: 'character' | 'scene', ids: number[]) => {
     try {
         let res
         if (type === 'character') res = await batchGenerateCharacterImagesTask({ characterIds: ids })
         else res = await batchGenerateSceneImagesTask({ sceneIds: ids })
-
         const taskList = res.data?.data || res.data || []
-
         if (taskList.length > 0) {
-            MessagePlugin.success(`已提交 ${taskList.length} 个${type === 'character' ? '角色' : '场景'}生图任务`)
+            MessagePlugin.success(`已提交 ${taskList.length} 个任务`)
+            if (type === 'character') selectedCharacterIds.value = []; else selectedSceneIds.value = []
             taskList.forEach((item: any) => {
-                const id = type === 'character' ? item.character_id : item.scene_id
-                const taskId = item.task_id
-                const trackingList = type === 'character' ? generatingCharacterIds : generatingSceneIds
-                const refreshFunc = type === 'character' ? loadCharacters : loadScenes
-
-                pollTask(taskId,
-                    () => { const idx = trackingList.value.indexOf(id); if (idx > -1) trackingList.value.splice(idx, 1); refreshFunc() },
-                    () => { const idx = trackingList.value.indexOf(id); if (idx > -1) trackingList.value.splice(idx, 1) }
-                )
+                const id = type === 'character' ? item.character_id : item.scene_id; const taskId = item.task_id
+                const trackingList = type === 'character' ? generatingCharacterIds : generatingSceneIds; const refreshFunc = type === 'character' ? loadCharacters : loadScenes
+                if (!trackingList.value.includes(id)) trackingList.value.push(id)
+                pollTask(taskId, () => { const idx = trackingList.value.indexOf(id); if (idx > -1) trackingList.value.splice(idx, 1); refreshFunc() }, () => { const idx = trackingList.value.indexOf(id); if (idx > -1) trackingList.value.splice(idx, 1) })
             })
-        } else {
-            MessagePlugin.warning('未创建任务，请检查描述')
-            const trackingList = type === 'character' ? generatingCharacterIds : generatingSceneIds
-            ids.forEach(id => { const idx = trackingList.value.indexOf(id); if (idx > -1) trackingList.value.splice(idx, 1) })
-        }
-    } catch (e) {
-        MessagePlugin.error('任务提交失败')
-        const trackingList = type === 'character' ? generatingCharacterIds : generatingSceneIds
-        ids.forEach(id => { const idx = trackingList.value.indexOf(id); if (idx > -1) trackingList.value.splice(idx, 1) })
-        throw e
-    }
+        } else { MessagePlugin.warning('未创建任务') }
+    } catch { MessagePlugin.error('任务提交失败') }
 }
-
-// 角色操作
 const generateCharacterImage = async (char: any) => { if (generatingCharacterIds.value.includes(char.id)) return; generatingCharacterIds.value.push(char.id); await runBatchGeneration('character', [char.id]) }
-const batchGenerateCharacterImages = async () => { if (selectedCharacterIds.value.length === 0) return; batchGenerating.value = true; const idsToGen = [...selectedCharacterIds.value]; idsToGen.forEach(id => { if (!generatingCharacterIds.value.includes(id)) generatingCharacterIds.value.push(id) }); try { await runBatchGeneration('character', idsToGen) } finally { batchGenerating.value = false } }
+const batchGenerateCharacterImages = async () => { if (selectedCharacterIds.value.length === 0) return; batchGenerating.value = true; try { await runBatchGeneration('character', [...selectedCharacterIds.value]) } finally { batchGenerating.value = false } }
 const handleSelectAll = (checked: boolean) => { if (characterList.value.length === 0) return; if (checked) selectedCharacterIds.value = characterList.value.map((c: any) => c.id); else selectedCharacterIds.value = [] }
 const toggleSelection = (id: number) => { const idx = selectedCharacterIds.value.indexOf(id); if (idx > -1) selectedCharacterIds.value.splice(idx, 1); else selectedCharacterIds.value.push(id) }
 
-// 场景操作
 const generateSceneImage = async (scene: any) => {
-    if (generatingSceneIds.value.includes(scene.id)) return;
-    generatingSceneIds.value.push(scene.id);
+    if (generatingSceneIds.value.includes(scene.id)) return; generatingSceneIds.value.push(scene.id)
     try {
-        const res = await generateSceneImageTask({ sceneId: scene.id })
-        const taskId = res.data?.data?.task_id || res.data?.taskId || res.data?.task_id
+        const res = await generateSceneImageTask({ sceneId: scene.id }); const taskId = res.data?.data?.task_id || res.data?.taskId
         if (taskId) {
             MessagePlugin.success('场景生图任务已提交')
-            pollTask(taskId,
-                () => { const idx = generatingSceneIds.value.indexOf(scene.id); if (idx > -1) generatingSceneIds.value.splice(idx, 1); loadScenes() },
-                () => { const idx = generatingSceneIds.value.indexOf(scene.id); if (idx > -1) generatingSceneIds.value.splice(idx, 1) }
-            )
-        } else {
-            const idx = generatingSceneIds.value.indexOf(scene.id); if (idx > -1) generatingSceneIds.value.splice(idx, 1)
-        }
-    } catch {
-        const idx = generatingSceneIds.value.indexOf(scene.id); if (idx > -1) generatingSceneIds.value.splice(idx, 1)
-        MessagePlugin.error('提交失败')
-    }
+            pollTask(taskId, () => { const idx = generatingSceneIds.value.indexOf(scene.id); if (idx > -1) generatingSceneIds.value.splice(idx, 1); loadScenes() }, () => { const idx = generatingSceneIds.value.indexOf(scene.id); if (idx > -1) generatingSceneIds.value.splice(idx, 1) })
+        } else { const idx = generatingSceneIds.value.indexOf(scene.id); if (idx > -1) generatingSceneIds.value.splice(idx, 1) }
+    } catch { const idx = generatingSceneIds.value.indexOf(scene.id); if (idx > -1) generatingSceneIds.value.splice(idx, 1); MessagePlugin.error('提交失败') }
 }
-const batchGenerateSceneImages = async () => { if (selectedSceneIds.value.length === 0) return; batchGeneratingScenes.value = true; const idsToGen = [...selectedSceneIds.value]; idsToGen.forEach(id => { if (!generatingSceneIds.value.includes(id)) generatingSceneIds.value.push(id) }); try { await runBatchGeneration('scene', idsToGen) } finally { batchGeneratingScenes.value = false } }
+const batchGenerateSceneImages = async () => { if (selectedSceneIds.value.length === 0) return; batchGeneratingScenes.value = true; try { await runBatchGeneration('scene', [...selectedSceneIds.value]) } finally { batchGeneratingScenes.value = false } }
 const handleSelectAllScenes = (checked: boolean) => { if (sceneList.value.length === 0) return; if (checked) selectedSceneIds.value = sceneList.value.map((c: any) => c.id); else selectedSceneIds.value = [] }
 const toggleSceneSelection = (id: number) => { const idx = selectedSceneIds.value.indexOf(id); if (idx > -1) selectedSceneIds.value.splice(idx, 1); else selectedSceneIds.value.push(id) }
 
-// 场景增删改
-const openAddSceneDialog = () => { isSceneEditMode.value = false; newScene.value = { id: undefined, name: '', location: '', time: '白天', atmosphere: '', visualPrompt: '' }; sceneFileList.value = []; tempSceneFileList.value = []; tempSceneReuploadList.value = []; addSceneDialogVisible.value = true }
-const openEditSceneDialog = (scene: any) => {
-    isSceneEditMode.value = true
-    newScene.value = { ...scene }
-
-    if (scene.visualPrompt && scene.visualPrompt.startsWith('http')) {
-        sceneFileList.value = [{
-            url: getImageUrl(scene.visualPrompt),
-            name: '场景图'
-        }]
-    } else {
-        sceneFileList.value = []
-    }
-
-    tempSceneFileList.value = []
-    tempSceneReuploadList.value = []
-    addSceneDialogVisible.value = true
-}
-
+const openAddSceneDialog = () => { isSceneEditMode.value = false; newScene.value = { id: undefined, name: '', location: '', time: '白天', atmosphere: '', visualPrompt: '' }; sceneFileList.value = []; addSceneDialogVisible.value = true }
+const openEditSceneDialog = (scene: any) => { isSceneEditMode.value = true; newScene.value = { ...scene }; if (scene.visualPrompt) sceneFileList.value = [{ url: getImageUrl(scene.visualPrompt), name: '场景图' }]; else sceneFileList.value = []; addSceneDialogVisible.value = true }
 const handleSceneSubmit = async () => { saving.value = true; try { let res; const payload = { projectId: project.value.id, ...newScene.value }; if (isSceneEditMode.value) res = await updateScenes(newScene.value.id, payload); else res = await createScenes(payload); if (res.code === 0) { addSceneDialogVisible.value = false; MessagePlugin.success(isSceneEditMode.value ? '更新成功' : '添加成功'); loadScenes() } else { MessagePlugin.error(res.message || '操作失败') } } catch { MessagePlugin.error('网络请求失败') } finally { saving.value = false } }
 const deleteScene = async (scene: any) => { try { const res = await deleteScenes(scene.id); if (res.code === 0) { MessagePlugin.success('删除成功'); loadScenes() } else { MessagePlugin.error('删除失败') } } catch { MessagePlugin.error('删除请求失败') } }
 
-// 弹窗 & 提交
 const openAddCharacterDialog = () => { isEditMode.value = false; newCharacter.value = { id: undefined, name: '', roleType: 'supporting', appearanceDesc: '', personality: '', gender: '', avatarUrl: '' }; characterFileList.value = []; addCharacterDialogVisible.value = true }
-const openEditCharacterDialog = (char: any) => {
-    isEditMode.value = true
-    newCharacter.value = { ...char }
-
-    // 手动填充上传组件的文件列表
-    if (char.avatarUrl) {
-        characterFileList.value = [{
-            url: getImageUrl(char.avatarUrl),
-            name: '角色图'
-        }]
-    } else {
-        characterFileList.value = []
-    }
-
-    addCharacterDialogVisible.value = true
-}
+const openEditCharacterDialog = (char: any) => { isEditMode.value = true; newCharacter.value = { ...char }; if (char.avatarUrl) characterFileList.value = [{ url: getImageUrl(char.avatarUrl), name: '角色图' }]; else characterFileList.value = []; addCharacterDialogVisible.value = true }
 const handleCharacterSubmit = async () => { saving.value = true; try { let res; const payload = { projectId: project.value.id, ...newCharacter.value }; if (isEditMode.value) res = await updateCharacters(newCharacter.value.id, payload); else res = await createCharacters(payload); if (res.code === 0) { addCharacterDialogVisible.value = false; MessagePlugin.success(isEditMode.value ? '更新成功' : '添加成功'); loadCharacters() } else { MessagePlugin.error(res.message || '操作失败') } } catch { MessagePlugin.error('网络请求失败') } finally { saving.value = false } }
 const deleteCharacter = async (char: any) => { try { const res = await deleteCharacters(char.id); if (res.code === 0) { MessagePlugin.success('删除成功'); loadCharacters() } else { MessagePlugin.error('删除失败') } } catch { MessagePlugin.error('删除请求失败') } }
 
-// 图片上传
 const beforeUpload = (file: any) => { if (file.size > uploadConfig.sizeLimit) { MessagePlugin.error('文件大小不能超过 5MB'); return false }; uploading.value = true; return true }
 const handleUploadFail = () => { uploading.value = false; MessagePlugin.error('上传失败') }
 const handleUploadSuccess = (ctx: any, isReupload: boolean, type: 'character' | 'scene') => {
-    uploading.value = false
-    const response = ctx.response
-    if (response?.code === 0 || response?.code === 200) {
-        const responseData = response.data
-        let fileUrl = responseData.file_url || responseData.url
-        if (fileUrl && fileUrl.startsWith('/')) fileUrl = import.meta.env.VITE_API_URL.replace(/\/admin\/v1$/, '').replace(/\/v1$/, '') + fileUrl
-
-        if (type === 'character') {
-            newCharacter.value.avatarUrl = fileUrl
-            characterFileList.value = [{ url: fileUrl, name: '角色图' }]
-            if (isReupload) tempReuploadList.value = []; else tempFileList.value = []
-        } else {
-            newScene.value.visualPrompt = fileUrl
-            sceneFileList.value = [{ url: fileUrl, name: '场景图' }]
-            if (isReupload) tempSceneReuploadList.value = []; else tempSceneFileList.value = []
-        }
-        MessagePlugin.success('上传成功')
-    } else { MessagePlugin.error(response?.msg || '上传失败') }
+    uploading.value = false; const response = ctx.response; if (response?.code === 0 || response?.code === 200) { const responseData = response.data; let fileUrl = responseData.file_url || responseData.url; if (fileUrl && fileUrl.startsWith('/')) fileUrl = import.meta.env.VITE_API_URL.replace(/\/admin\/v1$/, '').replace(/\/v1$/, '') + fileUrl; if (type === 'character') { newCharacter.value.avatarUrl = fileUrl; characterFileList.value = [{ url: fileUrl, name: '角色图' }] } else { newScene.value.visualPrompt = fileUrl; sceneFileList.value = [{ url: fileUrl, name: '场景图' }] } MessagePlugin.success('上传成功') } else { MessagePlugin.error(response?.msg || '上传失败') }
 }
-const handleImageRemove = (index: number) => { characterFileList.value = []; newCharacter.value.avatarUrl = '' }
+const handleImageRemove = () => { characterFileList.value = []; newCharacter.value.avatarUrl = '' }
 const handleSceneImageRemove = () => { sceneFileList.value = []; newScene.value.visualPrompt = '' }
 
-// ========== 7. 提取场景 & 分镜 ==========
+// ========== 8. 场景提取 & 分镜拆分 & 编辑 ==========
 const handleExtractScenes = async () => {
     if (!currentScriptData.value?.id) return MessagePlugin.warning('剧本数据缺失')
     extractingScenes.value = true
     try {
-        const res = await extractScenesTask({ episodeId: currentScriptData.value.id })
+        const res = await extractScenesTask({ scriptId: currentScriptData.value.id })
         const taskId = res.data?.data?.task_id || res.data?.taskId || res.data?.task_id
-        if ((res.code === 0 || res.status === 200 || res.status === 0) && taskId) {
+        if (taskId) {
             MessagePlugin.loading('AI 正在提取场景...')
             pollTask(taskId, () => { extractingScenes.value = false; MessagePlugin.success('场景提取完成'); loadScenes() }, () => extractingScenes.value = false)
-        } else { MessagePlugin.error(res.message || '提交失败'); extractingScenes.value = false }
+        } else { MessagePlugin.error('提交失败'); extractingScenes.value = false }
     } catch { extractingScenes.value = false }
 }
 
 const generateShots = async () => {
-    // 1. 校验剧本ID是否存在
-    if (!currentScriptData.value?.id) {
-        return MessagePlugin.warning('请先保存剧本')
-    }
-
-    // 2. 开启 Loading 状态
+    if (!currentScriptData.value?.id) return MessagePlugin.warning('请先保存剧本')
     generatingShots.value = true
-
     try {
-        // 3. 调用后端接口提交任务
         const res = await generateShotsTask({ scriptId: currentScriptData.value.id })
-
         const taskId = res.data?.data?.task_id || res.data?.taskId || res.data?.task_id
-
-        // 判断接口调用是否成功
-        const isSuccess = res.code === 0 || res.status === 200 || res.status === 0
-
-        if (isSuccess && taskId) {
+        if (taskId) {
             MessagePlugin.loading('AI 正在拆分镜头，请稍候...')
-
-            // 5. 启动轮询监听任务状态
-            pollTask(
-                taskId,
-                () => {
-                    // === 成功回调 ===
+            pollTask(taskId,
+                () => { // 🟢 成功后跳转逻辑
                     generatingShots.value = false
                     MessagePlugin.success('分镜拆解完成，即将进入专业编辑器...')
-
-                    // 延迟 1 秒跳转，让用户看清成功提示
-                    setTimeout(() => {
-                        router.push({
-                            name: 'ScriptEditor', // 确保路由配置中有名为 ScriptEditor 的路由
-                            params: {
-                                dramaId: project.value.id,
-                                episodeNumber: currentScriptNumber.value
-                            }
-                        })
-                    }, 1000)
+                    loadShots(currentScriptData.value.id)
+                    setTimeout(() => goToScriptEditor(), 1000) // 1秒后跳转
                 },
-                () => {
-                    // === 失败回调 ===
-                    generatingShots.value = false
-                    MessagePlugin.error('分镜拆解任务执行失败，请重试')
-                }
+                () => { generatingShots.value = false; MessagePlugin.error('分镜拆解失败') }
             )
-        } else {
-            // 接口返回错误或没有 taskId
-            MessagePlugin.error(res.message || '任务提交失败')
-            generatingShots.value = false
-        }
-    } catch (e) {
-        // 网络或其他异常
-        console.error(e)
-        MessagePlugin.error('请求异常，请检查网络')
-        generatingShots.value = false
-    }
+        } else { MessagePlugin.error('任务提交失败'); generatingShots.value = false }
+    } catch { generatingShots.value = false; MessagePlugin.error('请求异常') }
 }
-const regenerateShots = () => { DialogPlugin.confirm({ header: '重新拆分', body: '确定重新拆分吗？', onConfirm: () => { generateShots() } }) }
+const regenerateShots = () => { DialogPlugin.confirm({ header: '重新拆分', body: '确定重新拆分吗？旧数据将被覆盖', onConfirm: () => { generateShots() } }) }
 
-// 8. 修正 Shot Columns (支持新字段)
+// 🟢 分镜编辑
+const openEditShotDialog = (row: any) => { shotFormData.value = { ...row }; shotDialog.visible = true }
+const handleShotSubmit = async () => {
+    shotDialog.loading = true
+    try {
+        const res = await updateShots(shotFormData.value.id, shotFormData.value)
+        if (res.code === 0) { MessagePlugin.success('更新成功'); shotDialog.visible = false; loadShots(currentScriptData.value.id) } else { MessagePlugin.error('更新失败') }
+    } catch { MessagePlugin.error('请求异常') } finally { shotDialog.loading = false }
+}
+
 const shotColumns = [
     { colKey: 'index', title: '#', width: 50, cell: (h: any, { rowIndex }: any) => rowIndex + 1 },
-    { colKey: 'title', title: '标题', width: 100, ellipsis: true },
-    { colKey: 'sceneInfo', title: '场景/时间', width: 120 },
-    { colKey: 'shotInfo', title: '镜头参数', width: 90 },
-    { colKey: 'visual', title: '画面内容', minWidth: 200 },
+    { colKey: 'sceneInfo', title: '场景/时间', width: 120, cell: 'sceneInfo' },
+    { colKey: 'shotInfo', title: '镜头参数', width: 140, cell: 'shotInfo' },
+    { colKey: 'visual', title: '画面内容', minWidth: 200, cell: 'visual' },
     { colKey: 'dialogue', title: '台词', width: 150, ellipsis: true },
-    { colKey: 'durationMs', title: '时长', width: 70, cell: 'duration' },
+    { colKey: 'duration', title: '时长', width: 70, cell: 'duration' },
     { colKey: 'operation', title: '操作', width: 80, fixed: 'right', cell: 'operation' }
 ]
 
-// 导航
 const nextStep = () => { if (currentStep.value < 2) currentStep.value++ }
 const prevStep = () => { if (currentStep.value > 0) currentStep.value-- }
 const goBack = () => router.back()
 const finishWorkflow = () => { MessagePlugin.success('创作流程结束'); router.push({ name: 'ProjectDetail', params: { id: project.value.id } }) }
 
-// Mock
-const editShot = (row: any, index: number) => { MessagePlugin.info('编辑功能开发中') }
-const openCharacterLibrary = (char: any) => { MessagePlugin.info('库选择功能开发中') }
-
 onMounted(() => initData())
 </script>
 
 <style scoped lang="less">
-/* 复用原有布局 */
 .workflow-container {
     min-height: 100vh;
     background: var(--td-bg-color-container-gray);
@@ -1285,7 +1011,6 @@ onMounted(() => initData())
     }
 }
 
-/* Upload Styles */
 .image-upload-container {
     width: 100%;
 }
@@ -1365,7 +1090,6 @@ onMounted(() => initData())
     margin-top: 4px;
 }
 
-/* Scene List Styles */
 .split-view {
     display: flex;
     height: 100%;
@@ -1420,11 +1144,9 @@ onMounted(() => initData())
 
             .scene-image-area {
                 height: 140px;
-                /* 稍微调小一点，留给下面空间 */
                 position: relative;
                 background: var(--td-bg-color-secondarycontainer);
                 cursor: pointer;
-                /* 提示可点击 */
 
                 .s-img {
                     width: 100%;
@@ -1471,7 +1193,6 @@ onMounted(() => initData())
                 padding: 10px 12px;
                 flex: 1;
 
-                /* 撑开中间 */
                 .scene-header-row {
                     display: flex;
                     justify-content: space-between;
@@ -1497,11 +1218,9 @@ onMounted(() => initData())
                     font-size: 12px;
                     color: var(--td-text-color-placeholder);
                     height: 36px;
-                    /* 固定高度，保持整齐 */
                 }
             }
 
-            /* 新增：底部操作栏样式 */
             .scene-footer {
                 border-top: 1px solid var(--td-component-stroke);
                 background-color: var(--td-bg-color-container);
