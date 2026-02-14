@@ -22,7 +22,6 @@
         </div>
 
         <div class="editor-main" v-loading="loading">
-
             <div class="left-sidebar">
                 <div class="storyboard-panel">
                     <div class="panel-header">
@@ -99,7 +98,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="timeline-stage">
                     <VideoTimelineEditor ref="timelineEditorRef" :clips="timelineClips" :audio-clips="audioClips"
                         :current-time="currentTime" :total-duration="totalDuration" :current-id="currentStoryboardId"
@@ -114,7 +112,6 @@
                     <t-tab-panel value="shot" label="镜头属性">
                         <div class="tab-content scrollable-content" v-if="currentStoryboard">
                             <t-form label-align="top" class="compact-form">
-
                                 <div class="section-group">
                                     <div class="section-header">
                                         <span>场景 (Scene)</span>
@@ -212,47 +209,19 @@
 
                                 <div class="section-group">
                                     <div class="section-header"><span>叙事内容</span></div>
-
                                     <t-form-item label="动作 (Action)">
                                         <t-textarea v-model="currentStoryboard.action" :autosize="{ minRows: 2 }"
                                             placeholder="角色做的动作..." @blur="saveStoryboardField('action')" />
                                     </t-form-item>
-
-                                    <t-form-item label="结果 (Result)">
-                                        <t-textarea v-model="currentStoryboard.result" :autosize="{ minRows: 2 }"
-                                            placeholder="动作导致的结果..." @blur="saveStoryboardField('result')" />
-                                    </t-form-item>
-
                                     <t-form-item label="对白 (Dialogue)">
                                         <t-textarea v-model="currentStoryboard.dialogue" :autosize="{ minRows: 2 }"
                                             placeholder="角色台词..." @blur="saveStoryboardField('dialogue')" />
                                     </t-form-item>
-
                                     <t-form-item label="画面描述 (Visual)">
                                         <t-textarea v-model="currentStoryboard.visualDesc" :autosize="{ minRows: 3 }"
                                             placeholder="详细的画面描述..." @blur="saveStoryboardField('visualDesc')" />
                                     </t-form-item>
-
-                                    <t-form-item label="氛围 (Atmosphere)">
-                                        <t-textarea v-model="currentStoryboard.atmosphere" :autosize="{ minRows: 2 }"
-                                            placeholder="光影、色调、气氛..." @blur="saveStoryboardField('atmosphere')" />
-                                    </t-form-item>
                                 </div>
-
-                                <t-divider />
-
-                                <div class="section-group">
-                                    <div class="section-header"><span>音频设置</span></div>
-                                    <t-form-item label="音效 (Sound Effect)">
-                                        <t-textarea v-model="currentStoryboard.soundEffect" :autosize="{ minRows: 1 }"
-                                            placeholder="例如：脚步声、风声..." @blur="saveStoryboardField('soundEffect')" />
-                                    </t-form-item>
-                                    <t-form-item label="背景音乐 (BGM Prompt)">
-                                        <t-textarea v-model="currentStoryboard.bgmPrompt" :autosize="{ minRows: 1 }"
-                                            placeholder="例如：悲伤的钢琴曲..." @blur="saveStoryboardField('bgmPrompt')" />
-                                    </t-form-item>
-                                </div>
-
                             </t-form>
                         </div>
                         <t-empty v-else description="请在左侧选择一个镜头" style="margin-top: 40px" />
@@ -273,19 +242,13 @@
                             </div>
 
                             <div class="section-group">
-                                <div class="section-header">
-                                    <span>AI 绘画提示词</span>
-                                    <t-button theme="primary" variant="text" size="small" :loading="extractingPrompt"
-                                        @click="extractFramePrompt">
-                                        提取提示词
-                                    </t-button>
-                                </div>
+                                <div class="section-header"><span>AI 绘画提示词</span></div>
                                 <t-textarea v-model="currentStoryboard.imagePrompt" :rows="4" placeholder="输入英文提示词..."
                                     @blur="saveStoryboardField('imagePrompt')" />
                             </div>
 
                             <div class="action-bar">
-                                <t-button theme="primary" :loading="generatingImage" @click="generateFrameImage">
+                                <t-button theme="primary" :loading="generatingImage" @click="generateImage">
                                     <template #icon><t-icon name="magic" /></template> 生成画面
                                 </t-button>
                                 <t-upload theme="custom" :action="uploadConfig.action" :headers="uploadConfig.headers"
@@ -296,30 +259,19 @@
                             </div>
 
                             <div class="section-group" style="margin-top: 20px;">
-                                <div class="section-header"><span>生成结果 ({{ generatedImages.length }})</span></div>
-
-                                <div v-if="selectedFrameType === 'action'" class="grid-entry-card"
-                                    @click="showGridEditor = true">
-                                    <t-icon name="add" size="24px" />
-                                    <span>创建动作序列 (宫格图)</span>
-                                </div>
-
-                                <div class="image-grid-list" v-if="generatedImages.length > 0">
-                                    <div v-for="img in generatedImages" :key="img.id" class="image-grid-item">
-                                        <t-image :src="getImageUrl(img.url || img.imageUrl)" fit="cover" class="img" />
-                                        <div class="img-overlay">
-                                            <t-button shape="circle" size="small" variant="text"
-                                                @click="previewImage(img.url)"><t-icon name="zoom-in" /></t-button>
-                                            <t-button shape="circle" size="small" variant="text" theme="danger"
-                                                @click="deleteImage(img)"><t-icon name="delete" /></t-button>
-                                        </div>
-                                        <div class="crop-btn" v-if="selectedFrameType === 'action'"
-                                            @click.stop="openCropDialog(img)">
-                                            <t-icon name="cut" />
-                                        </div>
+                                <div class="section-header"><span>生成结果</span></div>
+                                <div class="image-wrapper" v-if="currentStoryboard.image || currentStoryboard.imageUrl">
+                                    <t-image :src="getImageUrl(currentStoryboard.image || currentStoryboard.imageUrl)"
+                                        fit="contain" style="max-height: 200px; width: 100%; display: block;" />
+                                    <div class="img-actions">
+                                        <t-button shape="circle" size="small" variant="text"
+                                            @click="previewImage(currentStoryboard.image || currentStoryboard.imageUrl)"><t-icon
+                                                name="zoom-in" /></t-button>
+                                        <t-button shape="circle" size="small" variant="text" theme="danger"><t-icon
+                                                name="delete" /></t-button>
                                     </div>
                                 </div>
-                                <div v-else-if="selectedFrameType !== 'action'" class="empty-text">暂无生成图片</div>
+                                <div v-else class="empty-text">暂无生成图片</div>
                             </div>
                         </div>
                         <t-empty v-else description="请选择一个镜头" style="margin-top: 40px" />
@@ -329,8 +281,7 @@
                         <div class="tab-content scrollable-content" v-if="currentStoryboard">
 
                             <div class="video-prompt-box">
-                                {{ currentStoryboard.videoPrompt || currentStoryboard.imagePrompt ||
-                                    currentStoryboard.visualDesc || '暂无提示词' }}
+                                {{ currentStoryboard.videoPrompt || currentStoryboard.visualDesc || '暂无提示词' }}
                             </div>
 
                             <div class="video-settings section-group">
@@ -345,36 +296,12 @@
                                 </t-form-item>
 
                                 <div class="reference-selector" v-if="referenceMode !== 'none'">
-
-                                    <div v-if="referenceMode === 'single'" class="ref-container center">
-                                        <div class="ref-label">参考图</div>
-                                        <div class="ref-image-slot"
-                                            :class="{ selected: selectedImagesForVideo.length > 0 }"
-                                            @click="openRefImageSelector('single')">
-                                            <t-image v-if="selectedImagesForVideo[0]"
-                                                :src="getImageUrl(selectedImagesForVideo[0])" fit="cover" class="img" />
-                                            <div v-else class="placeholder"><t-icon name="add" /></div>
-                                        </div>
-                                    </div>
-
-                                    <div v-else-if="referenceMode === 'first_last'" class="ref-container row">
-                                        <div class="slot-wrapper">
-                                            <div class="ref-label">首帧</div>
-                                            <div class="ref-image-slot" @click="openRefImageSelector('first')">
-                                                <t-image v-if="firstFrameImage" :src="getImageUrl(firstFrameImage)"
-                                                    fit="cover" class="img" />
-                                                <div v-else class="placeholder"><t-icon name="add" /></div>
-                                            </div>
-                                        </div>
-                                        <t-icon name="arrow-right" class="arrow" />
-                                        <div class="slot-wrapper">
-                                            <div class="ref-label">尾帧</div>
-                                            <div class="ref-image-slot" @click="openRefImageSelector('last')">
-                                                <t-image v-if="lastFrameImage" :src="getImageUrl(lastFrameImage)"
-                                                    fit="cover" class="img" />
-                                                <div v-else class="placeholder"><t-icon name="add" /></div>
-                                            </div>
-                                        </div>
+                                    <div class="label">选择参考图</div>
+                                    <div class="ref-image-slot" :class="{ selected: true }">
+                                        <t-image v-if="currentStoryboard.image || currentStoryboard.imageUrl"
+                                            :src="getImageUrl(currentStoryboard.image || currentStoryboard.imageUrl)"
+                                            fit="cover" style="width: 100%; height: 100%;" />
+                                        <div v-else class="placeholder"><t-icon name="image" /></div>
                                     </div>
                                 </div>
 
@@ -384,20 +311,22 @@
                                 </t-button>
                             </div>
 
-                            <div class="video-list-area section-group" v-if="generatedVideos.length > 0">
-                                <div class="section-header"><span>生成结果 ({{ generatedVideos.length }})</span></div>
-                                <div class="video-card-list">
-                                    <div v-for="video in generatedVideos" :key="video.id" class="video-card">
-                                        <video :src="getVideoUrl(video.url)" controls></video>
-                                        <div class="video-actions">
-                                            <t-tag theme="success" variant="light" size="small">已完成</t-tag>
-                                            <div class="action-btns">
-                                                <t-tooltip content="更新到时间线"><t-button size="small" variant="text"
-                                                        @click="addVideoToAssets(video)"><t-icon
-                                                            name="layers" /></t-button></t-tooltip>
-                                                <t-button size="small" variant="text" theme="danger"
-                                                    @click="deleteVideo(video)"><t-icon name="delete" /></t-button>
-                                            </div>
+                            <div class="video-list-area section-group" v-if="currentStoryboard.videoUrl">
+                                <div class="section-header"><span>生成结果</span></div>
+                                <div class="video-card">
+                                    <video :src="getVideoUrl(currentStoryboard.videoUrl)" controls
+                                        style="width: 100%; border-radius: 8px;"></video>
+                                    <div class="video-actions">
+                                        <t-tag theme="success" variant="light">已完成</t-tag>
+                                        <div class="action-btns">
+                                            <t-tooltip content="更新到时间线">
+                                                <t-button size="small" variant="text" @click="addVideoToAssets">
+                                                    <template #icon><t-icon name="layers" /></template>
+                                                </t-button>
+                                            </t-tooltip>
+                                            <t-button size="small" variant="text" theme="danger" @click="deleteVideo">
+                                                <template #icon><t-icon name="delete" /></template>
+                                            </t-button>
                                         </div>
                                     </div>
                                 </div>
@@ -408,30 +337,17 @@
 
                     <t-tab-panel value="audio" label="音效配乐">
                         <div class="tab-content">
-                            <t-empty description="音效与配乐生成功能开发中... 请在'镜头属性'中配置描述" />
+                            <t-empty description="音效与配乐功能开发中..." />
                         </div>
                     </t-tab-panel>
 
                     <t-tab-panel value="merge" label="视频合成">
-                        <div class="tab-content scrollable-content">
+                        <div class="tab-content">
                             <div class="section-group">
                                 <div class="section-header"><span>合成记录</span></div>
-                                <div class="merge-list" v-if="videoMerges.length > 0">
-                                    <div v-for="merge in videoMerges" :key="merge.id" class="merge-item">
-                                        <div class="merge-info">
-                                            <div class="title">{{ merge.title || '合成视频' }}</div>
-                                            <div class="time">{{ merge.createTime }}</div>
-                                        </div>
-                                        <t-tag :theme="merge.status === 'completed' ? 'success' : 'warning'">{{
-                                            merge.status ===
-                                                'completed' ? '已完成' : '处理中' }}</t-tag>
-                                        <t-button v-if="merge.url" size="small" variant="text"
-                                            @click="previewImage(merge.url)">预览</t-button>
-                                    </div>
-                                </div>
-                                <t-empty v-else description="暂无合成记录" size="small" />
+                                <t-empty description="暂无合成记录" size="small" />
                             </div>
-                            <t-button theme="primary" block @click="exportVideo" size="large">
+                            <t-button theme="primary" block @click="exportVideo">
                                 <template #icon><t-icon name="layers" /></template> 开始合成当前时间线
                             </t-button>
                         </div>
@@ -486,11 +402,6 @@
             <t-empty v-if="availableProps.length === 0" description="暂无道具" />
         </t-dialog>
 
-        <GridImageEditor v-model="showGridEditor" :storyboard-id="currentStoryboardId" :drama-id="dramaId"
-            :all-images="generatedImages" @success="handleGridSuccess" />
-
-        <ImageCropDialog v-model="showCropDialog" :image-url="cropImageUrl" @save="handleCropSave" />
-
     </div>
 </template>
 
@@ -498,11 +409,10 @@
 import { ref, computed, reactive, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
-// 引入图标
 import {
     ArrowLeftIcon, RefreshIcon, AddIcon, DeleteIcon, MagicIcon,
     UploadIcon, ZoomInIcon, VideoIcon, LinkIcon, LayersIcon,
-    MoveIcon, AddCircleIcon, FilmIcon, CheckIcon, DownloadIcon, CloseIcon, CutIcon
+    MoveIcon, AddCircleIcon, FilmIcon, CheckIcon, DownloadIcon, CloseIcon
 } from 'tdesign-icons-vue-next'
 
 // API
@@ -513,15 +423,10 @@ import { getCharactersList } from '@/api/characters'
 import { getPropsList } from '@/api/props'
 import { getShotsList, createShots, updateShots, deleteShots } from '@/api/shots'
 import { getAssetsList, createAsset, deleteAsset } from '@/api/assets'
-// 假设这里有一些 Mock API
-// import { generatePrompt, listGeneratedImages, listGeneratedVideos, listMerges } from '@/api/ai' 
-
 import { getImageUrl } from '@/utils/format'
 
 // 组件
 import VideoTimelineEditor from '@/components/editor/VideoTimelineEditor.vue'
-import GridImageEditor from '@/components/editor/GridImageEditor.vue' // 需创建
-import ImageCropDialog from '@/components/editor/ImageCropDialog.vue' // 需创建
 
 const route = useRoute()
 const router = useRouter()
@@ -545,36 +450,19 @@ const audioClips = ref<any[]>([])
 const currentTime = ref(0)
 const totalDuration = ref(60)
 
-// === 右侧面板状态 ===
+// === UI 状态 ===
 const activeTab = ref('shot')
 const showSceneSelector = ref(false)
 const showCharacterSelector = ref(false)
 const showPropSelector = ref(false)
-
-// 图片生成状态
-const selectedFrameType = ref('first')
 const generatingImage = ref(false)
-const extractingPrompt = ref(false)
-const generatedImages = ref<any[]>([]) // 当前镜头生成的图片列表
-const showGridEditor = ref(false)
-const showCropDialog = ref(false)
-const cropImageUrl = ref('')
-
-// 视频生成状态
 const generatingVideo = ref(false)
 const selectedVideoModel = ref('kling')
 const videoDuration = ref(5)
-const referenceMode = ref('single')
-const generatedVideos = ref<any[]>([]) // 当前镜头生成的视频列表
-// 视频参考图选择
-const selectedImagesForVideo = ref<string[]>([])
-const firstFrameImage = ref('')
-const lastFrameImage = ref('')
-
-// 合成状态
-const videoMerges = ref<any[]>([])
-
 const currentPreviewUrl = ref('')
+const selectedFrameType = ref('first') // 新增：帧类型
+const referenceMode = ref('single')    // 新增：参考图模式
+
 const timelineEditorRef = ref<any>(null)
 const mainPlayerRef = ref<HTMLVideoElement | null>(null)
 
@@ -641,29 +529,98 @@ const loadShotsData = async () => {
         if (shotRes.code === 0) {
             storyboards.value = shotRes.data?.list || shotRes.data || []
             if (storyboards.value.length > 0 && !currentStoryboardId.value) {
-                selectStoryboard(storyboards.value[0].id)
+                currentStoryboardId.value = storyboards.value[0].id
             }
         }
     }
 }
 
+// const loadVideoAssets = async () => {
+//     if (!currentScriptId.value) return
+//     try {
+//         const res = await getAssetsList({
+//             projectId: dramaId,
+//             episodeId: currentScriptId.value
+//         })
+//         if (res.code === 0) {
+//             videoAssets.value = res.data.list || []
+//         }
+//     } catch {
+//         if (videoAssets.value.length === 0) {
+//             videoAssets.value = storyboards.value
+//                 .filter(s => s.videoUrl)
+//                 .map(s => ({
+//                     id: `asset_${s.id}`,
+//                     name: s.title || 'Video Clip',
+//                     url: s.videoUrl,
+//                     duration: s.duration || 5
+//                 }))
+//         }
+//     }
+// }
+
 const loadVideoAssets = async () => {
-    // 简化 Mock
+    // 模拟加载过程
+    // if(!currentScriptId.value) return 
+
     try {
-        const res = await getAssetsList({
-            projectId: dramaId,
-            episodeId: currentScriptId.value
-        })
-        if (res.code === 0) {
-            videoAssets.value = res.data.list || []
-        }
-    } catch {
-        // Mock
-        videoAssets.value = [{ id: 'mock1', name: '测试素材.mp4', url: 'https://vjs.zencdn.net/v/oceans.mp4', duration: 10 }]
+        // 1. 尝试调用真实接口 (保留原有逻辑)
+        // const res = await getAssetsList({ 
+        //     projectId: dramaId, 
+        //     episodeId: currentScriptId.value 
+        // })
+        // if (res.code === 0 && res.data.list.length > 0) {
+        //     videoAssets.value = res.data.list
+        //     return
+        // }
+
+        // 2. 👇👇👇 注入 Mock 测试数据 (如果没有接口数据) 👇👇👇
+        console.log('注入素材库测试数据...')
+        videoAssets.value = [
+            {
+                id: 'mock_1',
+                name: '开场-街道空镜.mp4',
+                // MDN 示例视频
+                url: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+                duration: 5,
+                type: 'video'
+            },
+            {
+                id: 'mock_2',
+                name: '主角登场-特写.mp4',
+                // W3Schools 示例视频 (Big Buck Bunny)
+                url: 'https://www.w3schools.com/html/mov_bbb.mp4',
+                duration: 10,
+                type: 'video'
+            },
+            {
+                id: 'mock_3',
+                name: '动作场景-追逐.mp4',
+                // Sintel Trailer
+                url: 'https://media.w3.org/2010/05/sintel/trailer.mp4',
+                duration: 52,
+                type: 'video'
+            },
+            {
+                id: 'mock_4',
+                name: '海洋-氛围.mp4',
+                // VideoJS 示例
+                url: 'https://vjs.zencdn.net/v/oceans.mp4',
+                duration: 46,
+                type: 'video'
+            }
+        ]
+        // 👆👆👆 注入结束 👆👆👆
+
+        MessagePlugin.success('素材库已加载 (测试数据)')
+
+    } catch (e) {
+        console.error(e)
+        MessagePlugin.error('加载素材失败')
     }
 }
 
-// === 核心逻辑 ===
+// === 关系管理 ===
 const toggleCharacterInShot = async (charId: number) => {
     if (!currentStoryboard.value) return
     let ids = [...(currentStoryboard.value.characterIds || [])]
@@ -684,6 +641,7 @@ const togglePropInShot = async (propId: number) => {
     await saveStoryboardField('propIds')
 }
 
+// === 拖拽逻辑 ===
 const handleDragStart = (e: DragEvent, item: any, type: 'storyboard' | 'asset') => {
     if (e.dataTransfer) {
         const videoUrl = type === 'asset' ? item.url : item.videoUrl
@@ -711,31 +669,29 @@ const handleTimelineDrop = (clipData: any) => {
         duration: clipData.duration,
         type: 'video'
     }
+
     if (clipData.trackType === 'audio') audioClips.value.push(newClip)
     else timelineClips.value.push(newClip)
+
     const end = newClip.start + newClip.duration
     if (end > totalDuration.value) totalDuration.value = Math.ceil(end + 10)
+
     MessagePlugin.success('已添加到时间线')
 }
 
+// === 交互逻辑 ===
 const goBack = () => router.back()
 const loadData = () => { initData(); MessagePlugin.success('数据已刷新') }
 
 const selectStoryboard = (id: number | string) => {
     currentStoryboardId.value = id
-    // Mock: 加载该镜头的图片和视频
-    loadShotResources(id)
-}
-
-// 模拟加载资源
-const loadShotResources = (shotId: any) => {
-    // 实际应调用 listImages({ storyboardId: shotId })
-    generatedImages.value = [] // Mock 清空
-    generatedVideos.value = []
+    if (timelineEditorRef.value?.scrollToClip) {
+        timelineEditorRef.value.scrollToClip(id)
+    }
 }
 
 const handleTimelineSelect = (clip: any) => {
-    if (clip.storyboardId) selectStoryboard(clip.storyboardId)
+    if (clip.storyboardId) currentStoryboardId.value = clip.storyboardId
     currentPreviewUrl.value = clip.url
     if (mainPlayerRef.value) {
         mainPlayerRef.value.currentTime = 0;
@@ -748,17 +704,49 @@ const removeClipFromTimeline = (clipId: string) => {
     if (idx > -1) timelineClips.value.splice(idx, 1)
 }
 
-const updateCurrentTime = (time: number) => currentTime.value = time
+const updateCurrentTime = (time: number) => {
+    currentTime.value = time
+    const activeClip = timelineClips.value.find(c => time >= c.start && time < c.start + c.duration)
+    if (activeClip && activeClip.url) {
+        if (currentPreviewUrl.value !== activeClip.url) currentPreviewUrl.value = activeClip.url
+        const offset = time - activeClip.start
+        if (mainPlayerRef.value && Math.abs(mainPlayerRef.value.currentTime - offset) > 0.5) {
+            mainPlayerRef.value.currentTime = offset
+        }
+    }
+}
+
 const updateTimelineClips = (clips: any[]) => timelineClips.value = clips
 
+// === 分镜业务逻辑 ===
 const handleAddStoryboard = async () => {
-    // ...
-    MessagePlugin.success('添加分镜 (Mock)')
+    if (!currentScriptId.value) return MessagePlugin.warning('未关联剧本')
+    const newShot = {
+        projectId: Number(dramaId),
+        scriptId: currentScriptId.value,
+        title: `新镜头 ${storyboards.value.length + 1}`,
+        duration: 3,
+        shotType: '中景',
+        cameraAngle: '平视',
+        cameraMove: '固定'
+    }
+    try {
+        const res = await createShots(newShot)
+        if (res.code === 0) {
+            MessagePlugin.success('添加成功'); await loadShotsData()
+            if (storyboards.value.length > 0) currentStoryboardId.value = storyboards.value[storyboards.value.length - 1].id
+        }
+    } catch { MessagePlugin.error('添加失败') }
 }
 
 const handleDeleteStoryboard = async (shot: any) => {
-    // ...
-    MessagePlugin.success('删除分镜 (Mock)')
+    try {
+        await deleteShots(shot.id)
+        MessagePlugin.success('删除成功')
+        const idx = storyboards.value.findIndex(s => s.id === shot.id)
+        if (idx > -1) storyboards.value.splice(idx, 1)
+        if (currentStoryboardId.value === shot.id) currentStoryboardId.value = storyboards.value.length > 0 ? storyboards.value[0].id : null
+    } catch { MessagePlugin.error('删除失败') }
 }
 
 const linkSceneToShot = async (scene: any) => {
@@ -774,81 +762,51 @@ const saveStoryboardField = async (field: string) => {
     try { await updateShots(currentStoryboard.value.id, { ...currentStoryboard.value }) } catch { MessagePlugin.error('保存失败') } finally { saving.value = false }
 }
 
-// === 图片生成相关 ===
-const extractFramePrompt = () => {
-    extractingPrompt.value = true
-    setTimeout(() => {
-        if (currentStoryboard.value) currentStoryboard.value.imagePrompt = "A cinematic shot of a cyberpunk city..."
-        extractingPrompt.value = false
-        MessagePlugin.success('提示词提取成功')
-    }, 1000)
-}
-
-const generateFrameImage = async () => {
+const generateImage = async () => {
     if (!currentStoryboard.value) return
     generatingImage.value = true
-    setTimeout(() => {
-        generatingImage.value = false
-        // Mock result
-        generatedImages.value.unshift({
-            id: Date.now(),
-            url: 'https://tdesign.gtimg.com/site/images/demo1.png',
-            frameType: selectedFrameType.value
-        })
-        MessagePlugin.success('图片生成成功')
-    }, 1000)
+    setTimeout(() => { generatingImage.value = false; MessagePlugin.success('生图任务已提交(Mock)') }, 1000)
 }
 
 const handleUploadImageSuccess = (ctx: any) => {
-    // ...
-}
-
-const deleteImage = (img: any) => {
-    const idx = generatedImages.value.indexOf(img)
-    if (idx > -1) generatedImages.value.splice(idx, 1)
-}
-
-const openCropDialog = (img: any) => {
-    cropImageUrl.value = img.url
-    showCropDialog.value = true
-}
-
-const handleCropSave = (newUrl: string) => {
-    // save new image
-    showCropDialog.value = false
-}
-
-const handleGridSuccess = () => {
-    // refresh images
-}
-
-// === 视频生成相关 ===
-const openRefImageSelector = (mode: string) => {
-    // 打开图片选择弹窗，逻辑略
-    MessagePlugin.info('选择参考图功能 (需实现弹窗)')
+    if (ctx.response?.code === 0) {
+        if (currentStoryboard.value) {
+            const url = ctx.response.data.url || ctx.response.data.file_url
+            const fullUrl = url.startsWith('http') ? url : import.meta.env.VITE_API_URL.replace(/\/admin\/v1$/, '') + url
+            currentStoryboard.value.image = fullUrl
+            currentStoryboard.value.imageUrl = fullUrl
+            saveStoryboardField('image')
+            MessagePlugin.success('上传成功')
+        }
+    }
 }
 
 const generateVideo = async () => {
     if (!currentStoryboard.value) return
     generatingVideo.value = true
-    setTimeout(() => {
-        generatingVideo.value = false;
-        generatedVideos.value.unshift({
-            id: Date.now(),
-            url: 'https://vjs.zencdn.net/v/oceans.mp4',
-            status: 'completed'
+    setTimeout(() => { generatingVideo.value = false; MessagePlugin.success('视频生成任务已提交') }, 1500)
+}
+
+const addVideoToAssets = async () => {
+    if (!currentStoryboard.value?.videoUrl) return
+    try {
+        await createAsset({
+            projectId: dramaId,
+            episodeId: currentScriptId.value,
+            url: currentStoryboard.value.videoUrl,
+            name: currentStoryboard.value.title,
+            type: 'video',
+            duration: currentStoryboard.value.duration
         })
-        MessagePlugin.success('视频生成成功')
-    }, 1500)
+        MessagePlugin.success('已添加到素材库')
+        await loadVideoAssets()
+    } catch { MessagePlugin.error('添加失败') }
 }
 
-const addVideoToAssets = async (video: any) => {
-    // ...
-    MessagePlugin.success('已添加到素材库')
-}
-
-const deleteVideo = async (video: any) => {
-    // ...
+const deleteVideo = async () => {
+    if (currentStoryboard.value) {
+        currentStoryboard.value.videoUrl = ''; await saveStoryboardField('videoUrl')
+    }
 }
 
 const previewImage = (url: string) => window.open(url, '_blank')
@@ -998,6 +956,7 @@ onMounted(() => initData())
                             .shot-title {
                                 font-size: 12px;
                                 font-weight: 600;
+                                color: var(--td-text-color-primary);
                                 white-space: nowrap;
                                 overflow: hidden;
                                 text-overflow: ellipsis;
@@ -1169,35 +1128,10 @@ onMounted(() => initData())
             flex-direction: column;
             flex-shrink: 0;
 
-            .edit-tabs {
-                height: 100%;
-                display: flex;
-                flex-direction: column;
-
-                :deep(.t-tabs__nav) {
-                    flex-shrink: 0;
-                }
-
-                :deep(.t-tabs__content) {
-                    flex: 1;
-                    overflow: hidden;
-                    display: flex;
-                    flex-direction: column;
-                }
-
-                :deep(.t-tab-panel) {
-                    flex: 1;
-                    overflow: hidden;
-                    display: flex;
-                    flex-direction: column;
-                }
-            }
-
             .tab-content {
                 padding: 16px;
                 flex: 1;
                 overflow-y: auto;
-                padding-bottom: 60px;
 
                 &::-webkit-scrollbar {
                     width: 4px;
@@ -1337,75 +1271,6 @@ onMounted(() => initData())
                 border: 1px solid var(--td-component-stroke);
             }
 
-            /* 新增样式：图片生成区域 */
-            .grid-entry-card {
-                margin-bottom: 12px;
-                height: 50px;
-                border: 1px dashed var(--td-brand-color);
-                border-radius: 4px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 8px;
-                cursor: pointer;
-                color: var(--td-brand-color);
-                font-size: 13px;
-
-                &:hover {
-                    background: var(--td-brand-color-light);
-                }
-            }
-
-            .image-grid-list {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-
-                .image-grid-item {
-                    position: relative;
-                    height: 100px;
-                    border-radius: 4px;
-                    overflow: hidden;
-
-                    .img {
-                        width: 100%;
-                        height: 100%;
-                    }
-
-                    .img-overlay {
-                        position: absolute;
-                        inset: 0;
-                        background: rgba(0, 0, 0, 0.4);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        gap: 8px;
-                        opacity: 0;
-                        transition: opacity 0.2s;
-                    }
-
-                    &:hover .img-overlay {
-                        opacity: 1;
-                    }
-
-                    .crop-btn {
-                        position: absolute;
-                        top: 4px;
-                        right: 4px;
-                        background: #fff;
-                        border-radius: 4px;
-                        padding: 2px;
-                        cursor: pointer;
-                        display: none;
-                    }
-
-                    &:hover .crop-btn {
-                        display: block;
-                    }
-                }
-            }
-
-            /* 新增样式：参考图选择器 */
             .reference-selector {
                 margin-top: 16px;
 
@@ -1415,117 +1280,52 @@ onMounted(() => initData())
                     font-weight: 500;
                 }
 
-                .ref-container {
-                    display: flex;
-                    gap: 10px;
-
-                    &.center {
-                        justify-content: center;
-                    }
-
-                    &.row {
-                        justify-content: space-between;
-                        align-items: center;
-                    }
-
-                    .slot-wrapper {
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        gap: 4px;
-                    }
-
-                    .ref-image-slot {
-                        width: 100px;
-                        height: 60px;
-                        border: 1px dashed var(--td-component-stroke);
-                        border-radius: 4px;
-                        overflow: hidden;
-                        cursor: pointer;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-
-                        &.selected {
-                            border-color: var(--td-brand-color);
-                            border-style: solid;
-                        }
-
-                        .placeholder {
-                            color: #ccc;
-                        }
-                    }
-
-                    .arrow {
-                        color: #ccc;
-                    }
-                }
-            }
-
-            /* 新增样式：视频列表 */
-            .video-card-list {
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-
-                .video-card {
-                    background: #000;
+                .ref-image-slot {
+                    width: 120px;
+                    height: 70px;
+                    border: 2px dashed var(--td-component-stroke);
                     border-radius: 4px;
                     overflow: hidden;
-                    border: 1px solid var(--td-component-stroke);
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
 
-                    video {
-                        width: 100%;
-                        max-height: 150px;
+                    &.selected {
+                        border-color: var(--td-brand-color);
+                        border-style: solid;
                     }
 
-                    .video-actions {
-                        padding: 8px;
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                        background: #fff;
-                        border-top: 1px solid var(--td-component-stroke);
-
-                        .action-btns {
-                            display: flex;
-                            gap: 4px;
-                        }
+                    .placeholder {
+                        color: #ccc;
+                        font-size: 24px;
                     }
                 }
             }
 
-            /* 新增样式：合成记录 */
-            .merge-list {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
+            .image-wrapper,
+            .video-card {
+                background: #000;
+                border-radius: 4px;
+                overflow: hidden;
+                border: 1px solid var(--td-component-stroke);
+                margin-top: 8px;
 
-                .merge-item {
+                .img-actions,
+                .video-actions {
+                    padding: 8px;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    padding: 10px;
-                    background: var(--td-bg-color-container);
-                    border-radius: 4px;
-
-                    .merge-info {
-                        .title {
-                            font-size: 13px;
-                            font-weight: 500;
-                        }
-
-                        .time {
-                            font-size: 11px;
-                            color: #999;
-                        }
-                    }
+                    background: #fff;
+                    border-top: 1px solid var(--td-component-stroke);
                 }
             }
         }
     }
 }
 
+/* 角色/道具选择器样式 */
 .char-selector-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
