@@ -520,8 +520,8 @@ import { getImageUrl } from '@/utils/format'
 
 // 组件
 import VideoTimelineEditor from '@/components/editor/VideoTimelineEditor.vue'
-import GridImageEditor from '@/components/editor/GridImageEditor.vue' // 需创建
-import ImageCropDialog from '@/components/editor/ImageCropDialog.vue' // 需创建
+import GridImageEditor from '@/components/editor/GridImageEditor.vue' 
+import ImageCropDialog from '@/components/editor/ImageCropDialog.vue' 
 
 const route = useRoute()
 const router = useRouter()
