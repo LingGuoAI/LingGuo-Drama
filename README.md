@@ -50,7 +50,7 @@ pip install -r requirements.txt
 # 启动 WebUI 界面
 python app.py
 打开浏览器访问 http://localhost:7860 即可开始你的 AI 短剧创作之旅！
-```bash
+```
 
 💡 应用场景 (Use Cases)
 🎬 爆款 AI 短剧制作：快速批量生产网文改短剧，抢占短视频平台流量红利。
