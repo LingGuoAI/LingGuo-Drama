@@ -24,7 +24,6 @@
         <div class="editor-main" v-loading="loading">
 
             <div class="left-sidebar">
-
                 <div class="storyboard-panel">
                     <div class="panel-header">
                         <h3>分镜列表 ({{ storyboards.length }})</h3>
@@ -34,9 +33,8 @@
                     </div>
                     <div class="storyboard-list" v-if="storyboards.length > 0">
                         <div v-for="(shot, index) in storyboards" :key="shot.id" class="storyboard-item"
-                            :class="{ active: String(currentStoryboardId) === String(shot.id) }"
-                            @click="selectStoryboard(shot.id)" draggable="true"
-                            @dragstart="handleDragStart($event, shot, 'storyboard')">
+                            :class="{ active: currentStoryboardId === shot.id }" @click="selectStoryboard(shot.id)"
+                            draggable="true" @dragstart="handleDragStart($event, shot, 'storyboard')">
                             <div class="shot-thumb">
                                 <t-image v-if="shot.image || shot.imageUrl"
                                     :src="getImageUrl(shot.image || shot.imageUrl)" fit="cover"
@@ -46,11 +44,11 @@
                             <div class="shot-content">
                                 <div class="shot-header">
                                     <div class="shot-title-row">
-                                        <span class="shot-number">#{{ shot.sequenceNo || index + 1 }}</span>
+                                        <span class="shot-number">#{{ index + 1 }}</span>
                                         <span class="shot-title" :title="shot.title">{{ shot.title || '未命名镜头' }}</span>
                                     </div>
                                     <div class="shot-actions">
-                                        <span class="shot-duration">{{ (shot.durationMs || 3000) / 1000 }}s</span>
+                                        <span class="shot-duration">{{ shot.duration || 0 }}s</span>
                                         <t-popconfirm content="确认删除此镜头吗？" @confirm="handleDeleteStoryboard(shot)">
                                             <t-button shape="circle" size="small" theme="danger" variant="text"
                                                 @click.stop>
@@ -195,20 +193,20 @@
                                         </t-col>
                                         <t-col :span="6">
                                             <t-form-item label="视角">
-                                                <t-select v-model="currentStoryboard.angle" size="small"
+                                                <t-select v-model="currentStoryboard.cameraAngle" size="small"
                                                     :options="['平视', '俯视', '仰视', '侧视', '航拍'].map(v => ({ label: v, value: v }))"
-                                                    @change="saveStoryboardField('angle')" />
+                                                    @change="saveStoryboardField('cameraAngle')" />
                                             </t-form-item>
                                         </t-col>
                                     </t-row>
                                     <t-form-item label="运镜" style="margin-top: 10px;">
-                                        <t-select v-model="currentStoryboard.cameraMovement" size="small"
+                                        <t-select v-model="currentStoryboard.cameraMove" size="small"
                                             :options="['固定', '推', '拉', '摇', '移', '跟', '环绕'].map(v => ({ label: v, value: v }))"
-                                            @change="saveStoryboardField('cameraMovement')" />
+                                            @change="saveStoryboardField('cameraMove')" />
                                     </t-form-item>
                                     <t-form-item label="时长 (秒)" style="margin-top: 10px;">
-                                        <t-slider :value="(currentStoryboard.durationMs || 3000) / 1000" :min="1"
-                                            :max="60" @change="updateShotDurationMs" />
+                                        <t-slider v-model="currentStoryboard.duration" :min="2" :max="10"
+                                            @change="saveStoryboardField('duration')" />
                                     </t-form-item>
                                 </div>
 
@@ -218,6 +216,11 @@
                                     <t-form-item label="动作 (Action)">
                                         <t-textarea v-model="currentStoryboard.action" :autosize="{ minRows: 2 }"
                                             placeholder="角色做的动作..." @blur="saveStoryboardField('action')" />
+                                    </t-form-item>
+
+                                    <t-form-item label="结果 (Result)">
+                                        <t-textarea v-model="currentStoryboard.result" :autosize="{ minRows: 2 }"
+                                            placeholder="动作导致的结果..." @blur="saveStoryboardField('result')" />
                                     </t-form-item>
 
                                     <t-form-item label="对白 (Dialogue)">
@@ -240,10 +243,13 @@
 
                                 <div class="section-group">
                                     <div class="section-header"><span>音频设置</span></div>
-                                    <t-form-item label="音效与配乐 (Audio Prompt)">
-                                        <t-textarea v-model="currentStoryboard.audioPrompt" :autosize="{ minRows: 2 }"
-                                            placeholder="例如：开门声、脚步声、悲伤的钢琴曲..."
-                                            @blur="saveStoryboardField('audioPrompt')" />
+                                    <t-form-item label="音效 (Sound Effect)">
+                                        <t-textarea v-model="currentStoryboard.soundEffect" :autosize="{ minRows: 1 }"
+                                            placeholder="例如：脚步声、风声..." @blur="saveStoryboardField('soundEffect')" />
+                                    </t-form-item>
+                                    <t-form-item label="背景音乐 (BGM Prompt)">
+                                        <t-textarea v-model="currentStoryboard.bgmPrompt" :autosize="{ minRows: 1 }"
+                                            placeholder="例如：悲伤的钢琴曲..." @blur="saveStoryboardField('bgmPrompt')" />
                                     </t-form-item>
                                 </div>
 
@@ -492,6 +498,12 @@
 import { ref, computed, reactive, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
+// 引入图标
+import {
+    ArrowLeftIcon, RefreshIcon, AddIcon, DeleteIcon, MagicIcon,
+    UploadIcon, ZoomInIcon, VideoIcon, LinkIcon, LayersIcon,
+    MoveIcon, AddCircleIcon, FilmIcon, CheckIcon, DownloadIcon, CloseIcon, CutIcon
+} from 'tdesign-icons-vue-next'
 
 // API
 import { findProjects } from '@/api/projects'
@@ -501,12 +513,15 @@ import { getCharactersList } from '@/api/characters'
 import { getPropsList } from '@/api/props'
 import { getShotsList, createShots, updateShots, deleteShots } from '@/api/shots'
 import { getAssetsList, createAsset, deleteAsset } from '@/api/assets'
+// 假设这里有一些 Mock API
+// import { generatePrompt, listGeneratedImages, listGeneratedVideos, listMerges } from '@/api/ai' 
+
 import { getImageUrl } from '@/utils/format'
 
 // 组件
 import VideoTimelineEditor from '@/components/editor/VideoTimelineEditor.vue'
-import GridImageEditor from '@/components/editor/GridImageEditor.vue'
-import ImageCropDialog from '@/components/editor/ImageCropDialog.vue'
+import GridImageEditor from '@/components/editor/GridImageEditor.vue' 
+import ImageCropDialog from '@/components/editor/ImageCropDialog.vue' 
 
 const route = useRoute()
 const router = useRouter()
@@ -576,8 +591,7 @@ const referenceModeOptions = [
 ]
 
 // === Computed ===
-const currentStoryboard = computed(() => storyboards.value.find(s => String(s.id) === String(currentStoryboardId.value)))
-
+const currentStoryboard = computed(() => storyboards.value.find(s => s.id === currentStoryboardId.value))
 const currentScene = computed(() => {
     if (!currentStoryboard.value || !currentStoryboard.value.sceneId) return null
     return sceneList.value.find(s => s.id === currentStoryboard.value.sceneId)
@@ -634,6 +648,7 @@ const loadShotsData = async () => {
 }
 
 const loadVideoAssets = async () => {
+    // 简化 Mock
     try {
         const res = await getAssetsList({
             projectId: dramaId,
@@ -656,7 +671,7 @@ const toggleCharacterInShot = async (charId: number) => {
     if (idx > -1) ids.splice(idx, 1)
     else ids.push(charId)
     currentStoryboard.value.characterIds = ids
-    await saveStoryboardField()
+    await saveStoryboardField('characterIds')
 }
 
 const togglePropInShot = async (propId: number) => {
@@ -666,7 +681,7 @@ const togglePropInShot = async (propId: number) => {
     if (idx > -1) ids.splice(idx, 1)
     else ids.push(propId)
     currentStoryboard.value.propIds = ids
-    await saveStoryboardField()
+    await saveStoryboardField('propIds')
 }
 
 const handleDragStart = (e: DragEvent, item: any, type: 'storyboard' | 'asset') => {
@@ -708,11 +723,14 @@ const loadData = () => { initData(); MessagePlugin.success('数据已刷新') }
 
 const selectStoryboard = (id: number | string) => {
     currentStoryboardId.value = id
+    // Mock: 加载该镜头的图片和视频
     loadShotResources(id)
 }
 
+// 模拟加载资源
 const loadShotResources = (shotId: any) => {
-    generatedImages.value = []
+    // 实际应调用 listImages({ storyboardId: shotId })
+    generatedImages.value = [] // Mock 清空
     generatedVideos.value = []
 }
 
@@ -730,68 +748,30 @@ const removeClipFromTimeline = (clipId: string) => {
     if (idx > -1) timelineClips.value.splice(idx, 1)
 }
 
-const updateCurrentTime = (time: number) => {
-    currentTime.value = time
-    const activeClip = timelineClips.value.find(c => time >= c.start && time < c.start + c.duration)
-    if (activeClip && activeClip.url) {
-        if (currentPreviewUrl.value !== activeClip.url) currentPreviewUrl.value = activeClip.url
-        const offset = time - activeClip.start
-        if (mainPlayerRef.value && Math.abs(mainPlayerRef.value.currentTime - offset) > 0.5) {
-            mainPlayerRef.value.currentTime = offset
-        }
-    }
-}
-
+const updateCurrentTime = (time: number) => currentTime.value = time
 const updateTimelineClips = (clips: any[]) => timelineClips.value = clips
 
 const handleAddStoryboard = async () => {
-    const newShot = {
-        projectId: Number(dramaId),
-        scriptId: currentScriptId.value,
-        title: `新镜头 ${storyboards.value.length + 1}`,
-        durationMs: 3000,
-        shotType: '中景',
-        angle: '平视',
-        cameraMovement: '固定'
-    }
-    try {
-        // await createShots(newShot)
-        MessagePlugin.success('添加成功 (Mock)')
-        storyboards.value.push({ id: Date.now(), ...newShot })
-    } catch { MessagePlugin.error('添加失败') }
+    // ...
+    MessagePlugin.success('添加分镜 (Mock)')
 }
 
 const handleDeleteStoryboard = async (shot: any) => {
     // ...
-    MessagePlugin.success('删除成功')
+    MessagePlugin.success('删除分镜 (Mock)')
 }
 
 const linkSceneToShot = async (scene: any) => {
     if (!currentStoryboard.value) return
     currentStoryboard.value.sceneId = scene.id
-    await saveStoryboardField()
+    await saveStoryboardField('sceneId')
     showSceneSelector.value = false; MessagePlugin.success('已关联场景')
 }
 
-// 🔴 自动保存时的参数传递
-const saveStoryboardField = async () => {
+const saveStoryboardField = async (field: string) => {
     if (!currentStoryboard.value) return
     saving.value = true
-    try {
-        // 静默保存
-        await updateShots(currentStoryboard.value.id, { ...currentStoryboard.value })
-    } catch {
-        MessagePlugin.error('保存失败')
-    } finally {
-        saving.value = false
-    }
-}
-
-// 🔴 处理由于滑块使用的是秒而需要存毫秒的情况
-const updateShotDurationMs = (secVal: number) => {
-    if (!currentStoryboard.value) return
-    currentStoryboard.value.durationMs = secVal * 1000
-    saveStoryboardField()
+    try { await updateShots(currentStoryboard.value.id, { ...currentStoryboard.value }) } catch { MessagePlugin.error('保存失败') } finally { saving.value = false }
 }
 
 // === 图片生成相关 ===
@@ -809,6 +789,7 @@ const generateFrameImage = async () => {
     generatingImage.value = true
     setTimeout(() => {
         generatingImage.value = false
+        // Mock result
         generatedImages.value.unshift({
             id: Date.now(),
             url: 'https://tdesign.gtimg.com/site/images/demo1.png',
@@ -818,7 +799,10 @@ const generateFrameImage = async () => {
     }, 1000)
 }
 
-const handleUploadImageSuccess = (ctx: any) => { /* ... */ }
+const handleUploadImageSuccess = (ctx: any) => {
+    // ...
+}
+
 const deleteImage = (img: any) => {
     const idx = generatedImages.value.indexOf(img)
     if (idx > -1) generatedImages.value.splice(idx, 1)
@@ -829,11 +813,20 @@ const openCropDialog = (img: any) => {
     showCropDialog.value = true
 }
 
-const handleCropSave = (newUrl: string) => { showCropDialog.value = false }
-const handleGridSuccess = () => { }
+const handleCropSave = (newUrl: string) => {
+    // save new image
+    showCropDialog.value = false
+}
+
+const handleGridSuccess = () => {
+    // refresh images
+}
 
 // === 视频生成相关 ===
-const openRefImageSelector = (mode: string) => { MessagePlugin.info('选择参考图功能 (需实现弹窗)') }
+const openRefImageSelector = (mode: string) => {
+    // 打开图片选择弹窗，逻辑略
+    MessagePlugin.info('选择参考图功能 (需实现弹窗)')
+}
 
 const generateVideo = async () => {
     if (!currentStoryboard.value) return
@@ -849,8 +842,14 @@ const generateVideo = async () => {
     }, 1500)
 }
 
-const addVideoToAssets = async (video: any) => { MessagePlugin.success('已添加到素材库') }
-const deleteVideo = async (video: any) => { /* ... */ }
+const addVideoToAssets = async (video: any) => {
+    // ...
+    MessagePlugin.success('已添加到素材库')
+}
+
+const deleteVideo = async (video: any) => {
+    // ...
+}
 
 const previewImage = (url: string) => window.open(url, '_blank')
 const getVideoUrl = (url: string) => url ? (url.startsWith('http') ? url : import.meta.env.VITE_API_URL + url) : ''
@@ -1338,7 +1337,7 @@ onMounted(() => initData())
                 border: 1px solid var(--td-component-stroke);
             }
 
-            /* 图片生成区域 */
+            /* 新增样式：图片生成区域 */
             .grid-entry-card {
                 margin-bottom: 12px;
                 height: 50px;
@@ -1406,7 +1405,7 @@ onMounted(() => initData())
                 }
             }
 
-            /* 参考图选择器 */
+            /* 新增样式：参考图选择器 */
             .reference-selector {
                 margin-top: 16px;
 
@@ -1463,7 +1462,7 @@ onMounted(() => initData())
                 }
             }
 
-            /* 视频列表 */
+            /* 新增样式：视频列表 */
             .video-card-list {
                 display: flex;
                 flex-direction: column;
@@ -1496,7 +1495,7 @@ onMounted(() => initData())
                 }
             }
 
-            /* 合成记录 */
+            /* 新增样式：合成记录 */
             .merge-list {
                 display: flex;
                 flex-direction: column;
