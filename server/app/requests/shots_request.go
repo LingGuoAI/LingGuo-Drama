@@ -9,6 +9,7 @@ import (
 type ShotsRequest struct {
 	ProjectId      uint64 `valid:"projectId" json:"projectId" `          // 所属项目ID
 	ScriptId       uint64 `valid:"scriptId" json:"scriptId" `            // 所属剧本/分集ID
+	SceneId        uint64 `valid:"sceneId" json:"sceneId" `              // 场景ID
 	SequenceNo     uint64 `valid:"sequenceNo" json:"sequenceNo" `        // 镜头序号
 	ShotType       string `valid:"shotType" json:"shotType"`             // 景别: 全景/特写/中景
 	CameraMovement string `valid:"cameraMovement" json:"cameraMovement"` // 运镜: 推/拉/摇/移
@@ -25,6 +26,8 @@ type ShotsRequest struct {
 	DurationMs     uint64 `valid:"durationMs" json:"durationMs"`         // 时长(毫秒, 原duration*1000)
 	Status         int8   `valid:"status" json:"status"`                 // 状态
 	// 关联关系字段
+	CharacterIds []uint64 `valid:"characterIds" json:"characterIds"` // 角色ID
+	PropIds      []uint64 `valid:"propIds" json:"propIds"`           // 道具ID
 }
 
 // ShotsSave 镜头表保存时的验证规则

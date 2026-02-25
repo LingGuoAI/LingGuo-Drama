@@ -1,12 +1,13 @@
 package shots
 
 import (
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"spiritFruit/pkg/app"
 	"spiritFruit/pkg/database"
 	"spiritFruit/pkg/paginator"
 	"strings"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func Get(idStr string) (shots Shots) {
@@ -14,6 +15,10 @@ func Get(idStr string) (shots Shots) {
 		Preload("Projects", func(db *gorm.DB) *gorm.DB {
 			// 只加载关联表的必要字段
 			fields := []string{"id", "admin_id", "serial_no", "status", "image"}
+			return db.Select(strings.Join(fields, ", "))
+		}).
+		Preload("Scenes", func(db *gorm.DB) *gorm.DB {
+			fields := []string{"id", "project_id", "name", "location", "visual_prompt"}
 			return db.Select(strings.Join(fields, ", "))
 		}).
 		Preload("Scripts", func(db *gorm.DB) *gorm.DB {
@@ -59,9 +64,22 @@ func Paginate(c *gin.Context, perPage int, filters map[string]interface{}) (shot
 			fields := []string{"id", "admin_id", "serial_no", "status", "image"}
 			return db.Select(strings.Join(fields, ", "))
 		}).
+		Preload("Scenes", func(db *gorm.DB) *gorm.DB {
+			fields := []string{"id", "project_id", "name", "location", "visual_prompt"}
+			return db.Select(strings.Join(fields, ", "))
+		}).
 		Preload("Scripts", func(db *gorm.DB) *gorm.DB {
 			// 只加载关联表的必要字段
 			fields := []string{"id", "project_id", "title", "content", "outline"}
+			return db.Select(strings.Join(fields, ", "))
+		}).
+		Preload("Characters", func(db *gorm.DB) *gorm.DB {
+			fields := []string{"id", "name", "avatar_url", "visual_prompt"}
+			return db.Select(strings.Join(fields, ", "))
+		}).
+		// 🔴 预加载道具
+		Preload("Props", func(db *gorm.DB) *gorm.DB {
+			fields := []string{"id", "name", "image_url"}
 			return db.Select(strings.Join(fields, ", "))
 		})
 

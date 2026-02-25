@@ -22,9 +22,7 @@
         </div>
 
         <div class="editor-main" v-loading="loading">
-
             <div class="left-sidebar">
-
                 <div class="storyboard-panel">
                     <div class="panel-header">
                         <h3>分镜列表 ({{ storyboards.length }})</h3>
@@ -190,21 +188,21 @@
                                             <t-form-item label="景别">
                                                 <t-select v-model="currentStoryboard.shotType" size="small"
                                                     :options="['大远景', '远景', '全景', '中景', '近景', '特写', '大特写'].map(v => ({ label: v, value: v }))"
-                                                    @change="saveStoryboardField('shotType')" />
+                                                    @change="saveStoryboardField" />
                                             </t-form-item>
                                         </t-col>
                                         <t-col :span="6">
                                             <t-form-item label="视角">
                                                 <t-select v-model="currentStoryboard.angle" size="small"
-                                                    :options="['平视', '俯视', '仰视', '侧视', '航拍'].map(v => ({ label: v, value: v }))"
-                                                    @change="saveStoryboardField('angle')" />
+                                                    :options="['平视', '俯视', '仰视', '侧面', '背面', '鸟瞰'].map(v => ({ label: v, value: v }))"
+                                                    @change="saveStoryboardField" />
                                             </t-form-item>
                                         </t-col>
                                     </t-row>
                                     <t-form-item label="运镜" style="margin-top: 10px;">
                                         <t-select v-model="currentStoryboard.cameraMovement" size="small"
-                                            :options="['固定', '推', '拉', '摇', '移', '跟', '环绕'].map(v => ({ label: v, value: v }))"
-                                            @change="saveStoryboardField('cameraMovement')" />
+                                            :options="['固定镜头', '推镜', '拉镜', '摇镜', '移镜', '跟镜', '环绕'].map(v => ({ label: v, value: v }))"
+                                            @change="saveStoryboardField" />
                                     </t-form-item>
                                     <t-form-item label="时长 (秒)" style="margin-top: 10px;">
                                         <t-slider :value="(currentStoryboard.durationMs || 3000) / 1000" :min="1"
@@ -217,22 +215,27 @@
 
                                     <t-form-item label="动作 (Action)">
                                         <t-textarea v-model="currentStoryboard.action" :autosize="{ minRows: 2 }"
-                                            placeholder="角色做的动作..." @blur="saveStoryboardField('action')" />
+                                            placeholder="角色做的动作..." @blur="saveStoryboardField" />
+                                    </t-form-item>
+
+                                    <t-form-item label="结果 (Result)">
+                                        <t-textarea v-model="currentStoryboard.result" :autosize="{ minRows: 2 }"
+                                            placeholder="动作导致的结果..." @blur="saveStoryboardField" />
                                     </t-form-item>
 
                                     <t-form-item label="对白 (Dialogue)">
                                         <t-textarea v-model="currentStoryboard.dialogue" :autosize="{ minRows: 2 }"
-                                            placeholder="角色台词..." @blur="saveStoryboardField('dialogue')" />
+                                            placeholder="角色台词..." @blur="saveStoryboardField" />
                                     </t-form-item>
 
                                     <t-form-item label="画面描述 (Visual)">
                                         <t-textarea v-model="currentStoryboard.visualDesc" :autosize="{ minRows: 3 }"
-                                            placeholder="详细的画面描述..." @blur="saveStoryboardField('visualDesc')" />
+                                            placeholder="详细的画面描述..." @blur="saveStoryboardField" />
                                     </t-form-item>
 
                                     <t-form-item label="氛围 (Atmosphere)">
                                         <t-textarea v-model="currentStoryboard.atmosphere" :autosize="{ minRows: 2 }"
-                                            placeholder="光影、色调、气氛..." @blur="saveStoryboardField('atmosphere')" />
+                                            placeholder="光影、色调、气氛..." @blur="saveStoryboardField" />
                                     </t-form-item>
                                 </div>
 
@@ -242,8 +245,7 @@
                                     <div class="section-header"><span>音频设置</span></div>
                                     <t-form-item label="音效与配乐 (Audio Prompt)">
                                         <t-textarea v-model="currentStoryboard.audioPrompt" :autosize="{ minRows: 2 }"
-                                            placeholder="例如：开门声、脚步声、悲伤的钢琴曲..."
-                                            @blur="saveStoryboardField('audioPrompt')" />
+                                            placeholder="例如：开门声、脚步声、悲伤的钢琴曲..." @blur="saveStoryboardField" />
                                     </t-form-item>
                                 </div>
 
@@ -275,7 +277,7 @@
                                     </t-button>
                                 </div>
                                 <t-textarea v-model="currentStoryboard.imagePrompt" :rows="4" placeholder="输入英文提示词..."
-                                    @blur="saveStoryboardField('imagePrompt')" />
+                                    @blur="saveStoryboardField" />
                             </div>
 
                             <div class="action-bar">
@@ -455,7 +457,8 @@
             </t-list>
         </t-dialog>
 
-        <t-dialog v-model:visible="showCharacterSelector" header="选择角色" width="500px">
+        <t-dialog v-model:visible="showCharacterSelector" header="选择角色" width="500px"
+            @confirm="showCharacterSelector = false">
             <div class="char-selector-grid">
                 <div v-for="char in availableCharacters" :key="char.id" class="char-item"
                     :class="{ selected: selectedCharacters.includes(char.id) }" @click="toggleCharacterInShot(char.id)">
@@ -467,7 +470,7 @@
             <t-empty v-if="availableCharacters.length === 0" description="暂无角色" />
         </t-dialog>
 
-        <t-dialog v-model:visible="showPropSelector" header="选择道具" width="500px">
+        <t-dialog v-model:visible="showPropSelector" header="选择道具" width="500px" @confirm="showPropSelector = false">
             <div class="char-selector-grid">
                 <div v-for="prop in availableProps" :key="prop.id" class="char-item"
                     :class="{ selected: selectedProps.includes(prop.id) }" @click="togglePropInShot(prop.id)">
@@ -489,9 +492,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted, nextTick } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
+import { MessagePlugin } from 'tdesign-vue-next'
+// 引入图标
+import {
+    ArrowLeftIcon, RefreshIcon, AddIcon, DeleteIcon, MagicIcon,
+    UploadIcon, ZoomInIcon, VideoIcon, LinkIcon, LayersIcon,
+    MoveIcon, AddCircleIcon, FilmIcon, CheckIcon, DownloadIcon, CloseIcon, CutIcon
+} from 'tdesign-icons-vue-next'
 
 // API
 import { findProjects } from '@/api/projects'
@@ -501,6 +510,7 @@ import { getCharactersList } from '@/api/characters'
 import { getPropsList } from '@/api/props'
 import { getShotsList, createShots, updateShots, deleteShots } from '@/api/shots'
 import { getAssetsList, createAsset, deleteAsset } from '@/api/assets'
+
 import { getImageUrl } from '@/utils/format'
 
 // 组件
@@ -582,8 +592,17 @@ const currentScene = computed(() => {
     if (!currentStoryboard.value || !currentStoryboard.value.sceneId) return null
     return sceneList.value.find(s => s.id === currentStoryboard.value.sceneId)
 })
-const selectedCharacters = computed(() => currentStoryboard.value?.characterIds || [])
-const selectedProps = computed(() => currentStoryboard.value?.propIds || [])
+
+// 🔴 修复：提供给 Checkbox 选中的 ID 数组
+const selectedCharacters = computed(() => {
+    if (!currentStoryboard.value?.characters) return []
+    return currentStoryboard.value.characters.map((c: any) => typeof c === 'object' ? c.id : c)
+})
+
+const selectedProps = computed(() => {
+    if (!currentStoryboard.value?.props) return []
+    return currentStoryboard.value.props.map((p: any) => typeof p === 'object' ? p.id : p)
+})
 
 const getCharacterById = (id: number) => availableCharacters.value.find(c => c.id === id)
 const getPropById = (id: number) => availableProps.value.find(p => p.id === id)
@@ -649,23 +668,44 @@ const loadVideoAssets = async () => {
 }
 
 // === 核心逻辑 ===
+
+// 🔴 修复：角色关联
 const toggleCharacterInShot = async (charId: number) => {
     if (!currentStoryboard.value) return
-    let ids = [...(currentStoryboard.value.characterIds || [])]
-    const idx = ids.indexOf(charId)
-    if (idx > -1) ids.splice(idx, 1)
-    else ids.push(charId)
-    currentStoryboard.value.characterIds = ids
+
+    let chars = currentStoryboard.value.characters || []
+    const idx = chars.findIndex((c: any) => (typeof c === 'object' ? c.id === charId : c === charId))
+
+    if (idx > -1) {
+        chars.splice(idx, 1)
+    } else {
+        const fullChar = availableCharacters.value.find(c => c.id === charId)
+        if (fullChar) chars.push(fullChar)
+    }
+
+    currentStoryboard.value.characters = chars
+    currentStoryboard.value.characterIds = chars.map((c: any) => typeof c === 'object' ? c.id : c)
+
     await saveStoryboardField()
 }
 
+// 🔴 修复：道具关联
 const togglePropInShot = async (propId: number) => {
     if (!currentStoryboard.value) return
-    let ids = [...(currentStoryboard.value.propIds || [])]
-    const idx = ids.indexOf(propId)
-    if (idx > -1) ids.splice(idx, 1)
-    else ids.push(propId)
-    currentStoryboard.value.propIds = ids
+
+    let propsArray = currentStoryboard.value.props || []
+    const idx = propsArray.findIndex((p: any) => (typeof p === 'object' ? p.id === propId : p === propId))
+
+    if (idx > -1) {
+        propsArray.splice(idx, 1)
+    } else {
+        const fullProp = availableProps.value.find(p => p.id === propId)
+        if (fullProp) propsArray.push(fullProp)
+    }
+
+    currentStoryboard.value.props = propsArray
+    currentStoryboard.value.propIds = propsArray.map((p: any) => typeof p === 'object' ? p.id : p)
+
     await saveStoryboardField()
 }
 
@@ -742,8 +782,6 @@ const updateCurrentTime = (time: number) => {
     }
 }
 
-const updateTimelineClips = (clips: any[]) => timelineClips.value = clips
-
 const handleAddStoryboard = async () => {
     const newShot = {
         projectId: Number(dramaId),
@@ -762,7 +800,6 @@ const handleAddStoryboard = async () => {
 }
 
 const handleDeleteStoryboard = async (shot: any) => {
-    // ...
     MessagePlugin.success('删除成功')
 }
 
@@ -773,13 +810,20 @@ const linkSceneToShot = async (scene: any) => {
     showSceneSelector.value = false; MessagePlugin.success('已关联场景')
 }
 
-// 🔴 自动保存时的参数传递
 const saveStoryboardField = async () => {
     if (!currentStoryboard.value) return
     saving.value = true
     try {
-        // 静默保存
-        await updateShots(currentStoryboard.value.id, { ...currentStoryboard.value })
+        const payload = {
+            ...currentStoryboard.value,
+            characterIds: currentStoryboard.value.characters?.map((c: any) => typeof c === 'object' ? c.id : c) || [],
+            propIds: currentStoryboard.value.props?.map((p: any) => typeof p === 'object' ? p.id : p) || []
+        }
+        delete payload.characters
+        delete payload.props
+        delete payload.scenes
+
+        await updateShots(payload.id, payload)
     } catch {
         MessagePlugin.error('保存失败')
     } finally {
@@ -787,7 +831,6 @@ const saveStoryboardField = async () => {
     }
 }
 
-// 🔴 处理由于滑块使用的是秒而需要存毫秒的情况
 const updateShotDurationMs = (secVal: number) => {
     if (!currentStoryboard.value) return
     currentStoryboard.value.durationMs = secVal * 1000
@@ -1338,7 +1381,7 @@ onMounted(() => initData())
                 border: 1px solid var(--td-component-stroke);
             }
 
-            /* 图片生成区域 */
+            /* 新增样式：图片生成区域 */
             .grid-entry-card {
                 margin-bottom: 12px;
                 height: 50px;
@@ -1406,7 +1449,7 @@ onMounted(() => initData())
                 }
             }
 
-            /* 参考图选择器 */
+            /* 新增样式：参考图选择器 */
             .reference-selector {
                 margin-top: 16px;
 
@@ -1463,7 +1506,7 @@ onMounted(() => initData())
                 }
             }
 
-            /* 视频列表 */
+            /* 新增样式：视频列表 */
             .video-card-list {
                 display: flex;
                 flex-direction: column;
@@ -1496,7 +1539,7 @@ onMounted(() => initData())
                 }
             }
 
-            /* 合成记录 */
+            /* 新增样式：合成记录 */
             .merge-list {
                 display: flex;
                 flex-direction: column;

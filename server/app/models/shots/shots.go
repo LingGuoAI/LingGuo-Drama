@@ -2,7 +2,9 @@ package shots
 
 import (
 	"spiritFruit/app/models"
+	"spiritFruit/app/models/characters"
 	"spiritFruit/app/models/projects"
+	"spiritFruit/app/models/props"
 	"spiritFruit/app/models/scenes"
 	"spiritFruit/app/models/scripts"
 	"spiritFruit/pkg/database"
@@ -50,9 +52,8 @@ type Shots struct {
 	Scripts  *scripts.Scripts   `json:"scripts,omitempty" gorm:"foreignKey:ScriptId;constraint:OnDelete:CASCADE;"`
 	Scenes   *scenes.Scenes     `json:"scenes,omitempty" gorm:"foreignKey:SceneId;references:ID;comment:关联的背景场景"`
 
-	// 建议新增：多对多关联，用于更精准的 Prompt 生成
-	// Characters []Character `json:"characters" gorm:"many2many:shot_characters;"`
-	// Props      []Prop      `json:"props" gorm:"many2many:shot_props;"`
+	Characters []characters.Characters `json:"characters" gorm:"many2many:shot_characters;joinForeignKey:shot_id;joinReferences:character_id;"`
+	Props      []props.Props           `json:"props" gorm:"many2many:shot_props;joinForeignKey:shot_id;joinReferences:props_id;"`
 
 	models.CommonTimestampsField
 }
