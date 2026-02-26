@@ -38,7 +38,8 @@
                     <div class="image-grid-selector">
                         <div v-for="img in allImages" :key="img.id" class="selector-item"
                             @click="selectImageForGrid(img)">
-                            <t-image :src="getImageUrl(img)" fit="cover" style="width: 100%; height: 120px;" />
+                            <t-image :src="getImageUrl(img.url || img.imageUrl)" fit="cover"
+                                style="width: 100%; height: 120px;" />
                         </div>
                         <t-empty v-if="allImages.length === 0" description="暂无可用图片" />
                     </div>
@@ -66,8 +67,8 @@ import { getImageUrl } from "@/utils/format";
 
 const props = defineProps<{
     modelValue: boolean;
-    storyboardId: number;
-    dramaId: number;
+    storyboardId: number | string | null;
+    dramaId: string | number;
     allImages: any[]; // ImageGeneration[]
 }>();
 
@@ -100,24 +101,49 @@ const handleGridCellClick = (index: number) => {
 const selectImageForGrid = (img: any) => {
     gridImages.value[currentGridIndex.value] = {
         id: img.id,
-        url: getImageUrl(img), // 确保是完整URL
+        url: getImageUrl(img.url || img.imageUrl), // 确保是完整URL
         source: 'existing'
     }
     showImageSelector.value = false;
 }
 
-const handleUploadForGrid = (file: any) => {
+// 🔴 修复：精确解析 TDesign 的文件对象结构
+const handleUploadForGrid = (value: any) => {
+    let rawFile: File | Blob | null = null;
+
+    // 1. TDesign 默认返回的是一个数组，包含包装过的文件对象
+    if (Array.isArray(value) && value.length > 0) {
+        // TDesign 的文件对象中，真实的 File 实例通常放在 .raw 属性里
+        rawFile = value[0].raw || value[0].file || value[0];
+    } else if (value) {
+        // 单个文件对象的情况
+        rawFile = value.raw || value.file || value;
+    }
+
+    // 2. 最后的类型安全检查
+    if (!(rawFile instanceof Blob)) {
+        MessagePlugin.error('无法读取图片文件，请重试');
+        console.error("Invalid file object received:", value, rawFile);
+        return;
+    }
+
     // 读取本地文件预览
     const reader = new FileReader();
     reader.onload = (e) => {
         gridImages.value[currentGridIndex.value] = {
             url: e.target?.result,
-            file: file.raw, // 保存原始文件用于上传
+            file: rawFile, // 保存原始文件用于上传
             source: 'upload'
         }
         showImageSelector.value = false;
     }
-    reader.readAsDataURL(file.raw);
+
+    reader.onerror = () => {
+        MessagePlugin.error('图片读取失败');
+    }
+
+    // 执行读取
+    reader.readAsDataURL(rawFile);
 }
 
 const removeGridCell = (index: number) => {
@@ -177,25 +203,63 @@ const createGridImage = async () => {
 
         // 导出 Blob
         canvas.toBlob(async (blob) => {
-            if (!blob) return;
+            if (!blob) {
+                MessagePlugin.error('图片生成失败');
+                creating.value = false;
+                return;
+            }
 
-            // TODO: 调用您的上传接口
-            // const formData = new FormData();
-            // formData.append('file', blob, 'grid.jpg');
-            // const res = await uploadAPI(formData);
+            try {
+                // 1. 构建 FormData
+                const formData = new FormData();
+                // TDesign 或者大多数后端接口默认接收字段名为 'file'
+                formData.append('file', blob, `grid_${Date.now()}.jpg`);
 
-            // TODO: 调用保存 ImageGeneration 接口
+                // 2. 调用上传接口
+                const uploadUrl = import.meta.env.VITE_API_URL + '/admin/v1/upload/singleUpload';
 
-            MessagePlugin.success('宫格图生成成功');
-            emit('success');
-            handleClose();
+                const response = await fetch(uploadUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': localStorage.getItem('token') || ''
+                    },
+                    body: formData
+                });
 
+                const result = await response.json();
+
+                if (result.code === 0 || result.code === 200) {
+                    const responseData = result.data;
+                    let fileUrl = responseData.file_url || responseData.url;
+
+                    // 处理相对路径
+                    if (fileUrl && fileUrl.startsWith('/')) {
+                        fileUrl = import.meta.env.VITE_API_URL.replace(/\/admin\/v1$/, '').replace(/\/v1$/, '') + fileUrl;
+                    }
+
+                    // 3. 将成功上传的图片信息发送给父组件，让父组件处理保存逻辑
+                    // 这里的结构匹配之前裁剪功能约定的 { blob, frameType, url }
+                    emit('success', {
+                        url: fileUrl,
+                        frameType: 'action' // 宫格图默认归类为动作序列
+                    });
+
+                    MessagePlugin.success('宫格图生成并上传成功');
+                    handleClose();
+                } else {
+                    MessagePlugin.error(result.msg || result.message || '图片上传失败');
+                }
+            } catch (uploadError) {
+                console.error("上传错误:", uploadError);
+                MessagePlugin.error('图片上传接口调用失败');
+            } finally {
+                creating.value = false;
+            }
         }, 'image/jpeg', 0.9);
 
     } catch (e) {
         console.error(e);
-        MessagePlugin.error('生成失败');
-    } finally {
+        MessagePlugin.error('合成处理失败');
         creating.value = false;
     }
 }

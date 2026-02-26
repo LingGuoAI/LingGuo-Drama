@@ -258,7 +258,7 @@ const onRefresh = () => {
     MessagePlugin.success('刷新成功')
 }
 
-const onPageChange = (pageInfo) => {
+const onPageChange = (pageInfo: any) => {
     pagination.current = pageInfo.current
     pagination.pageSize = pageInfo.pageSize
     getTableData()
@@ -325,7 +325,7 @@ const onCreate = () => {
 }
 
 // 打开编辑
-const onEdit = async (row) => {
+const onEdit = async (row: any) => {
     try {
         // 获取最新详情
         const res = await findProjects(row.id)
@@ -363,7 +363,7 @@ const uploadConfig = reactive({
 })
 
 // 监听上传成功
-const handleImageUploadSuccess = (context) => {
+const handleImageUploadSuccess = (context: any) => {
     console.log('Upload Success Context:', context)
     // TDesign 的 context.response 是后端返回的原始数据
     const rawResponse = context.response
@@ -402,7 +402,6 @@ const onSubmit = async () => {
             payload.settings = JSON.stringify(payload.settings)
         }
 
-        // 核心修复：不要在这里重新从 tempFileList 取值覆盖 payload.image
         // 因为 handleImageUploadSuccess 已经正确设置了 payload.image
         // 如果 tempFileList 为空，说明用户清除了图片
         if (tempFileList.value.length === 0) {
@@ -431,7 +430,7 @@ const onSubmit = async () => {
     }
 }
 
-const onDelete = async (row) => {
+const onDelete = async (row: any) => {
     const res = await deleteProjects(row.id)
     if (res.code === 0) {
         MessagePlugin.success('已删除')
@@ -440,16 +439,16 @@ const onDelete = async (row) => {
 }
 
 // ========== 6. 辅助/格式化 ==========
-const formatDate = (val) => val ? dayjs(val).format('YYYY-MM-DD HH:mm') : '--'
-const formatDuration = (seconds) => {
+const formatDate = (val: any) => val ? dayjs(val).format('YYYY-MM-DD HH:mm') : '--'
+const formatDuration = (seconds: any) => {
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
     return `${m}:${s.toString().padStart(2, '0')}`
 }
-const getStatusLabel = (s) => statusMap[s]?.label || '未知'
-const getStatusTheme = (s) => statusMap[s]?.theme || 'default'
+const getStatusLabel = (s: any) => statusMap[s]?.label || '未知'
+const getStatusTheme = (s: any) => statusMap[s]?.theme || 'default'
 
-const getAspectRatio = (settingsStr) => {
+const getAspectRatio = (settingsStr: any) => {
     try {
         const s = JSON.parse(settingsStr || '{}')
         return s.ratio === '16:9' ? '16/9' : '9/16'
@@ -460,8 +459,7 @@ const getAspectRatio = (settingsStr) => {
 
 const generateSerialNo = () => 'SN' + dayjs().format('YYYYMMDDHHmmss')
 
-// 跳转到项目详情页 (detail.vue)
-const enterStudio = (row) => {
+const enterStudio = (row: any) => {
     router.push({
         name: 'ProjectDetail',
         params: {

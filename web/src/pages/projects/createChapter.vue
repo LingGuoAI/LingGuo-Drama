@@ -191,8 +191,8 @@
                                             <t-checkbox :checked="selectedSceneIds.includes(scene.id)"
                                                 @change="(val) => toggleSceneSelection(val, scene.id)" />
                                         </div>
-                                        <t-image v-if="scene.visualPrompt" :src="getImageUrl(scene.visualPrompt)"
-                                            fit="cover" class="s-img" @click="openEditSceneDialog(scene)" />
+                                        <t-image v-if="scene.imageUrl" :src="getImageUrl(scene.imageUrl)" fit="cover"
+                                            class="s-img" @click="openEditSceneDialog(scene)" />
                                         <div v-else class="img-placeholder" @click="openEditSceneDialog(scene)"><t-icon
                                                 name="image" size="24px" /><span class="placeholder-text">点击上传</span>
                                         </div>
@@ -331,15 +331,15 @@
         <t-dialog v-model:visible="addSceneDialogVisible" :header="isSceneEditMode ? '编辑场景' : '添加新场景'" width="500px"
             :confirm-btn="{ content: '保存', theme: 'primary', loading: saving }" @confirm="handleSceneSubmit">
             <t-form :data="newScene" label-align="top">
-                <t-form-item label="场景参考图" name="visualPrompt">
+                <t-form-item label="场景参考图" name="imageUrl">
                     <t-upload v-model="sceneFileList" :action="uploadConfig.action" :headers="uploadConfig.headers"
                         :show-file-list="false" accept="image/*"
                         @success="(ctx) => handleUploadSuccess(ctx, false, 'scene')">
-                        <div class="upload-trigger" v-if="!newScene.visualPrompt"
+                        <div class="upload-trigger" v-if="!newScene.imageUrl"
                             style="width:100%;height:160px;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;cursor:pointer">
                             <t-icon name="add" size="24px" />
                         </div>
-                        <t-image v-else :src="getImageUrl(newScene.visualPrompt)" fit="cover"
+                        <t-image v-else :src="getImageUrl(newScene.imageUrl)" fit="cover"
                             style="width:100%;height:160px" />
                     </t-upload>
                 </t-form-item>
@@ -415,7 +415,7 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
-import { ArrowLeftIcon, MagicIcon, FileAddIcon, EditIcon, CheckIcon, ChevronRightIcon, RefreshIcon, UserSearchIcon, FilmIcon, DeleteIcon, MoveIcon, LocationIcon } from 'tdesign-icons-vue-next'
+import { ArrowLeftIcon, FileAddIcon, EditIcon, CheckIcon, ChevronRightIcon, RefreshIcon, UserSearchIcon, FilmIcon, DeleteIcon, MoveIcon, LocationIcon } from 'tdesign-icons-vue-next'
 import dayjs from 'dayjs'
 
 // API
@@ -468,7 +468,7 @@ const characterFileList = ref<any[]>([])
 
 const addSceneDialogVisible = ref(false)
 const isSceneEditMode = ref(false)
-const newScene = ref({ id: undefined, name: '', location: '', time: '白天', atmosphere: '', visualPrompt: '' })
+const newScene = ref({ id: undefined, name: '', location: '', time: '白天', atmosphere: '', imageUrl: '' })
 const sceneFileList = ref<any[]>([])
 
 const shotDialog = reactive({ visible: false, loading: false })

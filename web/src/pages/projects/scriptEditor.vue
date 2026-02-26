@@ -99,7 +99,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="timeline-stage">
                     <VideoTimelineEditor ref="timelineEditorRef" :clips="timelineClips" :audio-clips="audioClips"
                         :current-time="currentTime" :total-duration="totalDuration" :current-id="currentStoryboardId"
@@ -122,13 +121,19 @@
                                             @click="showSceneSelector = true">更换场景</t-button>
                                     </div>
                                     <div class="scene-card" v-if="currentScene">
-                                        <t-image v-if="currentScene.visualPrompt"
-                                            :src="getImageUrl(currentScene.visualPrompt)" fit="cover"
-                                            class="scene-cover" @click="previewImage(currentScene.visualPrompt)" />
+                                        <t-image-viewer v-if="currentScene.imageUrl" :close-on-overlay="true"
+                                            :images="[getImageUrl(currentScene.imageUrl)]">
+                                            <template #trigger="{ open }">
+                                                <t-image :src="getImageUrl(currentScene.imageUrl)" fit="cover"
+                                                    class="scene-cover" @click.stop="open" style="cursor: zoom-in;" lazy
+                                                    error="图片加载失败" />
+                                            </template>
+                                        </t-image-viewer>
+
                                         <div class="scene-info">
                                             <div class="scene-loc">{{ currentScene.name }}</div>
                                             <div class="scene-meta">{{ currentScene.location }} · {{ currentScene.time
-                                            }}</div>
+                                                }}</div>
                                         </div>
                                     </div>
                                     <div v-else class="empty-box" @click="showSceneSelector = true">
@@ -146,8 +151,19 @@
                                     </div>
                                     <div class="cast-list" v-if="selectedCharacters.length > 0">
                                         <div v-for="charId in selectedCharacters" :key="charId" class="cast-item">
-                                            <t-avatar :image="getCharacterById(charId)?.avatarUrl" size="medium"
-                                                shape="circle" />
+                                            <t-image-viewer v-if="getCharacterById(charId)?.avatarUrl"
+                                                :close-on-overlay="true"
+                                                :images="[getImageUrl(getCharacterById(charId)?.avatarUrl)]">
+                                                <template #trigger="{ open }">
+                                                    <t-avatar :image="getImageUrl(getCharacterById(charId)?.avatarUrl)"
+                                                        size="medium" shape="circle" @click.stop="open"
+                                                        style="cursor: zoom-in;" />
+                                                </template>
+                                            </t-image-viewer>
+                                            <t-avatar v-else size="medium" shape="circle">{{
+                                                getCharacterById(charId)?.name?.[0]
+                                                || '?' }}</t-avatar>
+
                                             <span class="cast-name" :title="getCharacterById(charId)?.name">{{
                                                 getCharacterById(charId)?.name }}</span>
                                             <div class="remove-btn" @click="toggleCharacterInShot(charId)"><t-icon
@@ -167,8 +183,18 @@
                                     </div>
                                     <div class="cast-list" v-if="selectedProps.length > 0">
                                         <div v-for="propId in selectedProps" :key="propId" class="cast-item">
-                                            <t-image :src="getImageUrl(getPropById(propId)?.imageUrl)" fit="contain"
-                                                style="width: 40px; height: 40px; border-radius: 4px; background: #eee;" />
+                                            <t-image-viewer v-if="getPropById(propId)?.imageUrl"
+                                                :close-on-overlay="true"
+                                                :images="[getImageUrl(getPropById(propId)?.imageUrl)]">
+                                                <template #trigger="{ open }">
+                                                    <t-image :src="getImageUrl(getPropById(propId)?.imageUrl)"
+                                                        fit="contain"
+                                                        style="width: 40px; height: 40px; border-radius: 4px; background: #eee; cursor: zoom-in;"
+                                                        @click.stop="open" lazy error="加载失败" />
+                                                </template>
+                                            </t-image-viewer>
+                                            <t-icon v-else name="image" size="24px" style="color: #ccc" />
+
                                             <span class="cast-name" :title="getPropById(propId)?.name">{{
                                                 getPropById(propId)?.name }}</span>
                                             <div class="remove-btn" @click="togglePropInShot(propId)"><t-icon
@@ -285,9 +311,11 @@
                                     <template #icon><t-icon name="magic" /></template> 生成画面
                                 </t-button>
                                 <t-upload theme="custom" :action="uploadConfig.action" :headers="uploadConfig.headers"
-                                    :show-file-list="false" accept="image/*" @success="handleUploadImageSuccess">
-                                    <t-button variant="outline"><template #icon><t-icon
-                                                name="upload" /></template>上传</t-button>
+                                    :show-file-list="false" accept="image/*" :before-upload="beforeUpload"
+                                    @success="handleUploadImageSuccess" @fail="handleUploadFail">
+                                    <t-button variant="outline" :loading="uploadingImage">
+                                        <template #icon><t-icon name="upload" /></template>上传
+                                    </t-button>
                                 </t-upload>
                             </div>
 
@@ -302,12 +330,17 @@
 
                                 <div class="image-grid-list" v-if="generatedImages.length > 0">
                                     <div v-for="img in generatedImages" :key="img.id" class="image-grid-item">
-                                        <t-image :src="getImageUrl(img.url || img.imageUrl)" fit="cover" class="img" />
+                                        <t-image-viewer :close-on-overlay="true"
+                                            :images="[getImageUrl(img.url || img.imageUrl)]">
+                                            <template #trigger="{ open }">
+                                                <t-image :src="getImageUrl(img.url || img.imageUrl)" fit="cover"
+                                                    class="img" style="cursor: zoom-in;" @click="open" />
+                                            </template>
+                                        </t-image-viewer>
+
                                         <div class="img-overlay">
-                                            <t-button shape="circle" size="small" variant="text"
-                                                @click="previewImage(img.url)"><t-icon name="zoom-in" /></t-button>
                                             <t-button shape="circle" size="small" variant="text" theme="danger"
-                                                @click="deleteImage(img)"><t-icon name="delete" /></t-button>
+                                                @click.stop="deleteImage(img)"><t-icon name="delete" /></t-button>
                                         </div>
                                         <div class="crop-btn" v-if="selectedFrameType === 'action'"
                                             @click.stop="openCropDialog(img)">
@@ -315,7 +348,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div v-else-if="selectedFrameType !== 'action'" class="empty-text">暂无生成图片</div>
+                                <div v-else-if="selectedFrameType !== 'action'" class="empty-text">暂无图片</div>
                             </div>
                         </div>
                         <t-empty v-else description="请选择一个镜头" style="margin-top: 40px" />
@@ -443,8 +476,14 @@
                     style="cursor: pointer">
                     <t-list-item-meta :title="scene.name" :description="`${scene.location} · ${scene.time}`">
                         <template #image>
-                            <t-image v-if="scene.visualPrompt" :src="getImageUrl(scene.visualPrompt)" fit="cover"
-                                style="width: 50px; height: 50px; border-radius: 4px;" />
+                            <t-image-viewer v-if="scene.imageUrl" :close-on-overlay="true"
+                                :images="[getImageUrl(scene.imageUrl)]">
+                                <template #trigger="{ open }">
+                                    <t-image :src="getImageUrl(scene.imageUrl)" fit="cover"
+                                        style="width: 50px; height: 50px; border-radius: 4px; cursor: zoom-in;"
+                                        @click.stop="open" lazy error="加载失败" />
+                                </template>
+                            </t-image-viewer>
                             <t-icon v-else name="image" size="24px" style="color: #ccc" />
                         </template>
                     </t-list-item-meta>
@@ -462,7 +501,16 @@
             <div class="char-selector-grid">
                 <div v-for="char in availableCharacters" :key="char.id" class="char-item"
                     :class="{ selected: selectedCharacters.includes(char.id) }" @click="toggleCharacterInShot(char.id)">
-                    <t-avatar :image="getImageUrl(char.avatarUrl)" size="large" />
+
+                    <t-image-viewer v-if="char.avatarUrl" :close-on-overlay="true"
+                        :images="[getImageUrl(char.avatarUrl)]">
+                        <template #trigger="{ open }">
+                            <t-avatar :image="getImageUrl(char.avatarUrl)" size="large" @click.stop="open"
+                                style="cursor: zoom-in;" />
+                        </template>
+                    </t-image-viewer>
+                    <t-avatar v-else size="large">{{ char.name ? char.name[0] : '?' }}</t-avatar>
+
                     <span>{{ char.name }}</span>
                     <div class="check" v-if="selectedCharacters.includes(char.id)"><t-icon name="check" /></div>
                 </div>
@@ -474,8 +522,17 @@
             <div class="char-selector-grid">
                 <div v-for="prop in availableProps" :key="prop.id" class="char-item"
                     :class="{ selected: selectedProps.includes(prop.id) }" @click="togglePropInShot(prop.id)">
-                    <t-image :src="getImageUrl(prop.imageUrl)" fit="contain"
-                        style="width: 50px; height: 50px; border-radius: 4px; background: #f9f9f9;" />
+
+                    <t-image-viewer v-if="prop.imageUrl" :close-on-overlay="true"
+                        :images="[getImageUrl(prop.imageUrl)]">
+                        <template #trigger="{ open }">
+                            <t-image :src="getImageUrl(prop.imageUrl)" fit="contain"
+                                style="width: 50px; height: 50px; border-radius: 4px; background: #f9f9f9; cursor: zoom-in;"
+                                @click.stop="open" lazy error="加载失败" />
+                        </template>
+                    </t-image-viewer>
+                    <t-icon v-else name="image" size="24px" style="color: #ccc" />
+
                     <span>{{ prop.name }}</span>
                     <div class="check" v-if="selectedProps.includes(prop.id)"><t-icon name="check" /></div>
                 </div>
@@ -492,12 +549,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted } from 'vue'
+import { ref, computed, reactive, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { MessagePlugin } from 'tdesign-vue-next'
+import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
 // 引入图标
 import {
-    ArrowLeftIcon, RefreshIcon, AddIcon, DeleteIcon, MagicIcon,
+    ArrowLeftIcon, RefreshIcon, AddIcon, DeleteIcon,
     UploadIcon, ZoomInIcon, VideoIcon, LinkIcon, LayersIcon,
     MoveIcon, AddCircleIcon, FilmIcon, CheckIcon, DownloadIcon, CloseIcon, CutIcon
 } from 'tdesign-icons-vue-next'
@@ -510,7 +567,6 @@ import { getCharactersList } from '@/api/characters'
 import { getPropsList } from '@/api/props'
 import { getShotsList, createShots, updateShots, deleteShots } from '@/api/shots'
 import { getAssetsList, createAsset, deleteAsset } from '@/api/assets'
-
 import { getImageUrl } from '@/utils/format'
 
 // 组件
@@ -554,6 +610,7 @@ const generatedImages = ref<any[]>([]) // 当前镜头生成的图片列表
 const showGridEditor = ref(false)
 const showCropDialog = ref(false)
 const cropImageUrl = ref('')
+const uploadingImage = ref(false)
 
 // 视频生成状态
 const generatingVideo = ref(false)
@@ -593,7 +650,6 @@ const currentScene = computed(() => {
     return sceneList.value.find(s => s.id === currentStoryboard.value.sceneId)
 })
 
-// 🔴 修复：提供给 Checkbox 选中的 ID 数组
 const selectedCharacters = computed(() => {
     if (!currentStoryboard.value?.characters) return []
     return currentStoryboard.value.characters.map((c: any) => typeof c === 'object' ? c.id : c)
@@ -608,9 +664,12 @@ const getCharacterById = (id: number) => availableCharacters.value.find(c => c.i
 const getPropById = (id: number) => availableProps.value.find(p => p.id === id)
 
 const getAuthToken = () => localStorage.getItem('token')
+
 const uploadConfig = reactive({
     action: import.meta.env.VITE_API_URL + '/admin/v1/upload/singleUpload',
     headers: computed(() => ({ 'Authorization': `${getAuthToken()}` })),
+    sizeLimit: 5 * 1024 * 1024,
+    allowedFormats: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
 })
 
 // === 初始化 ===
@@ -668,11 +727,8 @@ const loadVideoAssets = async () => {
 }
 
 // === 核心逻辑 ===
-
-// 🔴 修复：角色关联
 const toggleCharacterInShot = async (charId: number) => {
     if (!currentStoryboard.value) return
-
     let chars = currentStoryboard.value.characters || []
     const idx = chars.findIndex((c: any) => (typeof c === 'object' ? c.id === charId : c === charId))
 
@@ -685,14 +741,11 @@ const toggleCharacterInShot = async (charId: number) => {
 
     currentStoryboard.value.characters = chars
     currentStoryboard.value.characterIds = chars.map((c: any) => typeof c === 'object' ? c.id : c)
-
     await saveStoryboardField()
 }
 
-// 🔴 修复：道具关联
 const togglePropInShot = async (propId: number) => {
     if (!currentStoryboard.value) return
-
     let propsArray = currentStoryboard.value.props || []
     const idx = propsArray.findIndex((p: any) => (typeof p === 'object' ? p.id === propId : p === propId))
 
@@ -705,7 +758,6 @@ const togglePropInShot = async (propId: number) => {
 
     currentStoryboard.value.props = propsArray
     currentStoryboard.value.propIds = propsArray.map((p: any) => typeof p === 'object' ? p.id : p)
-
     await saveStoryboardField()
 }
 
@@ -793,7 +845,6 @@ const handleAddStoryboard = async () => {
         cameraMovement: '固定'
     }
     try {
-        // await createShots(newShot)
         MessagePlugin.success('添加成功 (Mock)')
         storyboards.value.push({ id: Date.now(), ...newShot })
     } catch { MessagePlugin.error('添加失败') }
@@ -837,7 +888,7 @@ const updateShotDurationMs = (secVal: number) => {
     saveStoryboardField()
 }
 
-// === 图片生成相关 ===
+// === 图片生成与上传相关 ===
 const extractFramePrompt = () => {
     extractingPrompt.value = true
     setTimeout(() => {
@@ -861,19 +912,82 @@ const generateFrameImage = async () => {
     }, 1000)
 }
 
-const handleUploadImageSuccess = (ctx: any) => { /* ... */ }
+const beforeUpload = (file: any) => {
+    if (!uploadConfig.allowedFormats.includes(file.type)) {
+        MessagePlugin.error('不支持的文件格式')
+        return false
+    }
+    if (file.size > uploadConfig.sizeLimit) {
+        MessagePlugin.error('图片大小不能超过 5MB')
+        return false
+    }
+    uploadingImage.value = true
+    return true
+}
+
+const handleUploadFail = () => {
+    uploadingImage.value = false
+    MessagePlugin.error('上传失败')
+}
+
+const handleUploadImageSuccess = (ctx: any) => {
+    uploadingImage.value = false
+    const response = ctx.response
+
+    if (response?.code === 0 || response?.code === 200) {
+        const responseData = response.data
+        let fileUrl = responseData.file_url || responseData.url
+
+        if (fileUrl && fileUrl.startsWith('/')) {
+            fileUrl = import.meta.env.VITE_API_URL.replace(/\/admin\/v1$/, '').replace(/\/v1$/, '') + fileUrl
+        }
+
+        generatedImages.value.unshift({
+            id: Date.now(),
+            url: fileUrl,
+            imageUrl: fileUrl,
+            frameType: selectedFrameType.value
+        })
+
+        if (currentStoryboard.value && (!currentStoryboard.value.imageUrl || selectedFrameType.value === 'first')) {
+            currentStoryboard.value.imageUrl = fileUrl
+            saveStoryboardField()
+        }
+
+        MessagePlugin.success('上传成功')
+    } else {
+        MessagePlugin.error(response?.msg || '上传失败')
+    }
+}
+
 const deleteImage = (img: any) => {
     const idx = generatedImages.value.indexOf(img)
     if (idx > -1) generatedImages.value.splice(idx, 1)
 }
 
 const openCropDialog = (img: any) => {
-    cropImageUrl.value = img.url
+    cropImageUrl.value = img.url || img.imageUrl
     showCropDialog.value = true
 }
 
 const handleCropSave = (newUrl: string) => { showCropDialog.value = false }
-const handleGridSuccess = () => { }
+const handleGridSuccess = (data: { url: string, frameType: string }) => {
+    if (data && data.url) {
+        // 1. 将新生成的宫格图添加到图片列表最前面
+        generatedImages.value.unshift({
+            id: Date.now(), // 临时ID，刷新后会从后端获取真实ID
+            url: data.url,
+            imageUrl: data.url,
+            frameType: data.frameType
+        });
+
+        // 可选：如果要自动设置为分镜封面，取消下面代码的注释
+        // if (currentStoryboard.value) {
+        //     currentStoryboard.value.imageUrl = data.url;
+        //     saveStoryboardField();
+        // }
+    }
+}
 
 // === 视频生成相关 ===
 const openRefImageSelector = (mode: string) => { MessagePlugin.info('选择参考图功能 (需实现弹窗)') }
@@ -895,7 +1009,7 @@ const generateVideo = async () => {
 const addVideoToAssets = async (video: any) => { MessagePlugin.success('已添加到素材库') }
 const deleteVideo = async (video: any) => { /* ... */ }
 
-const previewImage = (url: string) => window.open(url, '_blank')
+const previewImage = (url: string) => window.open(getImageUrl(url), '_blank')
 const getVideoUrl = (url: string) => url ? (url.startsWith('http') ? url : import.meta.env.VITE_API_URL + url) : ''
 const exportVideo = () => { MessagePlugin.info('导出合成视频功能开发中') }
 
@@ -1381,7 +1495,7 @@ onMounted(() => initData())
                 border: 1px solid var(--td-component-stroke);
             }
 
-            /* 新增样式：图片生成区域 */
+            /* 图片生成区域 */
             .grid-entry-card {
                 margin-bottom: 12px;
                 height: 50px;
@@ -1426,6 +1540,13 @@ onMounted(() => initData())
                         gap: 8px;
                         opacity: 0;
                         transition: opacity 0.2s;
+                        // 🔴 让鼠标事件穿透遮罩层，使底下的 t-image 可以接收点击事件
+                        pointer-events: none;
+
+                        // 🔴 恢复按钮的鼠标事件
+                        :deep(.t-button) {
+                            pointer-events: auto;
+                        }
                     }
 
                     &:hover .img-overlay {
@@ -1449,7 +1570,7 @@ onMounted(() => initData())
                 }
             }
 
-            /* 新增样式：参考图选择器 */
+            /* 参考图选择器 */
             .reference-selector {
                 margin-top: 16px;
 
@@ -1506,7 +1627,7 @@ onMounted(() => initData())
                 }
             }
 
-            /* 新增样式：视频列表 */
+            /* 视频列表 */
             .video-card-list {
                 display: flex;
                 flex-direction: column;
@@ -1539,7 +1660,7 @@ onMounted(() => initData())
                 }
             }
 
-            /* 新增样式：合成记录 */
+            /* 合成记录 */
             .merge-list {
                 display: flex;
                 flex-direction: column;

@@ -15,6 +15,7 @@ type Scenes struct {
 	Time         *string `json:"time" form:"time" gorm:"column:time;comment:时间(日/夜);size:50;"`
 	Atmosphere   *string `json:"atmosphere" form:"atmosphere" gorm:"column:atmosphere;comment:氛围描述;"`
 	VisualPrompt *string `json:"visualPrompt" form:"visualPrompt" gorm:"column:visual_prompt;comment:AI绘画Prompt(纯背景);type:text;"`
+	ImageUrl     *string `json:"imageUrl" form:"imageUrl" gorm:"column:image_url;comment:图片路径;type:text;size:255;"`
 	Status       *int8   `json:"status" form:"status" gorm:"default:1;column:status;comment:状态 1-待生成 2-生成中 3-已完成;"`
 
 	// 关联关系

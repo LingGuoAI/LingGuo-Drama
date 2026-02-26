@@ -200,7 +200,7 @@
                                 </div>
 
                                 <div class="res-cover scene-cover">
-                                    <t-image :src="getImageUrl(scene.visualPrompt)" fit="cover" class="res-img" />
+                                    <t-image :src="getImageUrl(scene.imageUrl)" fit="cover" class="res-img" />
 
                                     <div v-if="generatingSceneIds.includes(scene.id)" class="loading-mask">
                                         <t-loading size="small" text="生成中..." />
@@ -364,11 +364,11 @@
         <t-dialog v-model:visible="sceneDialog.visible" :header="sceneDialog.mode === 'create' ? '添加场景' : '编辑场景'"
             :confirm-btn="{ loading: sceneDialog.loading }" @confirm="submitScene">
             <t-form :data="sceneFormData" label-align="top">
-                <t-form-item label="参考图" name="visualPrompt">
+                <t-form-item label="参考图" name="imageUrl">
                     <t-upload v-model="sceneFileList" :action="uploadConfig.action" :headers="uploadConfig.headers"
                         :show-file-list="false" accept="image/*" @success="(ctx) => handleUploadSuccess(ctx, 'scene')">
-                        <div class="upload-box scene" v-if="!sceneFormData.visualPrompt"><t-icon name="add" /></div>
-                        <t-image v-else :src="getImageUrl(sceneFormData.visualPrompt)" class="upload-preview scene"
+                        <div class="upload-box scene" v-if="!sceneFormData.imageUrl"><t-icon name="add" /></div>
+                        <t-image v-else :src="getImageUrl(sceneFormData.imageUrl)" class="upload-preview scene"
                             fit="cover" />
                     </t-upload>
                 </t-form-item>
@@ -636,7 +636,6 @@ const handleExtractFromScript = async () => {
 
 // --- 生图逻辑 (单体/批量) ---
 const singleGenerate = async (type: 'char' | 'scene' | 'prop', item: any) => {
-    // ... (保持原有逻辑)
     const generatingList = type === 'char' ? generatingCharIds : (type === 'scene' ? generatingSceneIds : generatingPropIds)
     const loadFunc = type === 'char' ? loadCharacters : (type === 'scene' ? loadScenes : loadProps)
     if (generatingList.value.includes(item.id)) return
@@ -698,7 +697,7 @@ const processBatchGeneration = async (type: 'char' | 'scene' | 'prop', ids: numb
             MessagePlugin.success(`已提交 ${taskList.length} 个任务`)
 
             // ===============================================
-            // 🟢 新增代码：提交成功后，清空当前类型的选择状态
+            // 🟢 提交成功后，清空当前类型的选择状态
             // ===============================================
             if (type === 'char') selectedCharIds.value = []
             else if (type === 'scene') selectedSceneIds.value = []
@@ -1053,7 +1052,6 @@ onMounted(init)
         .res-cover {
             height: 180px;
             position: relative;
-            /* 必须是 relative */
             border-radius: 4px;
             overflow: hidden;
             background: #fff;

@@ -17,18 +17,18 @@ func (ShotProps) TableName() string {
 	return "shot_props"
 }
 
-// Create 创建分镜和道具中间
+// Create 创建分镜和道具中间数据
 func (shotProps *ShotProps) Create() {
 	database.DB.Create(&shotProps)
 }
 
-// Save 保存分镜和道具中间
+// Save 保存分镜和道具中间数据
 func (shotProps *ShotProps) Save() (rowsAffected int64) {
 	result := database.DB.Save(&shotProps)
 	return result.RowsAffected
 }
 
-// Delete 删除分镜和道具中间
+// Delete 删除分镜和道具中间数据
 func (shotProps *ShotProps) Delete() (rowsAffected int64) {
 	result := database.DB.Delete(&shotProps)
 	return result.RowsAffected

@@ -49,8 +49,9 @@ func HandleGenerateSceneImage(ctx context.Context, t *asynq.Task) error {
 	// 3. 调用 AI
 	taskModel.UpdateProgress(40)
 	// 场景图通常是宽屏，如果有Dall-E-3支持，可改为 "1024x1792"
+	imagePrompt := p.Prompt + ", cinematic lighting, highly detailed, realistic, 8k"
 	req := openai.ImageRequest{
-		Prompt: p.Prompt + ", cinematic lighting, highly detailed, realistic, 8k", // 增加一些画质词
+		Prompt: imagePrompt, // 增加一些画质词
 		N:      1,
 		Size:   "1024x1024",
 	}
@@ -86,10 +87,10 @@ func HandleGenerateSceneImage(ctx context.Context, t *asynq.Task) error {
 
 	// 5. 更新 Scenes 表
 	taskModel.UpdateProgress(90)
-	// 根据前端逻辑，将图片URL存入 VisualPrompt 字段（或者您有独立的 Image 字段）
 	err = database.DB.Model(&scenes.Scenes{}).
 		Where("id = ?", p.SceneID).
-		Update("visual_prompt", finalURL).Error
+		Update("visual_prompt", imagePrompt).
+		Update("image_url", finalURL).Error
 
 	if err != nil {
 		taskModel.MarkAsFailed(fmt.Errorf("db update failed: %v", err))
