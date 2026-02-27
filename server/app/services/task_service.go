@@ -264,3 +264,71 @@ func (s *TaskService) CreateExtractPropsTask(projectID, episodeID uint64) (*asyn
 
 	return &task, nil
 }
+
+// CreateExtractFramePromptTask 创建提取帧提示词任务
+func (s *TaskService) CreateExtractFramePromptTask(projectID, shotID uint64, frameType, model string) (*async_tasks.AsyncTask, error) {
+	// 1. 构造 Payload 数据
+	payload := asynq.ExtractFramePromptPayload{
+		ProjectID: projectID,
+		ShotID:    shotID,
+		FrameType: frameType,
+		Model:     model,
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	// 2. 先在数据库创建记录 (状态: Pending)
+	task := async_tasks.AsyncTask{
+		ProjectID: projectID,
+		RelID:     shotID, // 关联的分镜镜头ID
+		Type:      asynq.TypeExtractFramePrompt,
+		Status:    async_tasks.StatusPending,
+		Payload:   string(payloadBytes),
+	}
+	task.Create()
+
+	// 3. 将数据库 ID 注入 Payload
+	payload.AsyncTaskID = task.ID
+
+	// 4. 投递到 Asynq
+	_, err := asynq.EnqueueExtractFramePrompt(payload)
+	if err != nil {
+		task.MarkAsFailed(err)
+		return &task, err
+	}
+
+	return &task, nil
+}
+
+// CreateGenerateFrameImageTask 创建根据帧提示词生成图片
+func (s *TaskService) CreateGenerateFrameImageTask(projectID, shotID uint64, frameType, prompt string) (*async_tasks.AsyncTask, error) {
+	// 1. 构造 Payload 数据
+	payload := asynq.GenerateFrameImagePayload{
+		ProjectID: projectID,
+		ShotID:    shotID,
+		FrameType: frameType,
+		Prompt:    prompt,
+	}
+	payloadBytes, _ := json.Marshal(payload)
+
+	// 2. 在数据库创建任务记录
+	task := async_tasks.AsyncTask{
+		ProjectID: projectID,
+		RelID:     shotID, // 关联的分镜ID
+		Type:      asynq.TypeGenerateFrameImage,
+		Status:    async_tasks.StatusPending,
+		Payload:   string(payloadBytes),
+	}
+	task.Create()
+
+	// 3. 将数据库 ID 注入 Payload
+	payload.AsyncTaskID = task.ID
+
+	// 4. 投递到 Asynq
+	_, err := asynq.EnqueueGenerateFrameImage(payload)
+	if err != nil {
+		task.MarkAsFailed(err)
+		return &task, err
+	}
+
+	return &task, nil
+}

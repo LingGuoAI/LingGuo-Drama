@@ -116,3 +116,28 @@ export const batchGeneratePropImagesTask = (data: { propIds: number[] }) => {
     data,
   });
 };
+
+// 12. 提取分镜帧提示词
+export const extractFramePromptTask = (data: {
+  shotId: number | string;
+  frameType: string;
+  model?: string;
+}) => {
+  return request.post({
+    url: "/tasks/extractPrompt",
+    data,
+  });
+};
+
+// 13. 根据帧提示词生成图片
+export const generateImageByPromptTask = (data: {
+  shotId: number | string;
+  frameType: string;
+  prompt: string;
+  model?: string;
+}) => {
+  return request.post({
+    url: "/tasks/generateImageByPrompt",
+    data,
+  });
+};

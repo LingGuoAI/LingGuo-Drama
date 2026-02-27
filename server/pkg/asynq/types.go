@@ -9,6 +9,9 @@ const (
 	TypeGenerateShots      = "generate:shots"
 	TypeExtractProps       = "ai:extract_props"
 	TypeGeneratePropImage  = "ai:generate_prop_image"
+
+	TypeExtractFramePrompt = "ai:extract_frame_prompt" // 提取帧提示词任务
+	TypeGenerateFrameImage = "ai:generate_frame_image" // 生成分镜帧图片任务
 )
 
 // GenerateScriptPayload
@@ -72,4 +75,22 @@ type ExtractPropsPayload struct {
 	AsyncTaskID uint64 `json:"async_task_id"`
 	ProjectID   uint64 `json:"project_id"`
 	EpisodeID   uint64 `json:"episode_id"` // 根据哪一集剧本提取
+}
+
+// ExtractFramePromptPayload 提取帧提示词载荷
+type ExtractFramePromptPayload struct {
+	AsyncTaskID uint64 `json:"async_task_id"`
+	ProjectID   uint64 `json:"project_id"`
+	ShotID      uint64 `json:"shot_id"`
+	FrameType   string `json:"frame_type"` // first/last/key/action/panel
+	Model       string `json:"model"`      // 可选：指定的文本大模型
+}
+
+// GenerateFrameImagePayload 帧图片生成载荷
+type GenerateFrameImagePayload struct {
+	AsyncTaskID uint64 `json:"async_task_id"`
+	ProjectID   uint64 `json:"project_id"`
+	ShotID      uint64 `json:"shot_id"`
+	FrameType   string `json:"frame_type"`
+	Prompt      string `json:"prompt"`
 }

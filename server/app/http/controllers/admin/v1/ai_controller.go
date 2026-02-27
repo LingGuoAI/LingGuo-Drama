@@ -7,6 +7,7 @@ import (
 	"spiritFruit/app/models/props"
 	"spiritFruit/app/models/scenes"
 	"spiritFruit/app/models/scripts"
+	"spiritFruit/app/models/shots"
 	"spiritFruit/app/requests"
 	"spiritFruit/app/services"
 	"spiritFruit/pkg/database"
@@ -538,5 +539,92 @@ func (ctrl *AiController) BatchGeneratePropImages(c *gin.Context) {
 		"code":    0,
 		"message": "批量任务已提交",
 		"data":    results,
+	})
+}
+
+// ExtractPrompt 提取分镜图片提示词
+func (ctrl *AiController) ExtractPrompt(c *gin.Context) {
+	type Req struct {
+		ShotID    uint64 `json:"shotId" binding:"required"`
+		FrameType string `json:"frameType" binding:"required,oneof=first last key action panel"`
+		Model     string `json:"model"` // 可选
+	}
+	var req Req
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Abort500(c, "参数错误: "+err.Error())
+		return
+	}
+
+	// 1. 查找分镜信息，验证是否存在
+	var shot shots.Shots
+	if err := database.DB.First(&shot, req.ShotID).Error; err != nil {
+		response.Abort500(c, "分镜镜头不存在")
+		return
+	}
+
+	projectID := uint64(0)
+	if shot.ProjectId != nil {
+		projectID = *shot.ProjectId
+	}
+
+	// 2. 创建异步任务
+	taskService := new(services.TaskService)
+	task, err := taskService.CreateExtractFramePromptTask(projectID, req.ShotID, req.FrameType, req.Model)
+	if err != nil {
+		response.Abort500(c, "任务创建失败: "+err.Error())
+		return
+	}
+
+	// 3. 返回任务ID供前端轮询
+	response.JSON(c, gin.H{
+		"code":    0,
+		"message": "提示词提取任务已提交",
+		"data": map[string]interface{}{
+			"task_id": task.ID,
+			"status":  task.Status,
+		},
+	})
+}
+
+// GenerateImageByPrompt 根据帧提示词生成图片
+func (ctrl *AiController) GenerateImageByPrompt(c *gin.Context) {
+	type Req struct {
+		ShotID    uint64 `json:"shotId" binding:"required"`
+		FrameType string `json:"frameType" binding:"required,oneof=first last action key"`
+		Prompt    string `json:"prompt" binding:"required"` // 前端传递要生成的最终提示词
+	}
+	var req Req
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Abort500(c, "参数错误: "+err.Error())
+		return
+	}
+
+	// 1. 获取关联项目ID
+	var shot shots.Shots
+	if err := database.DB.First(&shot, req.ShotID).Error; err != nil {
+		response.Abort500(c, "分镜不存在")
+		return
+	}
+
+	projectID := uint64(0)
+	if shot.ProjectId != nil {
+		projectID = *shot.ProjectId
+	}
+
+	// 2. 调用 Service 创建任务
+	taskService := new(services.TaskService)
+	task, err := taskService.CreateGenerateFrameImageTask(projectID, req.ShotID, req.FrameType, req.Prompt)
+	if err != nil {
+		response.Abort500(c, "任务启动失败: "+err.Error())
+		return
+	}
+
+	// 3. 返回结果给前端进行轮询
+	response.JSON(c, gin.H{
+		"code":    0,
+		"message": "图片生成任务已在后台运行",
+		"data": map[string]interface{}{
+			"task_id": task.ID,
+		},
 	})
 }

@@ -77,11 +77,18 @@ func Paginate(c *gin.Context, perPage int, filters map[string]interface{}) (shot
 			fields := []string{"id", "name", "avatar_url", "visual_prompt"}
 			return db.Select(strings.Join(fields, ", "))
 		}).
-		// 🔴 预加载道具
+		Preload("FrameImages", func(db *gorm.DB) *gorm.DB {
+			fields := []string{"id", "shot_id", "frame_type", "image_url", "created_at"}
+			// 推荐按照创建时间倒序，这样前端拿到的第一张就是最新生成的
+			return db.Select(strings.Join(fields, ", ")).Order("created_at DESC")
+		}).
 		Preload("Props", func(db *gorm.DB) *gorm.DB {
 			fields := []string{"id", "name", "image_url"}
 			return db.Select(strings.Join(fields, ", "))
-		})
+		}).Preload("FramePrompts", func(db *gorm.DB) *gorm.DB {
+		fields := []string{"id", "shot_id", "frame_type", "prompt", "description"}
+		return db.Select(strings.Join(fields, ", "))
+	})
 
 	// 应用过滤条件
 	for key, value := range filters {

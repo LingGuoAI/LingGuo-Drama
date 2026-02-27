@@ -93,6 +93,9 @@ func RegisterAdminAPIRoutes(r *gin.Engine) {
 			tasksGroup.POST("/extractProps", aiController.ExtractProps)                       // 提取道具
 			tasksGroup.POST("/generatePropImage", aiController.GeneratePropImage)             // 单个道具生图
 			tasksGroup.POST("/batchGeneratePropImages", aiController.BatchGeneratePropImages) // 批量道具生图
+
+			tasksGroup.POST("/extractPrompt", aiController.ExtractPrompt)                 // 提取提示词
+			tasksGroup.POST("/generateImageByPrompt", aiController.GenerateImageByPrompt) // 根据帧提示词生成图片
 		}
 
 		// 剧本相关路由
@@ -110,6 +113,17 @@ func RegisterAdminAPIRoutes(r *gin.Engine) {
 			scriptsGroup.DELETE("/:id", scriptsController.Delete) // 删除剧本
 			// 短剧项目选择列表路由
 			scriptsGroup.GET("/getProjectsSelectList", scriptsController.GetProjectsSelectList) // 获取短剧项目选择列表
+		}
+
+		// 分镜图片相关路由
+		shotFrameImagesGroup := v1.Group("/shot_frame_images").Use(middlewares.AuthAdminJWT())
+		{
+			shotFrameImagesController := new(controllers.ShotFrameImagesController)
+
+			// 基础CRUD路由
+			shotFrameImagesGroup.POST("", shotFrameImagesController.Store) // 创建分镜图片
+
+			shotFrameImagesGroup.DELETE("/:id", shotFrameImagesController.Delete) // 删除分镜图片
 		}
 
 		// 场景相关路由

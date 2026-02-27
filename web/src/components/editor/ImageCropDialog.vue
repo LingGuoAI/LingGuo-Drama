@@ -4,7 +4,8 @@
         @confirm="handleSave" @close="handleClose" @opened="initCropper">
         <div class="cropper-wrapper">
             <div class="crop-container">
-                <img ref="imageRef" :src="imageUrl" alt="Source Image" v-if="imageUrl" style="max-width: 100%;" />
+                <img ref="imageRef" :src="imageUrl" alt="Source Image" v-if="imageUrl" crossorigin="anonymous"
+                    style="max-width: 100%;" />
                 <div v-else class="empty-state">无图片数据</div>
             </div>
 

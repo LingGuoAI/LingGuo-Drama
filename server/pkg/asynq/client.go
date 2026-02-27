@@ -120,3 +120,35 @@ func EnqueueGeneratePropImage(payload GeneratePropImagePayload) (*asynq.TaskInfo
 	task := asynq.NewTask(TypeGeneratePropImage, bytes)
 	return GetClient().Enqueue(task, asynq.Queue("default"))
 }
+
+// EnqueueExtractFramePrompt 投递提取帧提示词任务
+func EnqueueExtractFramePrompt(payload ExtractFramePromptPayload) (*asynq.TaskInfo, error) {
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	// 文本提取任务一般较快，放入 default 队列
+	task := asynq.NewTask(TypeExtractFramePrompt, bytes)
+	info, err := GetClient().Enqueue(task, asynq.Queue("default"))
+	if err != nil {
+		console.Error(fmt.Sprintf("投递提取帧提示词任务失败: %v", err))
+		return nil, err
+	}
+	return info, nil
+}
+
+// EnqueueGenerateFrameImage 投递根据帧提示词生成图片任务
+func EnqueueGenerateFrameImage(payload GenerateFrameImagePayload) (*asynq.TaskInfo, error) {
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	// 生图任务耗时较长，放入 default 队列
+	task := asynq.NewTask(TypeGenerateFrameImage, bytes)
+	info, err := GetClient().Enqueue(task, asynq.Queue("default"))
+	if err != nil {
+		console.Error(fmt.Sprintf("投递分镜帧生图任务失败: %v", err))
+		return nil, err
+	}
+	return info, nil
+}
