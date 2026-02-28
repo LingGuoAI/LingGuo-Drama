@@ -141,3 +141,42 @@ export const generateImageByPromptTask = (data: {
     data,
   });
 };
+
+// 14. 生成视频任务
+export const generateVideoTask = (data: {
+  projectId: number | string;
+  shotId: number | string;
+  model: string;
+  duration: number;
+  prompt: string;
+  referenceMode: string;
+  imageUrl?: string;
+  firstFrameUrl?: string;
+  lastFrameUrl?: string;
+  imageUrls?: string[];
+}) => {
+  return request.post({
+    url: "/tasks/generateVideo",
+    data,
+  });
+};
+
+// 15. 合并视频任务
+export const mergeVideoTask = (data: {
+  projectId: number | string;
+  episodeNumber: number | string;
+  clips: Array<{
+    assetId?: number | string | null;
+    shotId: string | number;
+    order: number;
+    startTime: number;
+    endTime: number;
+    duration: number;
+    transition?: Record<string, any>;
+  }>;
+}) => {
+  return request.post({
+    url: "/tasks/mergeVideo",
+    data,
+  });
+};

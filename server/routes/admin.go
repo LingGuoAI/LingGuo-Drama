@@ -80,6 +80,7 @@ func RegisterAdminAPIRoutes(r *gin.Engine) {
 		{
 			// 假设你创建了 TasksController
 			tasksController := new(controllers.TasksController)
+			videoController := new(controllers.VideoController)
 			aiController := new(controllers.AiController)
 			tasksGroup.GET("/:id", tasksController.Show)                                                // 查询任务详情(包含进度和结果)
 			tasksGroup.POST("/generateCharacters", aiController.GenerateCharacters)                     // 提取角色
@@ -96,6 +97,9 @@ func RegisterAdminAPIRoutes(r *gin.Engine) {
 
 			tasksGroup.POST("/extractPrompt", aiController.ExtractPrompt)                 // 提取提示词
 			tasksGroup.POST("/generateImageByPrompt", aiController.GenerateImageByPrompt) // 根据帧提示词生成图片
+
+			tasksGroup.POST("/generateVideo", aiController.GenerateVideo)
+			tasksGroup.POST("/mergeVideo", videoController.FinalizeEpisode) // 合并视频
 		}
 
 		// 剧本相关路由

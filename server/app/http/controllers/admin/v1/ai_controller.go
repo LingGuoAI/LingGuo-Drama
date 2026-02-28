@@ -10,6 +10,7 @@ import (
 	"spiritFruit/app/models/shots"
 	"spiritFruit/app/requests"
 	"spiritFruit/app/services"
+	"spiritFruit/pkg/asynq"
 	"spiritFruit/pkg/database"
 	"spiritFruit/pkg/response"
 )
@@ -623,6 +624,66 @@ func (ctrl *AiController) GenerateImageByPrompt(c *gin.Context) {
 	response.JSON(c, gin.H{
 		"code":    0,
 		"message": "图片生成任务已在后台运行",
+		"data": map[string]interface{}{
+			"task_id": task.ID,
+		},
+	})
+}
+
+// GenerateVideo 根据参数和提示词生成视频
+func (ctrl *AiController) GenerateVideo(c *gin.Context) {
+	// 定义对应前端传递的复杂请求体
+	type Req struct {
+		ProjectID     uint64   `json:"projectId" binding:"required"`
+		ShotID        uint64   `json:"shotId" binding:"required"`
+		Model         string   `json:"model" binding:"required"`
+		Duration      int      `json:"duration"`
+		Prompt        string   `json:"prompt" binding:"required"`
+		ReferenceMode string   `json:"referenceMode" binding:"required"`
+		ImageURL      string   `json:"imageUrl"`
+		FirstFrameURL string   `json:"firstFrameUrl"`
+		LastFrameURL  string   `json:"lastFrameUrl"`
+		ImageURLs     []string `json:"imageUrls"`
+	}
+	var req Req
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Abort500(c, "参数错误: "+err.Error())
+		return
+	}
+
+	// 1. 验证分镜是否存在
+	var shot shots.Shots
+	if err := database.DB.First(&shot, req.ShotID).Error; err != nil {
+		response.Abort500(c, "分镜不存在")
+		return
+	}
+
+	// 2. 组装 Payload
+	payload := asynq.GenerateVideoPayload{
+		ProjectID:          req.ProjectID,
+		ShotID:             req.ShotID,
+		Model:              req.Model,
+		Duration:           req.Duration,
+		Prompt:             req.Prompt,
+		ReferenceMode:      req.ReferenceMode,
+		ImageURL:           req.ImageURL,
+		FirstFrameURL:      req.FirstFrameURL,
+		LastFrameURL:       req.LastFrameURL,
+		ReferenceImageURLs: req.ImageURLs,
+	}
+
+	// 3. 调用 Service 创建并投递任务
+	taskService := new(services.TaskService)
+	task, err := taskService.CreateGenerateVideoTask(payload)
+	if err != nil {
+		response.Abort500(c, "视频生成任务启动失败: "+err.Error())
+		return
+	}
+
+	// 4. 返回 TaskID 给前端进行轮询
+	response.JSON(c, gin.H{
+		"code":    0,
+		"message": "视频生成任务已提交",
 		"data": map[string]interface{}{
 			"task_id": task.ID,
 		},

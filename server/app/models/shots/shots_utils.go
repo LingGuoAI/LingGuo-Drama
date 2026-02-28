@@ -78,7 +78,7 @@ func Paginate(c *gin.Context, perPage int, filters map[string]interface{}) (shot
 			return db.Select(strings.Join(fields, ", "))
 		}).
 		Preload("FrameImages", func(db *gorm.DB) *gorm.DB {
-			fields := []string{"id", "shot_id", "frame_type", "image_url", "created_at"}
+			fields := []string{"id", "shot_id", "frame_type", "image_type", "image_url", "created_at"}
 			// 推荐按照创建时间倒序，这样前端拿到的第一张就是最新生成的
 			return db.Select(strings.Join(fields, ", ")).Order("created_at DESC")
 		}).

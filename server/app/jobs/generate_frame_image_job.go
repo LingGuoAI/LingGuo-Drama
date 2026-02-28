@@ -93,11 +93,12 @@ func HandleGenerateFrameImageTask(ctx context.Context, t *asynq.Task) error {
 
 	// 5. 将生成的图片写入 shot_frame_images 表
 	taskModel.UpdateProgress(90)
-
+	imagType := "shot" // 镜头图片
 	newFrameImage := shot_frame_image.ShotFrameImages{
 		ProjectId: &p.ProjectID,
 		ShotId:    &p.ShotID,
 		FrameType: &p.FrameType,
+		ImageType: &imagType,
 		ImageUrl:  &finalURL,
 	}
 	newFrameImage.Create()

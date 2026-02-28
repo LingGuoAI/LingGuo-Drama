@@ -12,6 +12,8 @@ const (
 
 	TypeExtractFramePrompt = "ai:extract_frame_prompt" // 提取帧提示词任务
 	TypeGenerateFrameImage = "ai:generate_frame_image" // 生成分镜帧图片任务
+	TypeGenerateVideo      = "ai:generate_video"
+	TypeMergeVideo         = "video:merge" // 视频合并任务
 )
 
 // GenerateScriptPayload
@@ -93,4 +95,38 @@ type GenerateFrameImagePayload struct {
 	ShotID      uint64 `json:"shot_id"`
 	FrameType   string `json:"frame_type"`
 	Prompt      string `json:"prompt"`
+}
+
+// GenerateVideoPayload 视频生成载荷
+type GenerateVideoPayload struct {
+	AsyncTaskID        uint64   `json:"async_task_id"`
+	ProjectID          uint64   `json:"project_id"`
+	ShotID             uint64   `json:"shot_id"`
+	Model              string   `json:"model"`
+	Duration           int      `json:"duration"`
+	Prompt             string   `json:"prompt"`
+	ReferenceMode      string   `json:"reference_mode"`
+	ImageURL           string   `json:"image_url,omitempty"`
+	FirstFrameURL      string   `json:"first_frame_url,omitempty"`
+	LastFrameURL       string   `json:"last_frame_url,omitempty"`
+	ReferenceImageURLs []string `json:"reference_image_urls,omitempty"`
+}
+
+// MergeClip 合成视频的片段信息
+type MergeClip struct {
+	URL        string                 `json:"url"`
+	Duration   float64                `json:"duration"`
+	StartTime  float64                `json:"start_time"`
+	EndTime    float64                `json:"end_time"`
+	Transition map[string]interface{} `json:"transition"`
+}
+
+// MergeVideoPayload 视频合并任务载荷
+type MergeVideoPayload struct {
+	AsyncTaskID uint64      `json:"async_task_id"` // 异步任务ID
+	MergeID     uint64      `json:"merge_id"`      // 合成记录ID (保存到 video_merges 表)
+	ProjectID   uint64      `json:"project_id"`
+	EpisodeID   uint64      `json:"episode_id"` // 剧集/脚本ID
+	Title       string      `json:"title"`
+	Clips       []MergeClip `json:"clips"`
 }

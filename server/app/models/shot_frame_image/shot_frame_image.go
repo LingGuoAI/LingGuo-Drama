@@ -11,6 +11,7 @@ type ShotFrameImages struct {
 	ShotId    *uint64 `json:"shotId" form:"shotId" gorm:"column:shot_id;not null;default:0;comment:分镜ID;"`
 	FrameType *string `json:"frameType" form:"frameType" gorm:"column:frame_type;comment:帧类型"` // first-首帧 last-尾帧 action-动作序列 key-关键帧
 	ImageUrl  *string `json:"imageUrl" form:"imageUrl" gorm:"column:image_url;comment:图片"`
+	ImageType *string `json:"imageType" form:"imageType" gorm:"column:image_type;comment:图片类型"` // shot-镜头图片 reference-参考图
 	models.CommonTimestampsField
 }
 

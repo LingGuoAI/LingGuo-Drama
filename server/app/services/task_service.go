@@ -332,3 +332,30 @@ func (s *TaskService) CreateGenerateFrameImageTask(projectID, shotID uint64, fra
 
 	return &task, nil
 }
+
+// CreateGenerateVideoTask 创建视频生成任务
+func (s *TaskService) CreateGenerateVideoTask(payload asynq.GenerateVideoPayload) (*async_tasks.AsyncTask, error) {
+	payloadBytes, _ := json.Marshal(payload)
+
+	// 1. 在数据库创建任务记录
+	task := async_tasks.AsyncTask{
+		ProjectID: payload.ProjectID,
+		RelID:     payload.ShotID, // 关联的分镜ID
+		Type:      asynq.TypeGenerateVideo,
+		Status:    async_tasks.StatusPending,
+		Payload:   string(payloadBytes),
+	}
+	task.Create()
+
+	// 2. 将数据库生成的真实 TaskID 注入 Payload
+	payload.AsyncTaskID = task.ID
+
+	// 3. 投递到 Asynq 队列
+	_, err := asynq.EnqueueGenerateVideo(payload)
+	if err != nil {
+		task.MarkAsFailed(err)
+		return &task, err
+	}
+
+	return &task, nil
+}

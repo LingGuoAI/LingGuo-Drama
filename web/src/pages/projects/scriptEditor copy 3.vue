@@ -15,7 +15,7 @@
                 <t-button theme="default" variant="outline" size="small" @click="loadData">
                     <template #icon><t-icon name="refresh" /></template> 刷新
                 </t-button>
-                <t-button theme="primary" size="small" @click="exportVideo" :loading="mergingVideo">
+                <t-button theme="primary" size="small" @click="exportVideo">
                     <template #icon><t-icon name="download" /></template> 导出视频
                 </t-button>
             </div>
@@ -133,7 +133,7 @@
                                         <div class="scene-info">
                                             <div class="scene-loc">{{ currentScene.name }}</div>
                                             <div class="scene-meta">{{ currentScene.location }} · {{ currentScene.time
-                                                }}</div>
+                                            }}</div>
                                         </div>
                                     </div>
                                     <div v-else class="empty-box" @click="showSceneSelector = true">
@@ -276,6 +276,7 @@
 
                     <t-tab-panel value="image" label="镜头图片">
                         <div class="tab-content scrollable-content" v-if="currentStoryboard">
+
                             <div class="section-group">
                                 <div class="section-header"><span>帧类型选择</span></div>
                                 <t-radio-group variant="default-filled" v-model="selectedFrameType"
@@ -538,7 +539,7 @@
                                                 </div>
                                                 <div class="reference-grid">
                                                     <div v-for="img in previousStoryboardLastFrames"
-                                                        :key="'prev-' + img.id" class="reference-item-mini"
+                                                        :key="'prev-' + img.id" class="reference-item"
                                                         :class="{ selected: isPreviousFrameSelected(img) }"
                                                         @click="handlePreviousImageSelect(img)">
                                                         <t-image :src="getImageUrl(img.url || img.imageUrl)" fit="cover"
@@ -553,7 +554,7 @@
                                                 <div class="reference-grid"
                                                     v-if="currentFrameImagesFiltered(selectedVideoFrameType).length > 0">
                                                     <div v-for="img in currentFrameImagesFiltered(selectedVideoFrameType)"
-                                                        :key="img.id" class="reference-item-mini"
+                                                        :key="img.id" class="reference-item"
                                                         :class="{ selected: isImageSelected(img) }"
                                                         @click="handleImageSelect(img)">
                                                         <t-image :src="getImageUrl(img.url || img.imageUrl)" fit="cover"
@@ -588,37 +589,13 @@
                                 <div class="section-header"><span>生成结果 ({{ generatedVideos.length }})</span></div>
                                 <div class="video-card-list">
                                     <div v-for="video in generatedVideos" :key="video.id" class="video-card">
-
-                                        <template
-                                            v-if="video.status === 'completed' || video.status === 'succeeded' || video.status === 2">
-                                            <video :src="getVideoUrl(video.url || video.videoUrl || video.video_url)"
-                                                controls></video>
-                                        </template>
-                                        <template v-else>
-                                            <div class="video-placeholder">
-                                                <t-loading v-if="video.status === 'processing' || video.status === 1"
-                                                    size="small" />
-                                                <t-icon v-else name="time" size="24px" style="color: #999;" />
-                                                <p style="margin-top: 8px; font-size: 12px; color: #666;">
-                                                    {{ getStatusText(video.status) }}
-                                                </p>
-                                            </div>
-                                        </template>
-
+                                        <video :src="getVideoUrl(video.url)" controls></video>
                                         <div class="video-actions">
-                                            <t-tag
-                                                :theme="video.status === 'completed' || video.status === 'succeeded' || video.status === 2 ? 'success' : (video.status === 'failed' || video.status === 3 ? 'danger' : 'warning')"
-                                                variant="light" size="small">
-                                                {{ getStatusText(video.status) }}
-                                            </t-tag>
+                                            <t-tag theme="success" variant="light" size="small">已完成</t-tag>
                                             <div class="action-btns">
-                                                <t-tooltip content="更新到时间线"
-                                                    v-if="video.status === 'completed' || video.status === 'succeeded' || video.status === 2">
-                                                    <t-button size="small" variant="text"
-                                                        @click="addVideoToAssets(video)">
-                                                        <t-icon name="layers" />
-                                                    </t-button>
-                                                </t-tooltip>
+                                                <t-tooltip content="更新到时间线"><t-button size="small" variant="text"
+                                                        @click="addVideoToAssets(video)"><t-icon
+                                                            name="layers" /></t-button></t-tooltip>
                                                 <t-button size="small" variant="text" theme="danger"
                                                     @click="deleteVideo(video)"><t-icon name="delete" /></t-button>
                                             </div>
@@ -646,18 +623,16 @@
                                             <div class="title">{{ merge.title || '合成视频' }}</div>
                                             <div class="time">{{ merge.createTime }}</div>
                                         </div>
-                                        <t-tag
-                                            :theme="merge.status === 'completed' || merge.status === 2 ? 'success' : (merge.status === 'failed' || merge.status === 3 ? 'danger' : 'warning')">{{
-                                                merge.status === 'completed' || merge.status === 2 ? '已完成' : (merge.status
-                                                    ===
-                                            'failed' || merge.status === 3 ? '失败' : '处理中') }}</t-tag>
+                                        <t-tag :theme="merge.status === 'completed' ? 'success' : 'warning'">{{
+                                            merge.status ===
+                                                'completed' ? '已完成' : '处理中' }}</t-tag>
                                         <t-button v-if="merge.url" size="small" variant="text"
                                             @click="previewImage(merge.url)">预览</t-button>
                                     </div>
                                 </div>
                                 <t-empty v-else description="暂无合成记录" size="small" />
                             </div>
-                            <t-button theme="primary" block @click="exportVideo" size="large" :loading="mergingVideo">
+                            <t-button theme="primary" block @click="exportVideo" size="large">
                                 <template #icon><t-icon name="layers" /></template> 开始合成当前时间线
                             </t-button>
                         </div>
@@ -757,7 +732,7 @@ import { getCharactersList } from '@/api/characters'
 import { getPropsList } from '@/api/props'
 import { getShotsList, createShots, updateShots, deleteShots } from '@/api/shots'
 import { getAssetsList, createAsset, deleteAsset } from '@/api/assets'
-import { extractFramePromptTask, findTasks, generateImageByPromptTask, generateVideoTask, mergeVideoTask } from '@/api/tasks'
+import { extractFramePromptTask, findTasks, generateImageByPromptTask } from '@/api/tasks'
 import { createShotFrameImages, deleteShotFrameImages } from '@/api/shot_frame_image'
 import { getImageUrl } from '@/utils/format'
 
@@ -805,21 +780,22 @@ const uploadingImage = ref(false)
 
 // 合成状态
 const videoMerges = ref<any[]>([])
-const mergingVideo = ref(false)
 
 const currentPreviewUrl = ref('')
 const timelineEditorRef = ref<any>(null)
 const mainPlayerRef = ref<HTMLVideoElement | null>(null)
 
-// ================= 🔴 视频生成相关逻辑 =================
+// ================= 🔴 视频生成相关逻辑重构 =================
 const generatingVideo = ref(false)
 const selectedVideoModel = ref('kling')
 const videoDuration = ref(5)
 const referenceMode = ref('single')
-const selectedVideoFrameType = ref('first')
+const selectedVideoFrameType = ref('first') // 视频参考图界面的子TAB
 const generatedVideos = ref<any[]>([])
 
+// 存放选中的图片ID (如果是单图或首尾帧的首帧，放[0]；多图放多个)
 const selectedImagesForVideo = ref<number[]>([])
+// 特供首尾帧的尾帧使用
 const selectedLastImageForVideo = ref<number | null>(null)
 
 interface VideoModelCapability {
@@ -832,6 +808,7 @@ interface VideoModelCapability {
     maxImages: number;
 }
 
+// 模拟配置 (实际可从后端接口拉取)
 const videoModelCapabilities = ref<VideoModelCapability[]>([
     { id: 'kling', name: '可灵 (Kling)', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: false, supportTextOnly: true, maxImages: 1 },
     { id: 'runway', name: 'Runway Gen-3', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 2 },
@@ -854,19 +831,23 @@ const availableReferenceModes = computed(() => {
     return modes;
 });
 
+// 监听视频模型切换，清空已选图片和参考图模式
 watch(selectedVideoModel, () => {
     selectedImagesForVideo.value = [];
     selectedLastImageForVideo.value = null;
     referenceMode.value = availableReferenceModes.value[0]?.value || 'none';
 });
 
+// 监听参考图模式切换，清空已选图片
 watch(referenceMode, () => {
     selectedImagesForVideo.value = [];
     selectedLastImageForVideo.value = null;
 });
 
+// === Computed ===
 const currentStoryboard = computed(() => storyboards.value.find(s => String(s.id) === String(currentStoryboardId.value)))
 
+// 获取上一个镜头信息
 const previousStoryboard = computed(() => {
     if (!currentStoryboardId.value || storyboards.value.length < 2) return null;
     const currentIndex = storyboards.value.findIndex((s) => String(s.id) === String(currentStoryboardId.value));
@@ -874,11 +855,13 @@ const previousStoryboard = computed(() => {
     return storyboards.value[currentIndex - 1];
 });
 
+// 上一个镜头的尾帧图片 (必须是从生成记录里过滤)
 const previousStoryboardLastFrames = computed(() => {
     if (!previousStoryboard.value || !previousStoryboard.value.frameImages) return [];
     return previousStoryboard.value.frameImages.filter((img: any) => img.frameType === 'last' && (!img.imageType || img.imageType === 'shot'));
 });
 
+// 🔴 供图库过滤展示当前镜头的对应类型的图片
 const currentFrameImagesFiltered = (type: string) => {
     if (!currentStoryboard.value || !currentStoryboard.value.frameImages) return [];
     return currentStoryboard.value.frameImages.filter((img: any) =>
@@ -887,12 +870,14 @@ const currentFrameImagesFiltered = (type: string) => {
     );
 };
 
+// 获取所有的可用图片(包含当前分镜和上个分镜尾帧)
 const getAllAvailableImages = () => {
     const curr = currentStoryboard.value?.frameImages || [];
     const prev = previousStoryboardLastFrames.value || [];
     return [...curr, ...prev];
 };
 
+// 🔴 判断图片是否被选中为参考图
 const isImageSelected = (img: any) => {
     if (referenceMode.value === 'first_last' && selectedVideoFrameType.value === 'last') {
         return selectedLastImageForVideo.value === img.id;
@@ -900,6 +885,7 @@ const isImageSelected = (img: any) => {
     return selectedImagesForVideo.value.includes(img.id);
 }
 
+// 🔴 判断上一镜头的尾帧是否被选为当前首帧
 const isPreviousFrameSelected = (prevImg: any) => {
     if (referenceMode.value === 'single' || referenceMode.value === 'first_last') {
         return selectedImagesForVideo.value[0] === prevImg.id;
@@ -909,6 +895,7 @@ const isPreviousFrameSelected = (prevImg: any) => {
     return false;
 }
 
+// 🔴 处理上一镜头尾帧（当做首帧）的点击逻辑
 const handlePreviousImageSelect = (img: any) => {
     if (!referenceMode.value || referenceMode.value === 'none') {
         MessagePlugin.warning("请先选择参考图模式");
@@ -935,6 +922,7 @@ const handlePreviousImageSelect = (img: any) => {
     }
 };
 
+// 🔴 处理当前镜头常规图片的点击逻辑
 const handleImageSelect = (img: any) => {
     if (!referenceMode.value || referenceMode.value === 'none') {
         MessagePlugin.warning("请先选择参考图模式");
@@ -984,11 +972,13 @@ const handleImageSelect = (img: any) => {
     }
 };
 
+// 🔴 辅助：获取某个类型的名称
 const getFrameTypeName = (type: string) => {
     const map: Record<string, string> = { first: '首帧', last: '尾帧', action: '动作序列', key: '关键帧' };
     return map[type] || type;
 }
 
+// 🔴 从槽位上点击 X 号移除选择
 const removeSelectedImage = (imageId: number) => {
     if (selectedLastImageForVideo.value === imageId) {
         selectedLastImageForVideo.value = null;
@@ -1000,6 +990,7 @@ const removeSelectedImage = (imageId: number) => {
     }
 };
 
+// 视频参考图相关 Computed 绑定 (找到对象以供槽位展示)
 const singleRefImage = computed(() => {
     return getAllAvailableImages().find(i => i.id === selectedImagesForVideo.value[0]);
 })
@@ -1029,6 +1020,7 @@ const selectedProps = computed(() => {
     return currentStoryboard.value.props.map((p: any) => typeof p === 'object' ? p.id : p)
 })
 
+// 动态计算当前选择帧类型的提示词
 const currentFramePromptText = computed({
     get() {
         if (!currentStoryboard.value) return '';
@@ -1059,6 +1051,7 @@ const currentFramePromptText = computed({
     }
 })
 
+// 镜头图片列表：过滤 imageType 为 shot 或空(兼容老数据) 的图片
 const currentFrameImages = computed(() => {
     if (!currentStoryboard.value || !currentStoryboard.value.frameImages) return [];
     return currentStoryboard.value.frameImages.filter((img: any) =>
@@ -1079,6 +1072,7 @@ const uploadConfig = reactive({
     allowedFormats: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
 })
 
+// === 初始化 ===
 const initData = async () => {
     loading.value = true
     try {
@@ -1119,6 +1113,7 @@ const loadShotsData = async () => {
 
 const loadVideoAssets = async () => { /* 忽略，已保留 */ }
 
+// === 核心逻辑 ===
 const toggleCharacterInShot = async (charId: number) => {
     if (!currentStoryboard.value) return
     let chars = currentStoryboard.value.characters || []
@@ -1160,7 +1155,7 @@ const handleDragStart = (e: DragEvent, item: any, type: 'storyboard' | 'asset') 
             url: videoUrl,
             duration: item.duration || 5,
             type: 'video',
-            shotId: type === 'storyboard' ? item.id : undefined
+            storyboardId: type === 'storyboard' ? item.id : undefined
         }
         e.dataTransfer.setData('application/json', JSON.stringify(payload))
         e.dataTransfer.effectAllowed = 'copy'
@@ -1177,7 +1172,7 @@ const selectStoryboard = (id: number | string) => {
 }
 
 const handleTimelineSelect = (clip: any) => {
-    if (clip.storyboardId || clip.shotId) selectStoryboard(clip.storyboardId || clip.shotId)
+    if (clip.storyboardId) selectStoryboard(clip.storyboardId)
     currentPreviewUrl.value = clip.url
     if (mainPlayerRef.value) {
         mainPlayerRef.value.currentTime = 0;
@@ -1256,6 +1251,7 @@ const updateShotDurationMs = (secVal: number) => {
     saveStoryboardField()
 }
 
+// === 图片提取与生成相关 ===
 const extractFramePrompt = async () => {
     if (!currentStoryboard.value) return;
     extractingPrompt.value = true;
@@ -1298,6 +1294,7 @@ const extractFramePrompt = async () => {
     }
 }
 
+// 对接生成图片
 const generateFrameImage = async () => {
     if (!currentStoryboard.value) return;
     if (!currentFramePromptText.value) {
@@ -1366,6 +1363,7 @@ const handleUploadFail = () => {
     MessagePlugin.error('上传失败')
 }
 
+// 镜头图片上传成功
 const handleUploadImageSuccess = async (ctx: any) => {
     uploadingImage.value = false
     const response = ctx.response
@@ -1410,6 +1408,7 @@ const handleUploadImageSuccess = async (ctx: any) => {
     }
 }
 
+// 🔴 参考图上传成功，自动记录并填入对应槽位
 const handleUploadRefSuccess = async (ctx: any, targetSlot: string) => {
     const response = ctx.response;
     if (response?.code === 0 || response?.code === 200) {
@@ -1419,10 +1418,11 @@ const handleUploadRefSuccess = async (ctx: any, targetSlot: string) => {
         }
         if (currentStoryboard.value) {
             try {
+                // 统一传为 reference 类型的图片
                 const res = await createShotFrameImages({
                     projectId: Number(dramaId),
                     shotId: currentStoryboard.value.id,
-                    frameType: targetSlot,
+                    frameType: targetSlot, // 作为标记
                     imageType: 'reference',
                     imageUrl: fileUrl
                 });
@@ -1434,6 +1434,7 @@ const handleUploadRefSuccess = async (ctx: any, targetSlot: string) => {
                     }
                     currentStoryboard.value.frameImages.unshift(res.data);
 
+                    // 自动选择到对应的槽位
                     if (targetSlot === 'single' || targetSlot === 'first') {
                         selectedImagesForVideo.value = [res.data.id];
                     } else if (targetSlot === 'last') {
@@ -1453,6 +1454,7 @@ const handleUploadRefSuccess = async (ctx: any, targetSlot: string) => {
     }
 };
 
+// 统一删除图片 (支持镜头图和参考图)
 const deleteImage = async (img: any) => {
     if (!img.id || !currentStoryboard.value) return;
 
@@ -1467,6 +1469,7 @@ const deleteImage = async (img: any) => {
                     if (idx > -1) {
                         currentStoryboard.value.frameImages.splice(idx, 1);
                     }
+                    // 如果删的图正好在选中列表里，清除选中
                     removeSelectedImage(img.id);
                     MessagePlugin.success('删除成功');
                 } else {
@@ -1495,6 +1498,7 @@ const openCropDialog = (img: any) => {
 
 const handleCropSave = (newUrl: string) => { showCropDialog.value = false }
 
+// 宫格图生成成功回调处理
 const handleGridSuccess = async (data: { url: string, frameType: string }) => {
     if (data && data.url && currentStoryboard.value) {
         try {
@@ -1502,7 +1506,7 @@ const handleGridSuccess = async (data: { url: string, frameType: string }) => {
                 projectId: Number(dramaId),
                 shotId: currentStoryboard.value.id,
                 frameType: data.frameType,
-                imageType: 'shot',
+                imageType: 'shot', // 🔴 宫格图属于镜头图
                 imageUrl: data.url
             });
 
@@ -1522,13 +1526,7 @@ const handleGridSuccess = async (data: { url: string, frameType: string }) => {
     }
 }
 
-const getStatusText = (status: string | number) => {
-    if (status === 'completed' || status === 2) return '生成成功'
-    if (status === 'processing' || status === 1) return '生成中'
-    if (status === 'failed' || status === 3) return '生成失败'
-    return '等待中'
-}
-
+// === 视频生成相关 ===
 const generateVideo = async () => {
     if (!selectedVideoModel.value) {
         MessagePlugin.warning("请先选择视频生成模型");
@@ -1573,168 +1571,25 @@ const generateVideo = async () => {
             });
         }
 
-        const res = await generateVideoTask(requestPayload);
-        const taskId = res.data?.task_id || res.data?.taskId || res.data?.data?.task_id;
-
-        if (taskId) {
-            MessagePlugin.loading('视频任务已提交，正在生成，请耐心等待...');
-
-            const newVideoRecord = {
-                id: Date.now(),
-                status: 'processing',
-                taskId: taskId
-            };
-            generatedVideos.value.unshift(newVideoRecord);
-
-            const timer = setInterval(async () => {
-                try {
-                    const taskRes = await findTasks(taskId);
-                    const taskData = taskRes.data?.data || taskRes.data;
-                    const status = taskData?.status;
-
-                    const idx = generatedVideos.value.findIndex(v => v.taskId === taskId);
-
-                    if (status === 'completed' || status === 2) {
-                        clearInterval(timer);
-                        generatingVideo.value = false;
-                        MessagePlugin.success('视频生成成功！');
-
-                        if (idx > -1) {
-                            let resultData = taskData.result;
-                            if (typeof resultData === 'string') resultData = JSON.parse(resultData);
-                            generatedVideos.value[idx].status = 'completed';
-                            generatedVideos.value[idx].url = resultData?.url || resultData?.video_url;
-                        }
-                    } else if (status === 'failed' || status === 3) {
-                        clearInterval(timer);
-                        generatingVideo.value = false;
-                        MessagePlugin.error(taskData?.error || '生成失败');
-                        if (idx > -1) generatedVideos.value[idx].status = 'failed';
-                    }
-                } catch (e) {
-                    clearInterval(timer);
-                    generatingVideo.value = false;
-                }
-            }, 5000);
-        } else {
+        // 假设有个提交生成视频的接口
+        // const res = await createVideoTask(requestPayload);
+        setTimeout(() => {
             generatingVideo.value = false;
-            MessagePlugin.error('视频任务提交失败');
-        }
+            MessagePlugin.success('视频生成任务已提交');
+        }, 1500)
+
     } catch (e) {
         generatingVideo.value = false;
-        MessagePlugin.error("任务请求异常");
-    }
-}
-
-const playVideo = (video: any) => {
-    const url = video.url || video.videoUrl || video.video_url;
-    if (url) {
-        currentPreviewUrl.value = getVideoUrl(url);
-        if (mainPlayerRef.value) {
-            mainPlayerRef.value.currentTime = 0;
-            mainPlayerRef.value.play();
-        }
+        MessagePlugin.error("任务提交失败");
     }
 }
 
 const addVideoToAssets = async (video: any) => { MessagePlugin.success('已添加到素材库') }
-const deleteVideo = async (video: any) => {
-    const idx = generatedVideos.value.findIndex(v => v.id === video.id);
-    if (idx > -1) {
-        generatedVideos.value.splice(idx, 1);
-        MessagePlugin.success('删除成功');
-    }
-}
-
-// ================= 🔴 视频合成相关逻辑对接 =================
-// 点击“导出视频” 或 “开始合成当前时间线” 时触发
-const exportVideo = async () => {
-    if (!timelineClips.value || timelineClips.value.length === 0) {
-        MessagePlugin.warning("时间线上没有视频片段，无法合成");
-        return;
-    }
-
-    mergingVideo.value = true;
-    try {
-        // 构造传给后端的 Clips 数组
-        const formattedClips = timelineClips.value.map(clip => ({
-            assetId: clip.assetId || null,
-            shotId: clip.storyboardId || clip.shotId, // 兼容不同的字段名
-            order: clip.order || 0,
-            startTime: clip.start,
-            endTime: clip.start + clip.duration,
-            duration: clip.duration,
-            transition: clip.transition || { type: "none" }
-        }));
-
-        const requestPayload = {
-            projectId: dramaId,
-            episodeNumber: episodeNumber,
-            clips: formattedClips
-        };
-
-        // 调用合并接口
-        const res = await mergeVideoTask(requestPayload);
-        const taskId = res.data?.task_id || res.data?.taskId || res.data?.data?.task_id;
-        const mergeId = res.data?.merge_id || res.data?.mergeId || res.data?.data?.merge_id;
-
-        if (taskId) {
-            MessagePlugin.loading('合成任务已提交，系统正在拼命合成中...');
-
-            // 加入到合成列表占位
-            const newMergeRecord = {
-                id: mergeId || Date.now(),
-                title: `剧集合成中...`,
-                createTime: new Date().toLocaleString(),
-                status: 'processing',
-                taskId: taskId
-            };
-            videoMerges.value.unshift(newMergeRecord);
-            activeTab.value = 'merge'; // 自动切换到合成记录Tab
-
-            // 开启轮询
-            const timer = setInterval(async () => {
-                try {
-                    const taskRes = await findTasks(taskId);
-                    const taskData = taskRes.data?.data || taskRes.data;
-                    const status = taskData?.status;
-
-                    const idx = videoMerges.value.findIndex(m => m.taskId === taskId);
-
-                    if (status === 'completed' || status === 2) {
-                        clearInterval(timer);
-                        mergingVideo.value = false;
-                        MessagePlugin.success('视频合成完成！');
-
-                        if (idx > -1) {
-                            let resultData = taskData.result;
-                            if (typeof resultData === 'string') resultData = JSON.parse(resultData);
-                            videoMerges.value[idx].status = 'completed';
-                            videoMerges.value[idx].url = resultData?.url || resultData?.merged_url;
-                        }
-                    } else if (status === 'failed' || status === 3) {
-                        clearInterval(timer);
-                        mergingVideo.value = false;
-                        MessagePlugin.error(taskData?.error || '合成失败');
-                        if (idx > -1) videoMerges.value[idx].status = 'failed';
-                    }
-                } catch (e) {
-                    clearInterval(timer);
-                    mergingVideo.value = false;
-                }
-            }, 3000); // 合成任务3秒查一次
-        } else {
-            mergingVideo.value = false;
-            MessagePlugin.error('任务提交失败');
-        }
-    } catch (e) {
-        mergingVideo.value = false;
-        MessagePlugin.error("任务请求异常");
-    }
-}
+const deleteVideo = async (video: any) => { /* 忽略 */ }
 
 const previewImage = (url: string) => window.open(getImageUrl(url), '_blank')
 const getVideoUrl = (url: string) => url ? (url.startsWith('http') ? url : import.meta.env.VITE_API_URL + url) : ''
+const exportVideo = () => { MessagePlugin.info('导出合成视频功能开发中') }
 
 onMounted(() => initData())
 </script>
@@ -2407,15 +2262,6 @@ onMounted(() => initData())
                     }
                 }
 
-                /* 顶部的占位槽位样式 */
-                .first-last-slots {
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    gap: 24px;
-                    margin-top: 16px;
-                }
-
                 .ref-container {
                     display: flex;
                     gap: 10px;
@@ -2434,81 +2280,71 @@ onMounted(() => initData())
                         flex-direction: column;
                         gap: 10px;
                     }
-                }
 
-                .slot-wrapper {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    gap: 4px;
-                }
-
-                .ref-label {
-                    font-size: 13px;
-                    font-weight: 500;
-                    color: var(--td-text-color-primary);
-                }
-
-                .ref-image-wrapper {
-                    position: relative;
-                    display: inline-block;
-
-                    .ref-delete-btn {
-                        position: absolute;
-                        top: -6px;
-                        right: -6px;
-                        color: var(--td-error-color);
-                        background: #fff;
-                        border-radius: 50%;
-                        cursor: pointer;
-                        z-index: 10;
-                        display: flex;
-                        transition: transform 0.2s;
-                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-
-                        &:hover {
-                            transform: scale(1.1);
-                        }
-                    }
-                }
-
-                .ref-image-slot {
-                    width: 140px;
-                    height: 80px;
-                    border: 2px dashed var(--td-component-stroke);
-                    border-radius: 6px;
-                    overflow: hidden;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: var(--td-bg-color-container);
-                    transition: border-color 0.2s;
-
-                    &.slot-small {
-                        width: 80px;
-                        height: 50px;
-                    }
-
-                    &.selected {
-                        border-color: var(--td-brand-color);
-                        border-style: solid;
-                    }
-
-                    .placeholder {
-                        color: #ccc;
-                        transition: color 0.2s;
+                    .slot-wrapper {
                         display: flex;
                         flex-direction: column;
                         align-items: center;
+                        gap: 4px;
                     }
 
-                    &:hover .placeholder {
-                        color: var(--td-brand-color);
+                    /* 🔴 新增：用于包裹上传插槽和删除按钮 */
+                    .ref-image-wrapper {
+                        position: relative;
+                        display: inline-block;
+
+                        .ref-delete-btn {
+                            position: absolute;
+                            top: -6px;
+                            right: -6px;
+                            color: var(--td-error-color);
+                            background: #fff;
+                            border-radius: 50%;
+                            cursor: pointer;
+                            z-index: 10;
+                            display: flex;
+                            transition: transform 0.2s;
+                            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+                            &:hover {
+                                transform: scale(1.1);
+                            }
+                        }
                     }
 
-                    &:hover {
-                        border-color: var(--td-brand-color);
+                    .ref-image-slot {
+                        width: 120px;
+                        height: 70px;
+                        border: 1px dashed var(--td-component-stroke);
+                        border-radius: 4px;
+                        overflow: hidden;
+                        cursor: pointer;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: var(--td-bg-color-container);
+
+                        &.slot-small {
+                            width: 60px;
+                            height: 60px;
+                        }
+
+                        &.selected {
+                            border-color: var(--td-brand-color);
+                            border-style: solid;
+                        }
+
+                        .placeholder {
+                            color: #ccc;
+                            transition: color 0.2s;
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                        }
+
+                        &:hover .placeholder {
+                            color: var(--td-brand-color);
+                        }
                     }
                 }
             }
@@ -2524,45 +2360,10 @@ onMounted(() => initData())
                     border-radius: 4px;
                     overflow: hidden;
                     border: 1px solid var(--td-component-stroke);
-                    position: relative;
 
-                    .video-thumbnail {
-                        position: relative;
+                    video {
                         width: 100%;
-                        height: 150px;
-                        cursor: pointer;
-                        background: #111;
-
-                        video {
-                            width: 100%;
-                            height: 100%;
-                            object-fit: cover;
-                            display: block;
-                        }
-
-                        .play-overlay {
-                            position: absolute;
-                            inset: 0;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            background: rgba(0, 0, 0, 0.2);
-                            transition: background 0.3s;
-
-                            &:hover {
-                                background: rgba(0, 0, 0, 0.4);
-                            }
-                        }
-                    }
-
-                    .video-placeholder {
-                        width: 100%;
-                        height: 150px;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        background: #2a2a2a;
+                        max-height: 150px;
                     }
 
                     .video-actions {

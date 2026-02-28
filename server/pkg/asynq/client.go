@@ -152,3 +152,35 @@ func EnqueueGenerateFrameImage(payload GenerateFrameImagePayload) (*asynq.TaskIn
 	}
 	return info, nil
 }
+
+// EnqueueGenerateVideo 投递视频生成任务
+func EnqueueGenerateVideo(payload GenerateVideoPayload) (*asynq.TaskInfo, error) {
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	// 视频生成非常耗时，放入 default 或 critical 队列
+	task := asynq.NewTask(TypeGenerateVideo, bytes)
+	info, err := GetClient().Enqueue(task, asynq.Queue("default"))
+	if err != nil {
+		console.Error(fmt.Sprintf("投递生成视频任务失败: %v", err))
+		return nil, err
+	}
+	return info, nil
+}
+
+// EnqueueMergeVideo 投递视频合并任务
+func EnqueueMergeVideo(payload MergeVideoPayload) (*asynq.TaskInfo, error) {
+	bytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	// 合并视频属于 CPU 密集型极高的操作，建议放入 default 或 dedicated queue
+	task := asynq.NewTask(TypeMergeVideo, bytes)
+	info, err := GetClient().Enqueue(task, asynq.Queue("default"))
+	if err != nil {
+		console.Error(fmt.Sprintf("投递视频合成任务失败: %v", err))
+		return nil, err
+	}
+	return info, nil
+}

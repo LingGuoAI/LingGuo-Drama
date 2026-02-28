@@ -33,11 +33,13 @@ func (ctrl *ShotFrameImagesController) Store(c *gin.Context) {
 	shotId := request.ShotId
 	frameType := request.FrameType
 	imageUrl := request.ImageUrl
+	imageType := request.ImageType
 
 	imageModel := shot_frame_image.ShotFrameImages{
 		ProjectId: &projectId,
 		ShotId:    &shotId,
 		FrameType: &frameType,
+		ImageType: &imageType,
 		ImageUrl:  &imageUrl,
 	}
 
