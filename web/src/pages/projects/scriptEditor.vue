@@ -121,10 +121,10 @@
                                             @click="showSceneSelector = true">更换场景</t-button>
                                     </div>
                                     <div class="scene-card" v-if="currentScene">
-                                        <t-image-viewer v-if="currentScene.visualPrompt" :close-on-overlay="true"
-                                            :images="[getImageUrl(currentScene.visualPrompt)]">
+                                        <t-image-viewer v-if="currentScene.imageUrl" :close-on-overlay="true"
+                                            :images="[getImageUrl(currentScene.imageUrl)]">
                                             <template #trigger="{ open }">
-                                                <t-image :src="getImageUrl(currentScene.visualPrompt)" fit="cover"
+                                                <t-image :src="getImageUrl(currentScene.imageUrl)" fit="cover"
                                                     class="scene-cover" @click.stop="open" style="cursor: zoom-in;" lazy
                                                     error="图片加载失败" />
                                             </template>
@@ -672,10 +672,10 @@
                     style="cursor: pointer">
                     <t-list-item-meta :title="scene.name" :description="`${scene.location} · ${scene.time}`">
                         <template #image>
-                            <t-image-viewer v-if="scene.visualPrompt" :close-on-overlay="true"
-                                :images="[getImageUrl(scene.visualPrompt)]">
+                            <t-image-viewer v-if="scene.imageUrl" :close-on-overlay="true"
+                                :images="[getImageUrl(scene.imageUrl)]">
                                 <template #trigger="{ open }">
-                                    <t-image :src="getImageUrl(scene.visualPrompt)" fit="cover"
+                                    <t-image :src="getImageUrl(scene.imageUrl)" fit="cover"
                                         style="width: 50px; height: 50px; border-radius: 4px; cursor: zoom-in;"
                                         @click.stop="open" lazy error="加载失败" />
                                 </template>
@@ -743,11 +743,6 @@
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
-import {
-    ArrowLeftIcon, RefreshIcon, AddIcon, DeleteIcon, MagicIcon,
-    UploadIcon, ZoomInIcon, VideoIcon, LinkIcon, LayersIcon,
-    MoveIcon, AddCircleIcon, FilmIcon, CheckIcon, DownloadIcon, CloseIcon, CutIcon, CloseCircleFilledIcon
-} from 'tdesign-icons-vue-next'
 
 // API
 import { findProjects } from '@/api/projects'
@@ -1117,7 +1112,7 @@ const loadShotsData = async () => {
     }
 }
 
-const loadVideoAssets = async () => { /* 忽略，已保留 */ }
+const loadVideoAssets = async () => {  }
 
 const toggleCharacterInShot = async (charId: number) => {
     if (!currentStoryboard.value) return
@@ -2325,7 +2320,7 @@ onMounted(() => initData())
                 }
             }
 
-            /* 🔴 参考图选择器样式 */
+            /* 参考图选择器样式 */
             .reference-images-section {
                 margin-top: 16px;
 

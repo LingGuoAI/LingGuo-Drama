@@ -89,7 +89,7 @@
                                     <span class="meta-time">{{ formatDate(item.createdAt) }}</span>
                                     <span class="meta-duration" v-if="item.totalDuration">{{
                                         formatDuration(item.totalDuration)
-                                    }}</span>
+                                        }}</span>
                                 </div>
                             </div>
                         </t-card>
@@ -189,10 +189,6 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
-import {
-    AddIcon, AppIcon, ViewListIcon, SearchIcon, RefreshIcon,
-    ToolsIcon, EditIcon, DeleteIcon, ImageIcon
-} from 'tdesign-icons-vue-next'
 import dayjs from 'dayjs'
 
 import {
@@ -269,8 +265,7 @@ const drawerVisible = ref(false)
 const submitLoading = ref(false)
 const formType = ref('create')
 const formRef = ref()
-const tempFileList = ref([]) // TDesign Upload 组件绑定的临时列表
-
+const tempFileList = ref([]) 
 // 表单数据模型
 const formData = ref({
     id: null,
@@ -402,7 +397,6 @@ const onSubmit = async () => {
             payload.settings = JSON.stringify(payload.settings)
         }
 
-        // 因为 handleImageUploadSuccess 已经正确设置了 payload.image
         // 如果 tempFileList 为空，说明用户清除了图片
         if (tempFileList.value.length === 0) {
             payload.image = ''

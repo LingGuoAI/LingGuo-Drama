@@ -1,6 +1,7 @@
 server/uploads
 server/storage
 server/.idea
+server/.env
 
 web/node_modules
 web/dist

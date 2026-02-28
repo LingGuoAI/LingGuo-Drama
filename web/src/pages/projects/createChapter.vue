@@ -415,7 +415,6 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
-import { ArrowLeftIcon, FileAddIcon, EditIcon, CheckIcon, ChevronRightIcon, RefreshIcon, UserSearchIcon, FilmIcon, DeleteIcon, MoveIcon, LocationIcon } from 'tdesign-icons-vue-next'
 import dayjs from 'dayjs'
 
 // API
@@ -736,12 +735,12 @@ const handleDeleteShotFromList = async (id: number) => {
     } catch { MessagePlugin.error('删除失败') }
 }
 
-// 🔴 分镜编辑核心逻辑
+// 分镜编辑
 const openEditShotDialog = (row: any) => {
     // 深拷贝避免直接污染表格数据
     shotFormData.value = JSON.parse(JSON.stringify(row))
 
-    // 💡 核心：将毫秒转换为秒提供给表单
+    // 将毫秒转换为秒提供给表单
     shotFormData.value.durationSec = (shotFormData.value.durationMs || 3000) / 1000
 
     shotDialog.visible = true
@@ -750,7 +749,7 @@ const openEditShotDialog = (row: any) => {
 const handleShotSubmit = async () => {
     shotDialog.loading = true
     try {
-        // 💡 核心：保存前，将秒转换为毫秒
+        // 保存前，将秒转换为毫秒
         shotFormData.value.durationMs = shotFormData.value.durationSec * 1000
 
         // 构造提交负载，可过滤掉辅助字段
