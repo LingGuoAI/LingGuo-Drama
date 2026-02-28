@@ -1,7 +1,6 @@
 server/uploads
 server/storage
 server/.idea
-server/.env
 server/.DS_Store
 .DS_Store
 web/node_modules
