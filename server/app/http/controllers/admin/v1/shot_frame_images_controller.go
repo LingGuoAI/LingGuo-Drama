@@ -2,7 +2,7 @@ package v1
 
 import (
 	"github.com/gin-gonic/gin"
-	"spiritFruit/app/models/shot_frame_image" // 🔴 引入正确的模型
+	"spiritFruit/app/models/shot_frame_image"
 	"spiritFruit/app/requests"
 	"spiritFruit/pkg/response"
 )

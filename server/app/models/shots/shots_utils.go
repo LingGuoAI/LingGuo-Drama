@@ -88,7 +88,10 @@ func Paginate(c *gin.Context, perPage int, filters map[string]interface{}) (shot
 		}).Preload("FramePrompts", func(db *gorm.DB) *gorm.DB {
 		fields := []string{"id", "shot_id", "frame_type", "prompt", "description"}
 		return db.Select(strings.Join(fields, ", "))
-	})
+	}).Preload("GenerateVideos", func(db *gorm.DB) *gorm.DB {
+		fields := []string{"id", "shot_id", "video_url", "created_at"}
+		return db.Select(strings.Join(fields, ", ")).Order("created_at DESC")
+	}).First(&shots)
 
 	// 应用过滤条件
 	for key, value := range filters {

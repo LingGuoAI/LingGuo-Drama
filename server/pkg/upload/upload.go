@@ -211,3 +211,30 @@ func SaveBase64Image(base64Str string) (string, error) {
 
 	return SaveImageByte(data, ext)
 }
+
+// DownloadAndSaveVideo 从 URL 下载并保存视频文件
+func DownloadAndSaveVideo(videoURL string) (string, error) {
+	resp, err := http.Get(videoURL)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	// 默认扩展名为 .mp4
+	ext := ".mp4"
+
+	// 尝试从 Content-Type 识别特定格式
+	contentType := resp.Header.Get("Content-Type")
+	if strings.Contains(contentType, "video/webm") {
+		ext = ".webm"
+	} else if strings.Contains(contentType, "video/quicktime") {
+		ext = ".mov"
+	}
+
+	return SaveImageByte(data, ext)
+}

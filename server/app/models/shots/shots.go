@@ -9,6 +9,7 @@ import (
 	"spiritFruit/app/models/scripts"
 	"spiritFruit/app/models/shot_frame_image"
 	"spiritFruit/app/models/shot_frame_prompts"
+	"spiritFruit/app/models/shot_generate_video"
 	"spiritFruit/pkg/database"
 )
 
@@ -54,10 +55,11 @@ type Shots struct {
 	Scripts  *scripts.Scripts   `json:"scripts,omitempty" gorm:"foreignKey:ScriptId;constraint:OnDelete:CASCADE;"`
 	Scenes   *scenes.Scenes     `json:"scenes,omitempty" gorm:"foreignKey:SceneId;references:ID;comment:关联的背景场景"`
 
-	Characters   []characters.Characters               `json:"characters" gorm:"many2many:shot_characters;joinForeignKey:shot_id;joinReferences:character_id;"`
-	Props        []props.Props                         `json:"props" gorm:"many2many:shot_props;joinForeignKey:shot_id;joinReferences:props_id;"`
-	FramePrompts []shot_frame_prompts.ShotFramePrompts `json:"framePrompts" gorm:"foreignKey:ShotId;references:ID"`
-	FrameImages  []shot_frame_image.ShotFrameImages    `json:"frameImages" gorm:"foreignKey:ShotId;references:ID"`
+	Characters     []characters.Characters                 `json:"characters" gorm:"many2many:shot_characters;joinForeignKey:shot_id;joinReferences:character_id;"`
+	Props          []props.Props                           `json:"props" gorm:"many2many:shot_props;joinForeignKey:shot_id;joinReferences:props_id;"`
+	FramePrompts   []shot_frame_prompts.ShotFramePrompts   `json:"framePrompts" gorm:"foreignKey:ShotId;references:ID"`
+	FrameImages    []shot_frame_image.ShotFrameImages      `json:"frameImages" gorm:"foreignKey:ShotId;references:ID"`
+	GenerateVideos []shot_generate_video.ShotGenerateVideo `json:"generateVideos" gorm:"foreignKey:ShotId;references:ID"`
 
 	models.CommonTimestampsField
 }

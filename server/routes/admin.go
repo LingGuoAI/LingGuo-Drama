@@ -130,6 +130,26 @@ func RegisterAdminAPIRoutes(r *gin.Engine) {
 			shotFrameImagesGroup.DELETE("/:id", shotFrameImagesController.Delete) // 删除分镜图片
 		}
 
+		// 素材相关路由
+		sourceGroup := v1.Group("/source").Use(middlewares.AuthAdminJWT())
+		{
+			sourceController := new(controllers.SourceController)
+
+			// 基础CRUD路由
+			sourceGroup.POST("", sourceController.Store) // 创建素材
+
+			sourceGroup.DELETE("/:id", sourceController.Delete) // 删除素材
+		}
+
+		// 分镜生成视频相关路由
+		shotGenerateVideosGroup := v1.Group("/shot_generate_videos").Use(middlewares.AuthAdminJWT())
+		{
+			shotGenerateVideosCtrl := new(controllers.ShotGenerateVideosController)
+
+			shotGenerateVideosGroup.POST("", shotGenerateVideosCtrl.Store)
+			shotGenerateVideosGroup.DELETE("/:id", shotGenerateVideosCtrl.Delete)
+		}
+
 		// 场景相关路由
 		scenesGroup := v1.Group("/scenes").Use(middlewares.AuthAdminJWT())
 		{

@@ -55,7 +55,7 @@ func HandleGenerateVideoTask(ctx context.Context, t *asynq.Task) error {
 	taskModel.UpdateProgress(10)
 	provider, baseURL, apiKey := getProviderConfig(p.Model)
 
-	// 使用您之前封装的工厂模式实例化 Client
+	// 实例化 Client
 	client, err := video.NewClient(provider, baseURL, apiKey, p.Model, "", "")
 	if err != nil {
 		taskModel.MarkAsFailed(err)
@@ -66,8 +66,6 @@ func HandleGenerateVideoTask(ctx context.Context, t *asynq.Task) error {
 	var opts []video.VideoOption
 	opts = append(opts, video.WithDuration(p.Duration))
 
-	// 补全由于前端传递时可能是相对路径导致的问题
-	// 如果是本地路径，需要补全完整 URL 供第三方 API 抓取
 	appURL := config.GetString("app.url")
 	fixURL := func(url string) string {
 		if url != "" && !strings.HasPrefix(url, "http") && !strings.HasPrefix(url, "data:") {
@@ -153,7 +151,7 @@ func HandleGenerateVideoTask(ctx context.Context, t *asynq.Task) error {
 
 	// 6. 下载视频并保存到本地
 	taskModel.UpdateProgress(90)
-	localPath, err := upload.DownloadAndSave(result.VideoURL)
+	localPath, err := upload.DownloadAndSaveVideo(result.VideoURL)
 	if err != nil {
 		taskModel.MarkAsFailed(fmt.Errorf("save video failed: %v", err))
 		return err
