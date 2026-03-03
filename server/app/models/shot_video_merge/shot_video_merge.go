@@ -15,6 +15,7 @@ type ShotVideoMerge struct {
 	Duration  *int    `json:"duration" form:"duration" gorm:"column:duration;comment:视频时长;"`
 	TaskId    *uint64 `json:"taskId" form:"taskId" gorm:"column:task_id;comment:绑定的异步任务ID;"`
 	ErrorMsg  *string `json:"errorMsg" form:"errorMsg" gorm:"column:error_msg;type:text;comment:错误信息;"`
+	Status    *string `json:"status" form:"status" gorm:"column:status;size:50;default:'pending';comment:任务状态;"`
 
 	models.CommonTimestampsField
 }

@@ -2,6 +2,8 @@ package v1
 
 import (
 	"github.com/gin-gonic/gin"
+	"strconv"
+	"strings"
 
 	"spiritFruit/app/models/shot_video_merge"
 	"spiritFruit/app/requests"
@@ -11,6 +13,54 @@ import (
 
 type ShotVideoMergesController struct {
 	BaseADMINController
+}
+
+// Index 合并视频列表
+// @Summary 合并视频列表
+// @Description 获取合并视频列表，支持多种搜索条件
+// @Tags scenes
+// @Accept json
+// @Produce json
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Param scriptId query string false "所属剧集"
+// @Success 200 {object} response.Response{data=[]scenes.Scenes} "合并视频列表"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 500 {object} response.ErrorResponse "服务器错误"
+// @Router /admin/v1/scenes [get]
+func (ctrl *ShotVideoMergesController) Index(c *gin.Context) {
+	// 构建搜索条件
+	where := ctrl.buildSearchConditions(c)
+
+	// 获取分页参数
+	perPage := 10
+	if perPageStr := c.Query("pageSize"); perPageStr != "" {
+		if pp, err := strconv.Atoi(perPageStr); err == nil && pp > 0 && pp <= 100 {
+			perPage = pp
+		}
+	}
+
+	data, pager := shot_video_merge.Paginate(c, perPage, where)
+	response.JSON(c, gin.H{
+		"code": 0,
+		"data": map[string]interface{}{
+			"total": pager.TotalCount,
+			"list":  data,
+		},
+		"message": "success",
+	})
+}
+
+// buildSearchConditions 构建搜索条件
+func (ctrl *ShotVideoMergesController) buildSearchConditions(c *gin.Context) map[string]interface{} {
+	where := map[string]interface{}{}
+
+	// 所属项目ID搜索
+	if scriptId := strings.TrimSpace(c.Query("scriptId")); scriptId != "" {
+		where["script_id"] = scriptId
+	}
+
+	return where
 }
 
 // Store 创建视频合并记录

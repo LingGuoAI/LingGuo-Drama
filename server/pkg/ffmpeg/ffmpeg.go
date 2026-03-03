@@ -419,9 +419,13 @@ func (c *Client) mergeWithXfade(inputPaths []string, clips []VideoClip, outputPa
 			if d, ok := clips[i].Transition["duration"].(float64); ok && d > 0 {
 				tDuration = d
 			}
-			if tType == "none" { // 特殊处理无转场
-				tDuration = 0
-			}
+		}
+
+		// xfade 不能使用 none 或者 duration=0，否则抛错。
+		// 用 0.05 秒的快速溶解模拟硬切，肉眼无感且保证 FFmpeg 管道不断裂。
+		if tType == "none" {
+			tType = "fade"
+			tDuration = 0.05
 		}
 
 		input1 := fmt.Sprintf("[v%d]", 0)
@@ -490,8 +494,11 @@ func (c *Client) mergeWithXfade(inputPaths []string, clips []VideoClip, outputPa
 				if d, ok := clips[i].Transition["duration"].(float64); ok && d > 0 {
 					tDuration = d
 				}
-				if t, ok := clips[i].Transition["type"].(string); ok && t == "none" {
-					tDuration = 0
+				if t, ok := clips[i].Transition["type"].(string); ok {
+					if c.mapTransitionType(t) == "none" {
+						// 🔴 修复核心点2：音频也用极短渐变防报错
+						tDuration = 0.05
+					}
 				}
 			}
 
@@ -551,15 +558,19 @@ func (c *Client) generateSilence(outputPath string, duration float64) (string, e
 // mapTransitionType 映射转场名称
 func (c *Client) mapTransitionType(t string) string {
 	t = strings.ToLower(t)
-	// 这里可以添加更多映射，目前默认直接返回，如果需要兼容前端命名
 	switch t {
-	case "fade", "fadein", "fadeout":
+	case "fade":
+		return "fadeblack"
+	case "crossfade":
 		return "fade"
+	case "flash":
+		return "fadewhite"
+	case "zoom_in", "zoomin":
+		return "zoomin" // 拉近放大
 	case "none":
 		return "none"
 	default:
-		// FFmpeg 支持很多类型，默认直接透传，如果不支持会报错回退到 fade
-		return t
+		return "fade" // 兜底一律给交叉溶解
 	}
 }
 

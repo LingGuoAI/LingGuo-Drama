@@ -147,13 +147,13 @@ func DecodeBase64Image(base64Str, fileNameValue string) (errStr string, filePath
 	return "", filePath
 }
 
-// SaveImageByte 通用文件保存逻辑 (供 Job 使用)
+// SaveFileDirByte 通用文件保存逻辑 (供 Job 使用)
 // data: 图片的二进制数据
 // ext: 文件后缀 (e.g. ".png", ".jpg")
 // return: 相对路径 (e.g. "uploads/images/2024/02/08/xxx.png"), error
-func SaveImageByte(data []byte, ext string) (string, error) {
+func SaveFileDirByte(data []byte, fileDir, ext string) (string, error) {
 	// 1. 创建上传目录 (保持与 UploadsTool 一致的结构)
-	uploadDir := "uploads/images/" + time.Now().Format("2006/01/02")
+	uploadDir := "uploads" + "/" + fileDir + "/" + time.Now().Format("2006/01/02")
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		return "", fmt.Errorf("create dir failed: %v", err)
 	}
@@ -170,7 +170,7 @@ func SaveImageByte(data []byte, ext string) (string, error) {
 		return "", fmt.Errorf("write file failed: %v", err)
 	}
 
-	// 4. 返回相对路径 (注意：Windows下如果是反斜杠可能需要转义，这里假设是 Linux/Mac 风格或用于 Web URL)
+	// 4. 返回相对路径
 	// 为了前端访问方便，通常统一为 "/"
 	return strings.ReplaceAll(filePath, "\\", "/"), nil
 }
@@ -189,7 +189,7 @@ func DownloadAndSave(url string) (string, error) {
 	}
 
 	// 简单推断后缀，默认 png
-	return SaveImageByte(data, ".png")
+	return SaveFileDirByte(data, "images", ".png")
 }
 
 // SaveBase64Image 保存 Base64 图片 (针对 Gemini 返回 DataURI 的情况)
@@ -209,7 +209,7 @@ func SaveBase64Image(base64Str string) (string, error) {
 		return "", err
 	}
 
-	return SaveImageByte(data, ext)
+	return SaveFileDirByte(data, "images", ext)
 }
 
 // DownloadAndSaveVideo 从 URL 下载并保存视频文件
@@ -236,5 +236,5 @@ func DownloadAndSaveVideo(videoURL string) (string, error) {
 		ext = ".mov"
 	}
 
-	return SaveImageByte(data, ext)
+	return SaveFileDirByte(data, "videos", ext)
 }

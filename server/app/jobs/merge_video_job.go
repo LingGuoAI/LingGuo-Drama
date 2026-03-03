@@ -4,21 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 
 	"spiritFruit/app/models/async_tasks"
-	// "spiritFruit/app/models/video_merges" // 根据您的实际表名引入
-	// "spiritFruit/app/models/scripts"
+	"spiritFruit/app/models/shot_video_merge"
 
 	myAsynq "spiritFruit/pkg/asynq"
-	"spiritFruit/pkg/config"
 	"spiritFruit/pkg/console"
 	"spiritFruit/pkg/database"
-	"spiritFruit/pkg/ffmpeg" // 引入您给我的 ffmpeg 扩展包
+	"spiritFruit/pkg/ffmpeg"
 )
 
 // HandleMergeVideoTask 处理视频合并异步任务
@@ -28,7 +29,7 @@ func HandleMergeVideoTask(ctx context.Context, t *asynq.Task) error {
 		return fmt.Errorf("json unmarshal failed: %v", err)
 	}
 
-	// 1. 获取并标记任务开始
+	// 1. 获取并标记异步任务开始
 	var taskModel async_tasks.AsyncTask
 	if err := database.DB.First(&taskModel, p.AsyncTaskID).Error; err != nil {
 		return nil
@@ -36,29 +37,52 @@ func HandleMergeVideoTask(ctx context.Context, t *asynq.Task) error {
 	taskModel.MarkAsProcessing()
 	taskModel.UpdateProgress(10)
 
-	// 同步更新 Merge 表状态
-	// database.DB.Model(&video_merges.VideoMerge{}).Where("id = ?", p.MergeID).Update("status", "processing")
-
 	console.Success(fmt.Sprintf("任务[%d] - 开始合并视频, 共有 %d 个片段", p.AsyncTaskID, len(p.Clips)))
 
-	// 2. 准备 FFmpeg 参数
+	//  2. 提前在数据库中创建合并记录，状态标记为 processing
+	statusProcessing := "processing"
+	mergeRecord := shot_video_merge.ShotVideoMerge{
+		ProjectId: &p.ProjectID,
+		ScriptId:  &p.EpisodeID,
+		Title:     &p.Title,
+		TaskId:    &p.AsyncTaskID,
+		Status:    &statusProcessing, // 初始状态为处理中
+	}
+	if err := database.DB.Create(&mergeRecord).Error; err != nil {
+		taskModel.MarkAsFailed(fmt.Errorf("create merge record failed: %v", err))
+		return err
+	}
+
+	// 3. 准备 FFmpeg 参数与客户端
+	taskModel.UpdateProgress(20)
 	ffmpegClient := ffmpeg.New()
 	defer ffmpegClient.CleanupTempDir() // 任务结束自动清理临时目录
 
-	// 构造输出路径 (public/uploads/videos/merged/xxx.mp4)
-	uploadPath := config.GetString("app.upload_path", "public/uploads")
-	fileName := fmt.Sprintf("merged_%d_%d.mp4", p.ProjectID, time.Now().Unix())
-	outputDir := filepath.Join(uploadPath, "videos", "merged")
-	absoluteOutputPath := filepath.Join(outputDir, fileName)
+	uploadDir := "uploads/videos/" + time.Now().Format("2006/01/02")
+	fileName := uuid.New().String() + ".mp4"
 
-	// 转换 Clip 结构
+	localPath := path.Join(uploadDir, fileName)
+	absoluteOutputPath, _ := filepath.Abs(filepath.FromSlash(localPath))
+
+	// 确保存放的目录真正生成
+	if err := os.MkdirAll(filepath.Dir(absoluteOutputPath), 0755); err != nil {
+		taskModel.MarkAsFailed(fmt.Errorf("create dir failed: %v", err))
+		return err
+	}
+
+	// 4. 转换并校验 Clip 结构
+	taskModel.UpdateProgress(30)
 	var ffmpegClips []ffmpeg.VideoClip
 	for _, clip := range p.Clips {
-		// 补全相对路径为 URL 或本地绝对路径（您的 ffmpeg 包能自动处理）
 		url := clip.URL
+
+		// 补全相对路径为本地绝对路径
 		if !strings.HasPrefix(url, "http") && !filepath.IsAbs(url) {
-			// 如果是相对路径，例如 /uploads/videos/xxx.mp4，我们转为本地绝对路径或加上APP_URL
-			url = filepath.Join(config.GetString("app.public_path", "public"), strings.TrimPrefix(url, "/"))
+			url = strings.TrimPrefix(url, "/")
+			absUrl, err := filepath.Abs(filepath.FromSlash(url))
+			if err == nil {
+				url = absUrl
+			}
 		}
 
 		ffmpegClips = append(ffmpegClips, ffmpeg.VideoClip{
@@ -70,52 +94,62 @@ func HandleMergeVideoTask(ctx context.Context, t *asynq.Task) error {
 		})
 	}
 
-	taskModel.UpdateProgress(30)
-
-	// 3. 执行视频合并 (这里会非常耗时)
+	// 5. 执行视频合并
+	taskModel.UpdateProgress(40)
 	console.Success("调用 FFmpeg 开始硬核合并...")
 	mergeOpts := &ffmpeg.MergeOptions{
-		OutputPath: absoluteOutputPath,
+		OutputPath: absoluteOutputPath, // 传递物理绝对路径
 		Clips:      ffmpegClips,
 	}
 
-	finalPath, err := ffmpegClient.MergeVideos(mergeOpts)
+	_, err := ffmpegClient.MergeVideos(mergeOpts)
 	if err != nil {
 		console.Error(fmt.Sprintf("FFmpeg 合并失败: %v", err))
 		taskModel.MarkAsFailed(err)
-		// database.DB.Model(&video_merges.VideoMerge{}).Where("id = ?", p.MergeID).Update("status", "failed")
+
+		// 任务失败：更新合并记录的状态为 failed，并写入 ErrorMsg
+		statusFailed := "failed"
+		errMsg := err.Error()
+		database.DB.Model(&shot_video_merge.ShotVideoMerge{}).
+			Where("id = ?", mergeRecord.ID).
+			Updates(map[string]interface{}{
+				"status":    &statusFailed,
+				"error_msg": &errMsg,
+			})
+
 		return err
 	}
 
+	// 6. 获取合成后的最终时长
 	taskModel.UpdateProgress(90)
+	finalDuration, _ := ffmpegClient.GetVideoDuration(absoluteOutputPath)
+	durationInt := int(finalDuration)
 
-	// 4. 获取合成后的最终时长
-	finalDuration, _ := ffmpegClient.GetVideoDuration(finalPath)
+	//  7. 任务成功：更新合并记录的状态为 completed，并填入路径和时长
+	statusCompleted := "completed"
+	err = database.DB.Model(&shot_video_merge.ShotVideoMerge{}).
+		Where("id = ?", mergeRecord.ID).
+		Updates(map[string]interface{}{
+			"status":     &statusCompleted,
+			"merged_url": &localPath,
+			"duration":   &durationInt,
+			"error_msg":  nil, // 清空错误
+		}).Error
 
-	// 5. 组装返回给前端的相对 URL
-	// 去掉 public，变为 /uploads/videos/merged/xxx.mp4
-	relativePath := "/" + strings.TrimPrefix(finalPath, config.GetString("app.public_path", "public/"))
-	relativePath = filepath.ToSlash(relativePath) // 兼容 windows 反斜杠
+	if err != nil {
+		taskModel.MarkAsFailed(fmt.Errorf("db update failed: %v", err))
+		return err
+	}
 
-	// 6. 更新数据库状态
-	// database.DB.Model(&video_merges.VideoMerge{}).Where("id = ?", p.MergeID).Updates(map[string]interface{}{
-	//	 "status":     "completed",
-	//	 "merged_url": relativePath,
-	//	 "duration":   finalDuration,
-	// })
-
-	// 可选：更新到剧本表/集数表
-	// database.DB.Model(&scripts.Scripts{}).Where("id = ?", p.EpisodeID).Update("video_url", relativePath)
-
-	// 7. 任务彻底成功
+	// 8. 标记异步任务彻底成功
 	taskModel.UpdateProgress(100)
 	resData := map[string]interface{}{
-		"url":      relativePath,
+		"url":      localPath,
 		"duration": finalDuration,
 	}
 	resBytes, _ := json.Marshal(resData)
 	taskModel.MarkAsSuccess(string(resBytes))
 
-	console.Success(fmt.Sprintf("任务[%d] - 视频合并完成! 输出路径: %s", p.AsyncTaskID, relativePath))
+	console.Success(fmt.Sprintf("任务[%d] - 视频合并彻底完成! 输出路径: %s", p.AsyncTaskID, localPath))
 	return nil
 }

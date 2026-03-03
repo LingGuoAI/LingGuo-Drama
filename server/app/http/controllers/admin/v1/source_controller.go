@@ -2,6 +2,8 @@ package v1
 
 import (
 	"github.com/gin-gonic/gin"
+	"strconv"
+	"strings"
 
 	"spiritFruit/app/models/source"
 	"spiritFruit/app/requests"
@@ -11,6 +13,57 @@ import (
 
 type SourceController struct {
 	BaseADMINController
+}
+
+// Index 素材列表
+// @Summary 素材列表
+// @Description 获取素材列表，支持多种搜索条件
+// @Tags scenes
+// @Accept json
+// @Produce json
+// @Param page query int false "页码"
+// @Param pageSize query int false "每页数量"
+// @Param projectId query string false "所属项目ID"
+// @Param name query string false "场景名"
+// @Param location query string false "地点"
+// @Param time query string false "时间"
+// @Success 200 {object} response.Response{data=[]scenes.Scenes} "素材列表"
+// @Failure 400 {object} response.ErrorResponse "参数错误"
+// @Failure 500 {object} response.ErrorResponse "服务器错误"
+// @Router /admin/v1/scenes [get]
+func (ctrl *SourceController) Index(c *gin.Context) {
+	// 构建搜索条件
+	where := ctrl.buildSearchConditions(c)
+
+	// 获取分页参数
+	perPage := 10
+	if perPageStr := c.Query("pageSize"); perPageStr != "" {
+		if pp, err := strconv.Atoi(perPageStr); err == nil && pp > 0 && pp <= 100 {
+			perPage = pp
+		}
+	}
+
+	data, pager := source.Paginate(c, perPage, where)
+	response.JSON(c, gin.H{
+		"code": 0,
+		"data": map[string]interface{}{
+			"total": pager.TotalCount,
+			"list":  data,
+		},
+		"message": "success",
+	})
+}
+
+// buildSearchConditions 构建搜索条件
+func (ctrl *SourceController) buildSearchConditions(c *gin.Context) map[string]interface{} {
+	where := map[string]interface{}{}
+
+	// 所属项目ID搜索
+	if projectId := strings.TrimSpace(c.Query("projectId")); projectId != "" {
+		where["project_id"] = projectId
+	}
+
+	return where
 }
 
 // Store 创建素材
@@ -32,16 +85,15 @@ func (ctrl *SourceController) Store(c *gin.Context) {
 		return
 	}
 
-	// 因为模型定义的字段是指针类型（*uint64, *string），这里需要取变量地址
 	projectId := request.ProjectId
-	scriptId := request.ScriptId // 🔴 修改为 ScriptId
+	scriptId := request.ScriptId
 	shotId := request.ShotId
 	shotNumber := request.ShotNumber
 	videoUrl := request.VideoUrl
 
 	sourceModel := source.Source{
 		ProjectId:  &projectId,
-		ScriptId:   &scriptId, // 🔴 修改为 ScriptId
+		ScriptId:   &scriptId,
 		ShotId:     &shotId,
 		ShotNumber: &shotNumber,
 		VideoUrl:   &videoUrl,

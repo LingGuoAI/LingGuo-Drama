@@ -145,7 +145,7 @@ func NewClient(provider, baseURL, apiKey, model, endpoint, queryEndpoint string)
 		return NewRunwayClient(baseURL, apiKey, model), nil
 	case "pika":
 		return NewPikaClient(baseURL, apiKey, model), nil
-	case "getgoapi": // 🔴 换成你的中转API名称
+	case "getgoapi":
 		return NewGetGoAPIClient(baseURL, apiKey, model, endpoint, queryEndpoint), nil
 	default:
 		return nil, fmt.Errorf("unsupported video provider: %s", provider)

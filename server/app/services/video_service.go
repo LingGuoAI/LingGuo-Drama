@@ -3,8 +3,6 @@ package services
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
-
 	"spiritFruit/app/models/async_tasks"
 	"spiritFruit/app/models/shots"
 
@@ -15,7 +13,7 @@ import (
 
 type TimelineClipReq struct {
 	AssetID    interface{}            `json:"asset_id"`
-	ShotID     string                 `json:"shotId"`
+	ShotID     uint64                 `json:"shotId"`
 	Order      int                    `json:"order"`
 	StartTime  float64                `json:"start_time"`
 	EndTime    float64                `json:"end_time"`
@@ -34,20 +32,19 @@ type VideoService struct{}
 // FinalizeEpisode 参数类型改为使用本包的 FinalizeEpisodeReq
 func (s *VideoService) FinalizeEpisode(req FinalizeEpisodeReq) (map[string]interface{}, error) {
 	var shotList []shots.Shots
-	// 🔴 这里改为 req.EpisodeNumber
-	database.DB.Where("project_id = ? AND episode_number = ?", req.ProjectID, req.EpisodeNumber).Order("sequence_no asc").Find(&shotList)
+	database.DB.Where("project_id = ? AND script_id = ?", req.ProjectID, req.EpisodeNumber).Order("sequence_no asc").Find(&shotList)
 
 	if len(shotList) == 0 {
 		return nil, fmt.Errorf("该集数下没有找到任何分镜")
 	}
 
-	sceneMap := make(map[string]shots.Shots)
+	sceneMap := make(map[uint64]shots.Shots)
 	for _, shot := range shotList {
-		sceneMap[fmt.Sprintf("%d", shot.ID)] = shot
+		sceneMap[shot.ID] = shot
 	}
 
 	var mergeClips []asynq.MergeClip
-	var skippedScenes []int
+	var skippedScenes []uint64
 
 	if len(req.Clips) > 0 {
 		console.Success(fmt.Sprintf("使用前端时间线数据合成，片段数: %d", len(req.Clips)))
@@ -55,7 +52,7 @@ func (s *VideoService) FinalizeEpisode(req FinalizeEpisodeReq) (map[string]inter
 		for _, clip := range req.Clips {
 			var videoURL string
 
-			if videoURL == "" && clip.ShotID != "" {
+			if videoURL == "" && clip.ShotID != 0 {
 				if scene, exists := sceneMap[clip.ShotID]; exists {
 					if scene.VideoUrl != nil && *scene.VideoUrl != "" {
 						videoURL = *scene.VideoUrl
@@ -64,8 +61,7 @@ func (s *VideoService) FinalizeEpisode(req FinalizeEpisodeReq) (map[string]inter
 			}
 
 			if videoURL == "" {
-				shotIDInt, _ := strconv.Atoi(clip.ShotID)
-				skippedScenes = append(skippedScenes, shotIDInt)
+				skippedScenes = append(skippedScenes, clip.ShotID)
 				continue
 			}
 
@@ -88,9 +84,10 @@ func (s *VideoService) FinalizeEpisode(req FinalizeEpisodeReq) (map[string]inter
 			}
 
 			if videoURL == "" {
-				seqNo := 0
+				// 🔴 修复：将 seqNo 声明为 uint64，并做对应转换
+				var seqNo uint64 = 0
 				if scene.SequenceNo != nil {
-					seqNo = int(*scene.SequenceNo)
+					seqNo = uint64(*scene.SequenceNo)
 				}
 				skippedScenes = append(skippedScenes, seqNo)
 				continue

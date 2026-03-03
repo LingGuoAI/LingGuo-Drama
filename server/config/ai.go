@@ -5,7 +5,7 @@ import "spiritFruit/pkg/config"
 func init() {
 	config.Add("ai", func() map[string]interface{} {
 		return map[string]interface{}{
-			// 读取 AI_PROVIDER，默认为 openai
+			// --- 默认文本大模型配置 ---
 			"provider": config.Env("AI_PROVIDER", "openai"),
 
 			"openai": map[string]interface{}{
@@ -18,6 +18,34 @@ func init() {
 				"base_url": config.Env("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta"),
 				"api_key":  config.Env("GEMINI_API_KEY", ""),
 				"model":    config.Env("GEMINI_MODEL", "gemini-pro"),
+			},
+
+			// --- 视频生成大模型配置 ---
+			"video_provider": config.Env("VIDEO_PROVIDER", "getgoapi"),
+
+			"getgoapi": map[string]interface{}{
+				"base_url": config.Env("GETGOAPI_BASE_URL", "https://api.getgoapi.com/v1"),
+				"api_key":  config.Env("GETGOAPI_API_KEY", ""),
+			},
+
+			"volces": map[string]interface{}{
+				"base_url": config.Env("VOLCES_BASE_URL", "https://ark.cn-beijing.volces.com/api"),
+				"api_key":  config.Env("VOLCES_API_KEY", ""),
+			},
+
+			"minimax": map[string]interface{}{
+				"base_url": config.Env("MINIMAX_BASE_URL", "https://api.minimax.chat/v1"),
+				"api_key":  config.Env("MINIMAX_API_KEY", ""),
+			},
+
+			"runway": map[string]interface{}{
+				"base_url": config.Env("RUNWAY_BASE_URL", "https://api.runwayml.com"),
+				"api_key":  config.Env("RUNWAY_API_KEY", ""),
+			},
+
+			"pika": map[string]interface{}{
+				"base_url": config.Env("PIKA_BASE_URL", "https://api.pika.art"),
+				"api_key":  config.Env("PIKA_API_KEY", ""),
 			},
 		}
 	})

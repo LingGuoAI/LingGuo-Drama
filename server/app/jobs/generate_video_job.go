@@ -3,8 +3,12 @@ package jobs
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"mime"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -20,20 +24,56 @@ import (
 	"spiritFruit/pkg/video" // 引入您前面封装的 video 包
 )
 
+// VideoAPIConfig 准备视频 AI 配置结构体
+type VideoAPIConfig struct {
+	GetGoBaseURL   string
+	GetGoKey       string
+	VolcesBaseURL  string
+	VolcesKey      string
+	MinimaxBaseURL string
+	MinimaxKey     string
+	RunwayBaseURL  string
+	RunwayKey      string
+	PikaBaseURL    string
+	PikaKey        string
+	OpenAIBaseURL  string
+	OpenAIKey      string
+}
+
 // helper: 根据模型名字自动获取对应的 API 配置
 func getProviderConfig(modelName string) (provider, baseURL, apiKey string) {
-	modelName = strings.ToLower(modelName)
-	if strings.Contains(modelName, "doubao") || strings.Contains(modelName, "seedance") {
-		return "volces", config.GetString("ai.volces.base_url"), config.GetString("ai.volces.api_key")
-	} else if strings.Contains(modelName, "sora") {
-		return "openai", config.GetString("ai.openai.base_url"), config.GetString("ai.openai.api_key")
-	} else if strings.Contains(modelName, "runway") {
-		return "runway", config.GetString("ai.runway.base_url"), config.GetString("ai.runway.api_key")
-	} else if strings.Contains(modelName, "pika") {
-		return "pika", config.GetString("ai.pika.base_url"), config.GetString("ai.pika.api_key")
+	// 统一获取配置数据
+	cfg := VideoAPIConfig{
+		GetGoBaseURL:   config.GetString("ai.getgoapi.base_url"),
+		GetGoKey:       config.GetString("ai.getgoapi.api_key"),
+		VolcesBaseURL:  config.GetString("ai.volces.base_url"),
+		VolcesKey:      config.GetString("ai.volces.api_key"),
+		MinimaxBaseURL: config.GetString("ai.minimax.base_url"),
+		MinimaxKey:     config.GetString("ai.minimax.api_key"),
+		RunwayBaseURL:  config.GetString("ai.runway.base_url"),
+		RunwayKey:      config.GetString("ai.runway.api_key"),
+		PikaBaseURL:    config.GetString("ai.pika.base_url"),
+		PikaKey:        config.GetString("ai.pika.api_key"),
+		OpenAIBaseURL:  config.GetString("ai.openai.base_url"),
+		OpenAIKey:      config.GetString("ai.openai.api_key"),
 	}
-	// 默认使用中转平台
-	return "getgoapi", config.GetString("ai.getgoapi.base_url"), config.GetString("ai.getgoapi.api_key")
+
+	modelName = strings.ToLower(modelName)
+
+	if strings.Contains(modelName, "doubao") || strings.Contains(modelName, "seedance") {
+		return "volces", cfg.VolcesBaseURL, cfg.VolcesKey
+	} else if strings.Contains(modelName, "sora") {
+		return "openai", cfg.OpenAIBaseURL, cfg.OpenAIKey
+	} else if strings.Contains(modelName, "runway") {
+		return "runway", cfg.RunwayBaseURL, cfg.RunwayKey
+	} else if strings.Contains(modelName, "pika") {
+		return "pika", cfg.PikaBaseURL, cfg.PikaKey
+	} else if strings.Contains(modelName, "minimax") || strings.Contains(modelName, "hailuo") {
+		return "minimax", cfg.MinimaxBaseURL, cfg.MinimaxKey
+	}
+
+	// 默认使用中转平台兜底 (比如 kling 等未特定归类的模型)
+	return "getgoapi", cfg.GetGoBaseURL, cfg.GetGoKey
 }
 
 // HandleGenerateVideoTask 处理视频生成任务 (包含调用与轮询)
@@ -54,7 +94,6 @@ func HandleGenerateVideoTask(ctx context.Context, t *asynq.Task) error {
 	// 2. 初始化客户端
 	taskModel.UpdateProgress(10)
 	provider, baseURL, apiKey := getProviderConfig(p.Model)
-
 	// 实例化 Client
 	client, err := video.NewClient(provider, baseURL, apiKey, p.Model, "", "")
 	if err != nil {
@@ -67,11 +106,28 @@ func HandleGenerateVideoTask(ctx context.Context, t *asynq.Task) error {
 	opts = append(opts, video.WithDuration(p.Duration))
 
 	appURL := config.GetString("app.url")
+
 	fixURL := func(url string) string {
-		if url != "" && !strings.HasPrefix(url, "http") && !strings.HasPrefix(url, "data:") {
-			return strings.TrimRight(appURL, "/") + "/" + strings.TrimLeft(url, "/")
+		if url == "" || strings.HasPrefix(url, "http") || strings.HasPrefix(url, "data:") {
+			return url
 		}
-		return url
+
+		cleanPath := strings.TrimPrefix(url, "/")
+
+		fileData, err := os.ReadFile(cleanPath)
+		if err == nil {
+			// 读取成功，转换成 base64 Data URI
+			ext := filepath.Ext(cleanPath)
+			mimeType := mime.TypeByExtension(ext)
+			if mimeType == "" {
+				mimeType = "image/jpeg" // 默认 mime
+			}
+			base64Str := base64.StdEncoding.EncodeToString(fileData)
+			return fmt.Sprintf("data:%s;base64,%s", mimeType, base64Str)
+		}
+
+		console.Warning("读取本地图片转Base64失败，回退到URL拼接: " + err.Error())
+		return strings.TrimRight(appURL, "/") + "/" + cleanPath
 	}
 
 	if p.ImageURL != "" {

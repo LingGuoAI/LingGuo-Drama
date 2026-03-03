@@ -44,10 +44,10 @@ type VolcesArkResponse struct {
 
 func NewVolcesArkClient(baseURL, apiKey, model, endpoint, queryEndpoint string) *VolcesArkClient {
 	if baseURL == "" {
-		baseURL = "https://open.volcengineapi.com"
+		baseURL = "https://open.volcengineapi.com/api"
 	}
 	if endpoint == "" {
-		endpoint = "/api/v3/contents/generations/tasks"
+		endpoint = "/v3/contents/generations/tasks"
 	}
 	if queryEndpoint == "" {
 		queryEndpoint = endpoint

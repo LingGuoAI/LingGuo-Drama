@@ -1,8 +1,9 @@
 package projects
+
 import (
-	"strings"
-	"spiritFruit/pkg/config"
 	"gorm.io/gorm"
+	"spiritFruit/pkg/config"
+	"strings"
 )
 
 // func (projects *Projects) BeforeSave(tx *gorm.DB) (err error) {}
@@ -32,33 +33,7 @@ func (projects *Projects) AfterFind(tx *gorm.DB) (err error) {
 
 // BeforeUpdate 在更新前去掉URL前缀，只保存相对路径
 func (projects *Projects) BeforeUpdate(tx *gorm.DB) (err error) {
-        // 处理单个图片字段: Image
-        if projects.Image != nil && *projects.Image != "" {
-            // 获取配置的域名
-            domain := config.GetString("app.url")
-            // 去掉完整URL前缀，只保留相对路径
-            if strings.HasPrefix(*projects.Image, domain) {
-                // 去掉域名前缀
-                relativePath := strings.TrimPrefix(*projects.Image, domain)
-                projects.Image = &relativePath
-            } else if strings.HasPrefix(*projects.Image, "https://") || strings.HasPrefix(*projects.Image, "http://") {
-                // 如果是其他域名的完整URL，提取路径部分
-                if idx := strings.Index(*projects.Image, "://"); idx != -1 {
-                    remaining := (*projects.Image)[idx+3:]
-                    if pathIdx := strings.Index(remaining, "/"); pathIdx != -1 {
-                        relativePath := remaining[pathIdx:]
-                        projects.Image = &relativePath
-                    }
-                }
-            }
-            // 已经是相对路径的情况，不做处理
-        }
-return nil
-}
-
-// BeforeCreate 在创建前去掉URL前缀，只保存相对路径
-func (projects *Projects) BeforeCreate(tx *gorm.DB) (err error) {
-		// 处理单个图片字段: Image
+	// 处理单个图片字段: Image
 	if projects.Image != nil && *projects.Image != "" {
 		// 获取配置的域名
 		domain := config.GetString("app.url")
@@ -68,16 +43,42 @@ func (projects *Projects) BeforeCreate(tx *gorm.DB) (err error) {
 			relativePath := strings.TrimPrefix(*projects.Image, domain)
 			projects.Image = &relativePath
 		} else if strings.HasPrefix(*projects.Image, "https://") || strings.HasPrefix(*projects.Image, "http://") {
-		// 如果是其他域名的完整URL，提取路径部分
-		if idx := strings.Index(*projects.Image, "://"); idx != -1 {
-			remaining := (*projects.Image)[idx+3:]
-			if pathIdx := strings.Index(remaining, "/"); pathIdx != -1 {
-				relativePath := remaining[pathIdx:]
-				projects.Image = &relativePath
+			// 如果是其他域名的完整URL，提取路径部分
+			if idx := strings.Index(*projects.Image, "://"); idx != -1 {
+				remaining := (*projects.Image)[idx+3:]
+				if pathIdx := strings.Index(remaining, "/"); pathIdx != -1 {
+					relativePath := remaining[pathIdx:]
+					projects.Image = &relativePath
+				}
 			}
 		}
+		// 已经是相对路径的情况，不做处理
 	}
-	// 已经是相对路径的情况，不做处理
+	return nil
+}
+
+// BeforeCreate 在创建前去掉URL前缀，只保存相对路径
+func (projects *Projects) BeforeCreate(tx *gorm.DB) (err error) {
+	// 处理单个图片字段: Image
+	if projects.Image != nil && *projects.Image != "" {
+		// 获取配置的域名
+		domain := config.GetString("app.url")
+		// 去掉完整URL前缀，只保留相对路径
+		if strings.HasPrefix(*projects.Image, domain) {
+			// 去掉域名前缀
+			relativePath := strings.TrimPrefix(*projects.Image, domain)
+			projects.Image = &relativePath
+		} else if strings.HasPrefix(*projects.Image, "https://") || strings.HasPrefix(*projects.Image, "http://") {
+			// 如果是其他域名的完整URL，提取路径部分
+			if idx := strings.Index(*projects.Image, "://"); idx != -1 {
+				remaining := (*projects.Image)[idx+3:]
+				if pathIdx := strings.Index(remaining, "/"); pathIdx != -1 {
+					relativePath := remaining[pathIdx:]
+					projects.Image = &relativePath
+				}
+			}
+		}
+		// 已经是相对路径的情况，不做处理
 	}
 	return nil
 }

@@ -53,9 +53,10 @@ func Paginate(c *gin.Context, perPage int, filters map[string]interface{}) (scri
 			// 只加载关联表的必要字段
 			fields := []string{"id", "admin_id", "serial_no", "title"}
 			return db.Select(strings.Join(fields, ", "))
-		}).Preload("Source").Preload("ShotVideoMerges", func(db *gorm.DB) *gorm.DB {
-		return db.Order("created_at DESC")
-	})
+		}).Preload("Source").
+		Preload("ShotVideoMerges", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at DESC")
+		})
 
 	// 应用过滤条件
 	for key, value := range filters {
