@@ -2,8 +2,8 @@
   <div :class="layoutCls">
     <t-head-menu :class="menuCls" :theme="menuTheme" expand-type="popup" :value="active">
       <template #logo>
-        <span v-if="showLogo" class="header-logo-container" @click="handleNav('/dashboard/base')">
-              <logo-full class="t-logo" />
+        <span v-if="showLogo" class="header-logo-container" @click="handleNav('/admin/projects')">
+          <logo-full class="t-logo" />
         </span>
         <div v-else class="header-operate-left">
           <t-button theme="default" shape="square" variant="text" @click="changeCollapsed">
@@ -29,7 +29,8 @@
             </template>
             <t-button class="header-user-btn" theme="default" variant="text">
               <template #icon>
-                <t-image src="https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png" :style="{ width: '24px', height: '24px',borderRadius:'12px',marginRight:'8px' }"/>
+                <t-image src="https://gw.alipayobjects.com/zos/antfincdn/XAosXuNZyF/BiazfanxmamNRoxxVxka.png"
+                  :style="{ width: '24px', height: '24px', borderRadius: '12px', marginRight: '8px' }" />
               </template>
               <div class="header-user-account">{{ user.userInfo.name }}</div>
               <template #suffix><chevron-down-icon /></template>

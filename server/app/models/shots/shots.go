@@ -20,7 +20,7 @@ type Shots struct {
 	// --- 层级关联 ---
 	ProjectId *uint64 `json:"projectId" form:"projectId" gorm:"index;column:project_id;comment:所属项目ID;"`
 	ScriptId  *uint64 `json:"scriptId" form:"scriptId" gorm:"index;column:script_id;comment:所属剧本ID;"`
-	SceneId   *uint64 `json:"sceneId" form:"sceneId" gorm:"index;column:scene_id;comment:关联场景ID;"`
+	SceneId   *uint64 `json:"sceneId" form:"sceneId" gorm:"column:scene_id;comment:场景ID;"`
 
 	// --- 镜头属性 ---
 	SequenceNo     *uint64 `json:"sequenceNo" form:"sequenceNo" gorm:"column:sequence_no;not null;default:1;comment:镜头序号;"`

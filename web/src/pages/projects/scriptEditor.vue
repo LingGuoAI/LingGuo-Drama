@@ -67,9 +67,14 @@
                 <div class="assets-panel">
                     <div class="panel-header">
                         <h3>素材库 ({{ videoAssets.length }})</h3>
-                        <t-button theme="default" variant="text" size="small" @click="loadVideoAssets">
-                            <template #icon><t-icon name="refresh" /></template>
-                        </t-button>
+                        <div style="display: flex; gap: 4px;">
+                            <t-button theme="primary" variant="text" size="small" @click="addAllAssetsToTimeline">
+                                <template #icon><t-icon name="add-rectangle" /></template>一键添加
+                            </t-button>
+                            <t-button theme="default" variant="text" size="small" @click="loadVideoAssets">
+                                <template #icon><t-icon name="refresh" /></template>
+                            </t-button>
+                        </div>
                     </div>
                     <div class="assets-grid" v-if="videoAssets.length > 0">
                         <div v-for="asset in videoAssets" :key="asset.id" class="asset-item" draggable="true"
@@ -130,7 +135,7 @@
                                                 theme="normal" style="width: 100px" />
                                             <span>至</span>
                                             <t-input-number
-                                                :value="selectedTimelineClip.start + selectedTimelineClip.duration"
+                                                :value="Number((selectedTimelineClip.start + selectedTimelineClip.duration).toFixed(2))"
                                                 disabled theme="normal" style="width: 100px" />
                                         </div>
                                     </t-form-item>
@@ -646,11 +651,8 @@
                             </div>
 
                             <div class="video-list-area section-group" v-if="generatedVideos.length > 0">
-                                <div class="section-header" style="display: flex; justify-content: space-between;">
+                                <div class="section-header">
                                     <span>生成结果 ({{ generatedVideos.length }})</span>
-                                    <t-button variant="text" size="small" theme="primary" @click="addAllVideosToAssets">
-                                        <t-icon name="add" /> 添加全部到素材库
-                                    </t-button>
                                 </div>
                                 <div class="video-card-list">
                                     <div v-for="video in generatedVideos" :key="video.id" class="video-card">
@@ -739,16 +741,6 @@
                             <t-button theme="primary" block @click="exportVideo" size="large" :loading="mergingVideo">
                                 <template #icon><t-icon name="layers" /></template> 开始合成当前时间线
                             </t-button>
-
-                            <div style="margin-top: 24px; padding: 12px; background: #f5f5f5; border-radius: 4px;">
-                                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">
-                                    <t-icon name="info-circle" /> 提示：如果时间线为空，将自动按分镜顺序合并所有素材库视频。
-                                </div>
-                                <t-button variant="outline" block @click="autoGenerateTimelineAndMerge"
-                                    :loading="mergingVideo">
-                                    一键生成时间线并合并全片
-                                </t-button>
-                            </div>
                         </div>
                     </t-tab-panel>
                 </t-tabs>
@@ -832,11 +824,6 @@
 import { ref, computed, reactive, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
-import {
-    ArrowLeftIcon, RefreshIcon, AddIcon, DeleteIcon, MagicIcon,
-    UploadIcon, ZoomInIcon, VideoIcon, LinkIcon, LayersIcon,
-    MoveIcon, AddCircleIcon, FilmIcon, CheckIcon, DownloadIcon, CloseIcon, CutIcon, CloseCircleFilledIcon
-} from 'tdesign-icons-vue-next'
 
 // API
 import { findProjects } from '@/api/projects'
@@ -1329,6 +1316,7 @@ const handleTimelineDrop = (data: any) => {
         assetId: payload.id,
         shotId: payload.shotId || currentStoryboardId.value,
         url: payload.url,
+        cover: getImageUrl(payload.url),
         start: insertStart,
         duration: payload.duration || 5,
         track: data.track || 0,
@@ -1343,21 +1331,61 @@ const handleTimelineDrop = (data: any) => {
 const addAssetToTimeline = (asset: any) => {
     const trackClips = timelineClips.value.filter(c => c.track === 0);
     const maxEndTime = trackClips.length > 0 ? Math.max(...trackClips.map(c => c.start + c.duration)) : 0;
+    const videoUrl = asset.videoUrl || asset.video_url || asset.url;
 
-    const newClip = {
+    timelineClips.value.push({
         id: 'clip_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
         assetId: asset.id,
         shotId: asset.shotId || asset.shot_id || currentStoryboardId.value,
-        url: asset.videoUrl || asset.video_url || asset.url,
+        url: getImageUrl(videoUrl),
+        cover: getImageUrl(videoUrl),
         start: maxEndTime,
         duration: asset.duration || 5,
         track: 0,
         type: 'video',
         transition: { type: 'none', duration: 0.5 }
-    };
+    });
 
-    timelineClips.value.push(newClip);
     MessagePlugin.success('已添加到主视频轨道');
+}
+
+// 🔴 一键将素材库的所有素材添加到时间线
+const addAllAssetsToTimeline = () => {
+    if (videoAssets.value.length === 0) {
+        MessagePlugin.warning('素材库为空');
+        return;
+    }
+
+    // 获取当前时间线主轨道的最后时间点，以便追加
+    const trackClips = timelineClips.value.filter(c => c.track === 0);
+    let currentStartTime = trackClips.length > 0 ? Math.max(...trackClips.map(c => c.start + c.duration)) : 0;
+
+    // 按分镜序号排序素材
+    const sortedAssets = [...videoAssets.value].sort((a: any, b: any) => {
+        const numA = a.shotNumber || a.shot_number || 0;
+        const numB = b.shotNumber || b.shot_number || 0;
+        return numA - numB;
+    });
+
+    sortedAssets.forEach((asset: any, index: number) => {
+        const clipDuration = asset.duration || 5;
+        const videoUrl = asset.videoUrl || asset.video_url || asset.url;
+        timelineClips.value.push({
+            id: 'clip_auto_' + index + '_' + Date.now(),
+            assetId: asset.id,
+            shotId: asset.shotId || asset.shot_id || 0,
+            url: getImageUrl(videoUrl),
+            cover: getImageUrl(videoUrl), // 🔴 添加封面
+            start: currentStartTime,
+            duration: clipDuration,
+            track: 0,
+            type: 'video',
+            transition: { type: 'none', duration: 0.5 }
+        });
+        currentStartTime += clipDuration;
+    });
+
+    MessagePlugin.success('已将所有素材追加到时间线');
 }
 
 const goBack = () => router.back()
@@ -1853,88 +1881,6 @@ const playVideo = async (video: any) => {
     }
 }
 
-const addVideoToAssets = async (video: any) => {
-    if (!currentStoryboard.value) return;
-    try {
-        const payload = {
-            projectId: Number(dramaId),
-            scriptId: Number(currentScriptId.value),
-            shotId: Number(currentStoryboard.value.id),
-            shotNumber: Number(currentStoryboard.value.sequenceNo),
-            videoUrl: video.url || video.videoUrl || video.video_url
-        };
-        const res = await createSource(payload as any);
-        if (res.code === 0 || res.success) {
-            MessagePlugin.success('已添加到素材库');
-            loadVideoAssets();
-        } else {
-            MessagePlugin.error(res.message || res.msg || '添加素材失败');
-        }
-    } catch (e) {
-        console.error(e);
-        MessagePlugin.error('请求异常');
-    }
-}
-
-const addAllVideosToAssets = async () => {
-    const completedVideos = generatedVideos.value.filter(v => v.status === 2 || v.status === 'completed' || v.status === 'succeeded');
-    if (completedVideos.length === 0) {
-        MessagePlugin.warning('没有可添加的已完成视频');
-        return;
-    }
-
-    let successCount = 0;
-    MessagePlugin.loading('正在批量添加...');
-
-    for (const video of completedVideos) {
-        try {
-            const payload = {
-                projectId: Number(dramaId),
-                scriptId: Number(currentScriptId.value),
-                shotId: Number(currentStoryboard.value?.id || video.shot_id || 0),
-                shotNumber: Number(currentStoryboard.value?.sequenceNo || 0),
-                videoUrl: video.url || video.videoUrl || video.video_url
-            };
-            const res = await createSource(payload as any);
-            if (res.code === 0 || res.success) successCount++;
-        } catch (e) { }
-    }
-
-    MessagePlugin.success(`成功添加 ${successCount} 个视频到素材库`);
-    loadVideoAssets();
-}
-
-const handleDeleteSource = async (asset: any) => {
-    const confirm = DialogPlugin.confirm({
-        header: '删除素材',
-        body: '确定要从素材库中删除该视频吗？',
-        onConfirm: async () => {
-            try {
-                const res = await deleteSource(asset.id);
-                if (res.code === 0 || res.success) {
-                    MessagePlugin.success('删除成功');
-                    loadVideoAssets();
-                } else {
-                    MessagePlugin.error(res.message || res.msg || '删除失败');
-                }
-            } catch (e) {
-                MessagePlugin.error('请求异常');
-            } finally {
-                confirm.destroy();
-            }
-        },
-        onCancel: () => confirm.destroy()
-    });
-}
-
-const deleteVideo = async (video: any) => {
-    const idx = generatedVideos.value.findIndex(v => v.id === video.id);
-    if (idx > -1) {
-        generatedVideos.value.splice(idx, 1);
-        MessagePlugin.success('删除成功');
-    }
-}
-
 const deleteMergeItem = async (mergeId: number) => {
     const confirm = DialogPlugin.confirm({
         header: '删除合并记录',
@@ -1958,43 +1904,7 @@ const deleteMergeItem = async (mergeId: number) => {
     });
 }
 
-const autoGenerateTimelineAndMerge = async () => {
-    if (videoAssets.value.length === 0) {
-        MessagePlugin.warning('素材库为空，请先生成并添加素材');
-        return;
-    }
-
-    if (timelineClips.value.length === 0) {
-        let currentStartTime = 0;
-
-        const sortedAssets = [...videoAssets.value].sort((a: any, b: any) => {
-            const numA = a.shotNumber || a.shot_number || 0;
-            const numB = b.shotNumber || b.shot_number || 0;
-            return numA - numB;
-        });
-
-        sortedAssets.forEach((asset: any, index: number) => {
-            const clipDuration = asset.duration || 5;
-            timelineClips.value.push({
-                id: 'clip_auto_' + index + '_' + Date.now(),
-                assetId: asset.id,
-                shotId: asset.shotId || asset.shot_id || 0,
-                url: asset.videoUrl || asset.video_url || asset.url,
-                start: currentStartTime,
-                duration: clipDuration,
-                track: 0,
-                type: 'video',
-                transition: { type: 'none', duration: 0.5 }
-            });
-            currentStartTime += clipDuration;
-        });
-
-        MessagePlugin.success('已自动生成时间线，准备合并...');
-    }
-
-    exportVideo();
-}
-
+// 🔴 ：合并视频接口对接
 const exportVideo = async () => {
     if (!timelineClips.value || timelineClips.value.length === 0) {
         MessagePlugin.warning("时间线上没有视频片段，无法合成");
@@ -2020,7 +1930,8 @@ const exportVideo = async () => {
         };
 
         const res = await mergeVideoTask(requestPayload);
-        const taskId = res?.task_id
+        const taskId = res?.task_id || res?.taskId || res?.data?.task_id || res?.id;
+
         if (taskId) {
             MessagePlugin.loading('合成任务已提交，系统正在拼命合成中...');
             loadMergeList(); // 刷新列表以展示 pending 状态
@@ -2056,6 +1967,92 @@ const exportVideo = async () => {
         mergingVideo.value = false;
         MessagePlugin.error("任务请求异常");
     }
+}
+
+// 单个添加到素材库
+const addVideoToAssets = async (video: any) => {
+    if (!currentStoryboard.value) return;
+    try {
+        const payload = {
+            projectId: Number(dramaId),
+            scriptId: Number(currentScriptId.value),
+            shotId: Number(currentStoryboard.value.id),
+            shotNumber: Number(currentStoryboard.value.sequenceNo),
+            videoUrl: video.url || video.videoUrl || video.video_url
+        };
+        const res = await createSource(payload as any);
+        if (res.code === 0 || res.success) {
+            MessagePlugin.success('已添加到素材库');
+            loadVideoAssets();
+        } else {
+            MessagePlugin.error(res.message || res.msg || '添加素材失败');
+        }
+    } catch (e) {
+        console.error(e);
+        MessagePlugin.error('请求异常');
+    }
+}
+
+// 添加全部到素材库
+const addAllVideosToAssets = async () => {
+    const completedVideos = generatedVideos.value.filter(v => v.status === 2 || v.status === 'completed' || v.status === 'succeeded');
+    if (completedVideos.length === 0) {
+        MessagePlugin.warning('没有可添加的已完成视频');
+        return;
+    }
+
+    let successCount = 0;
+    MessagePlugin.loading('正在批量添加...');
+
+    for (const video of completedVideos) {
+        try {
+            const payload = {
+                projectId: Number(dramaId),
+                scriptId: Number(currentScriptId.value),
+                shotId: Number(currentStoryboard.value?.id || video.shot_id || 0),
+                shotNumber: Number(currentStoryboard.value?.sequenceNo || 0),
+                videoUrl: video.url || video.videoUrl || video.video_url
+            };
+            const res = await createSource(payload as any);
+            if (res.code === 0 || res.success) successCount++;
+        } catch (e) { }
+    }
+
+    MessagePlugin.success(`成功添加 ${successCount} 个视频到素材库`);
+    loadVideoAssets();
+}
+
+// 删除生成的视频记录
+const deleteVideo = async (video: any) => {
+    const idx = generatedVideos.value.findIndex(v => v.id === video.id);
+    if (idx > -1) {
+        generatedVideos.value.splice(idx, 1);
+        MessagePlugin.success('删除成功');
+    }
+}
+
+// 从素材库中删除
+const handleDeleteSource = async (asset: any) => {
+    const confirm = DialogPlugin.confirm({
+        header: '删除素材',
+        body: '确定要从素材库中删除该视频吗？',
+        onConfirm: async () => {
+            try {
+                const res = await deleteSource(asset.id);
+                if (res.code === 0 || res.success) {
+                    MessagePlugin.success('删除成功');
+                    loadVideoAssets();
+                } else {
+                    MessagePlugin.error(res.message || res.msg || '删除失败');
+                }
+            } catch (e) {
+                MessagePlugin.error('请求异常');
+            } finally {
+                confirm.destroy();
+            }
+        },
+        onCancel: () => confirm.destroy()
+    });
 }
 
 const previewImage = (url: string) => window.open(getImageUrl(url), '_blank')
@@ -2236,6 +2233,11 @@ onMounted(() => initData())
                         font-size: 13px;
                         color: var(--td-text-color-primary);
                     }
+
+                    .header-actions {
+                        display: flex;
+                        gap: 4px;
+                    }
                 }
 
                 .assets-grid {
@@ -2255,7 +2257,6 @@ onMounted(() => initData())
                         cursor: grab;
                         position: relative;
 
-                        // 🔴 鼠标悬浮在卡片上时，显示内部的 hover-overlay
                         &:hover {
                             border-color: var(--td-brand-color);
                             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -2334,7 +2335,7 @@ onMounted(() => initData())
             }
         }
 
-        /* 中间工作区 */
+        /* 🔴 中间工作区：被遮挡的布局 */
         .center-workspace {
             flex: 1;
             display: flex;
@@ -2344,19 +2345,23 @@ onMounted(() => initData())
 
             .preview-stage {
                 flex: 1;
+                min-height: 0;
+                /* 必须设置，防止 flex 溢出 */
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 border-bottom: 1px solid #333;
                 background-image: radial-gradient(#333 1px, transparent 1px);
                 background-size: 20px 20px;
-                height: 400px;
-                z-index: 10;
                 position: relative;
+                z-index: 1;
+                /* 保持在轨道下面即可 */
 
                 .player-container {
-                    width: 90%;
-                    height: 90%;
+                    width: 100%;
+                    height: 100%;
+                    max-width: 90%;
+                    max-height: 90%;
                     background: #000;
                     display: flex;
                     align-items: center;
@@ -2366,6 +2371,7 @@ onMounted(() => initData())
                         width: 100%;
                         height: 100%;
                         object-fit: contain;
+                        /* 确保视频自适应缩放，不溢出 */
                     }
 
                     .player-placeholder {
@@ -2381,11 +2387,14 @@ onMounted(() => initData())
             }
 
             .timeline-stage {
-                height: 320px;
+                height: 350px;
+                /* 固定轨道区的高度 */
                 flex-shrink: 0;
+                /* 防止被上面的 flex 区域挤压 */
                 background: #252525;
                 border-top: 1px solid #333;
-                z-index: 1;
+                z-index: 10;
+                position: relative;
             }
         }
 

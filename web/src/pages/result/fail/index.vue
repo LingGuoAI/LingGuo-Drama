@@ -4,9 +4,9 @@
     <div class="result-success-title">{{ t('pages.result.fail.title') }}</div>
     <div class="result-success-describe">{{ t('pages.result.fail.subtitle') }}</div>
     <div>
-      <t-button theme="default" @click="() => $router.push('/dashboard/base')">{{
+      <t-button theme="default" @click="() => $router.push('/admin/projects')">{{
         t('pages.result.fail.back')
-      }}</t-button>
+        }}</t-button>
       <t-button @click="() => $router.push('/form/base')">{{ t('pages.result.fail.modify') }} </t-button>
     </div>
   </div>

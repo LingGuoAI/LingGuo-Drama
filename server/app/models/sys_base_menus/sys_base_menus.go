@@ -8,12 +8,12 @@ import (
 // SysBaseMenus 结构体 系统菜单
 type SysBaseMenus struct {
 	models.BaseModel
-	ParentId  *uint64        `json:"parentId" form:"parentId" gorm:"column:parent_id;comment:父菜单ID;size:20;"`       //父菜单ID
+	ParentId  *uint64        `json:"parentId" form:"parentId" gorm:"column:parent_id;comment:父菜单ID;"`               //父菜单ID
 	Path      *string        `json:"path" form:"path" gorm:"column:path;comment:路由path;size:255;"`                  //路由路径
 	Name      *string        `json:"name" form:"name" gorm:"column:name;comment:路由name;size:255;"`                  //路由名称
-	Hidden    *int8          `json:"hidden" form:"hidden" gorm:"default:0;column:hidden;comment:是否在列表隐藏;size:1;"`   //是否隐藏
+	Hidden    *int8          `json:"hidden" form:"hidden" gorm:"default:0;column:hidden;comment:是否在列表隐藏;"`          //是否隐藏
 	Component *string        `json:"component" form:"component" gorm:"column:component;comment:对应前端文件路径;size:255;"` //组件路径
-	Sort      *uint64        `json:"sort" form:"sort" gorm:"default:0;column:sort;comment:排序标记;size:11;"`           //排序
+	Sort      *uint64        `json:"sort" form:"sort" gorm:"default:0;column:sort;comment:排序标记;"`                   //排序
 	Title     *string        `json:"title" form:"title" gorm:"column:title;comment:菜单名;size:255;"`                  //菜单标题
 	Icon      *string        `json:"icon" form:"icon" gorm:"column:icon;comment:菜单图标;size:255;"`                    //菜单图标
 	Parent    *SysBaseMenus  `json:"parent,omitempty" gorm:"foreignKey:ParentId;references:ID"`                     // 父节点

@@ -1,6 +1,6 @@
 <template>
   <t-form ref="form" :class="['item-container', `login-${type}`]" :data="formData" :rules="FORM_RULES" label-width="0"
-          @submit="onSubmit">
+    @submit="onSubmit">
     <template v-if="type == 'password'">
       <t-form-item name="account">
         <t-input v-model="formData.account" size="large" :placeholder="`${t('pages.login.input.account')}`">
@@ -12,7 +12,7 @@
 
       <t-form-item name="password">
         <t-input v-model="formData.password" size="large" :type="showPsw ? 'text' : 'password'" clearable
-                 :placeholder="`${t('pages.login.input.password')}`">
+          :placeholder="`${t('pages.login.input.password')}`">
           <template #prefix-icon>
             <t-icon name="lock-on" />
           </template>
@@ -128,7 +128,7 @@ const onSubmit = async (ctx: SubmitContext) => {
         // 延迟跳转，让用户看到成功提示
         setTimeout(() => {
           const redirect = route.query.redirect as string;
-          const redirectUrl = redirect ? decodeURIComponent(redirect) : '/dashboard/base';
+          const redirectUrl = redirect ? decodeURIComponent(redirect) : '/admin/projects';
           router.push(redirectUrl);
         }, 500);
       }

@@ -7,7 +7,7 @@
       <t-button theme="default" @click="() => $router.push('/detail/advanced')">
         {{ t('pages.result.success.progress') }}
       </t-button>
-      <t-button @click="() => $router.push('/dashboard/base')"> {{ t('pages.result.success.back') }} </t-button>
+      <t-button @click="() => $router.push('/admin/projects')"> {{ t('pages.result.success.back') }} </t-button>
     </div>
   </div>
 </template>

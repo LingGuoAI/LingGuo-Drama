@@ -4,7 +4,7 @@
       :expand-mutex="menuAutoCollapsed" @expand="onExpanded">
       <template #logo>
         <span v-if="showLogo" :class="`${prefix}-side-nav-logo-wrapper`" @click="goHome">
-           <component :is="getLogo()" :class="logoCls" />
+          <component :is="getLogo()" :class="logoCls" />
         </span>
       </template>
       <menu-content :nav-data="menu" />
@@ -146,7 +146,7 @@ onMounted(() => {
 });
 
 const goHome = () => {
-  router.push('/dashboard/base');
+  router.push('/admin/projects');
 };
 
 const getLogo = () => {

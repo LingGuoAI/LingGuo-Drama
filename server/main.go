@@ -41,6 +41,7 @@ func main() {
 			config.InitConfig(cmd.Env)
 			bootstrap.SetupLogger()
 			bootstrap.SetupDB()
+			bootstrap.SetupAutoMigrate()
 			bootstrap.SetupRedis()
 			bootstrap.SetupCache()
 
