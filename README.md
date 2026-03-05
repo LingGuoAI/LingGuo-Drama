@@ -1,4 +1,4 @@
-```markdown
+
 # 🎬 灵果AI (LingGuo AI) 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
@@ -70,7 +70,7 @@
 
 ```bash
 # 克隆灵果AI仓库
-git clone [https://github.com/YourUsername/LingGuo-AI.git](https://github.com/YourUsername/LingGuo-AI.git)
+git clone https://github.com/YourUsername/LingGuo-AI.git
 cd LingGuo-AI
 
 ```
