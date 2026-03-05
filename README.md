@@ -1,4 +1,4 @@
-```markdown
+markdown
 # 🎬 灵果AI (LingGuo AI) 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
