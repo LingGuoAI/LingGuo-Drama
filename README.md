@@ -2,8 +2,8 @@ markdown
 # 🎬 灵果AI (LingGuo AI) 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Stars](https://img.shields.io/github/stars/YourUsername/LingGuo-AI?style=social)](https://github.com/YourUsername/LingGuo-AI)
-[![Forks](https://img.shields.io/github/forks/YourUsername/LingGuo-AI?style=social)](https://github.com/YourUsername/LingGuo-AI)
+[![Stars](https://img.shields.io/github/stars/YourUsername/LingGuo-Drama?style=social)](https://github.com/YourUsername/LingGuo-Drama)
+[![Forks](https://img.shields.io/github/forks/YourUsername/LingGuo-Drama?style=social)](https://github.com/YourUsername/LingGuo-Drama)
 
 > **全球领先的开源 AI 短剧与 AI 动漫自动化创作平台** | **Open Source AI Short Drama & Anime Generator**
 
@@ -70,8 +70,8 @@ markdown
 
 ```bash
 # 克隆灵果AI仓库
-git clone [https://github.com/YourUsername/LingGuo-AI.git](https://github.com/YourUsername/LingGuo-AI.git)
-cd LingGuo-AI
+git clone [https://github.com/LingGuoAI/LingGuo-Drama.git](https://github.com/LingGuoAI/LingGuo-Drama.git)
+cd LingGuo-Drama
 
 ```
 
@@ -176,14 +176,14 @@ go build -o spirit-fruit-server main.go
 
 ```ini
 [Unit]
-Description=LingGuo AI Server
+Description=LingGuo-Drama Server
 After=network.target mysql.service redis.service
 
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/opt/LingGuo-AI/server
-ExecStart=/opt/LingGuo-AI/server/spirit-fruit-server serve
+WorkingDirectory=/opt/LingGuo-Drama/server
+ExecStart=/opt/LingGuo-Drama/server/spirit-fruit-server serve
 Restart=always
 RestartSec=5
 
@@ -203,7 +203,7 @@ server {
 
     # 前端静态文件
     location / {
-        root /opt/LingGuo-AI/web/dist;
+        root /opt/LingGuo-Drama/web/dist;
         index index.html;
         try_files $uri $uri/ /index.html;
     }
@@ -218,7 +218,7 @@ server {
 
     # 本地生成的视频与图片资源访问
     location /uploads/ {
-        alias /opt/LingGuo-AI/server/uploads/;
+        alias /opt/LingGuo-Drama/server/uploads/;
         # 允许跨域以便视频播放
         add_header Access-Control-Allow-Origin *; 
     }
@@ -227,6 +227,10 @@ server {
 ```
 
 ---
+
+📢 灵果短剧 (Lingo Short Video) 项目社群
+
+![灵果短剧交流群二维码](https://img.aiaiapi.com/zhoudao.png)
 
 ## 🤝 参与贡献 (Contributing)
 
