@@ -627,8 +627,7 @@ const handleExtractFromScript = async () => {
         })
 
         const taskId = res.task_id || res.taskId || res.data?.task_id || res.data?.taskId || res.data?.data?.task_id
-
-        if ((res.code === 0 || res.status === 200 || res.success) && taskId) {
+        if ((res.code === 0 || res.status === 0 || res.success) && taskId) {
             MessagePlugin.success('提取任务已提交')
             extractCharDialog.visible = false // 🔴 成功时关闭弹窗
             parsingCharacters.value = true

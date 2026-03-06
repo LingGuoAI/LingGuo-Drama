@@ -8,7 +8,7 @@
                 <div class="header-title">
                     <span class="title">{{ project?.title || '加载中...' }}</span>
                     <t-tag :theme="getStatusTheme(project?.status)" variant="light">{{ getStatusText(project?.status)
-                        }}</t-tag>
+                    }}</t-tag>
                 </div>
             </div>
             <div class="header-center">
@@ -247,7 +247,7 @@
                                             <t-tag size="small" variant="light" theme="primary" v-if="row.shotType">{{
                                                 row.shotType }}</t-tag>
                                             <t-tag size="small" variant="outline" v-if="row.angle">{{ row.angle
-                                                }}</t-tag>
+                                            }}</t-tag>
                                             <t-tag size="small" variant="outline" v-if="row.cameraMovement">{{
                                                 row.cameraMovement }}</t-tag>
                                         </t-space>
@@ -629,8 +629,14 @@ const toggleSceneSelection = (checked: boolean, id: number) => {
 
 const parseScriptToCharacters = async () => {
     if (!project.value?.id) return; parsingCharacters.value = true
+    // 🔴 1. 检查当前是否已经有剧本内容
+    const scriptText = currentScriptData.value?.content;
+    if (!scriptText || scriptText.trim() === '') {
+        MessagePlugin.warning('请先在第一步撰写并保存剧本');
+        return;
+    }
     try {
-        const res = await generateCharactersTask({ projectId: parseInt(project.value.id), count: 5 })
+        const res = await generateCharactersTask({ projectId: parseInt(project.value.id), count: 5, outline: scriptText })
         const taskId = res.data?.data?.task_id || res.data?.taskId || res.data?.task_id
         if (taskId) {
             MessagePlugin.loading('AI 正在提取角色...')
