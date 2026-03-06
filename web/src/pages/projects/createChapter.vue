@@ -8,7 +8,7 @@
                 <div class="header-title">
                     <span class="title">{{ project?.title || '加载中...' }}</span>
                     <t-tag :theme="getStatusTheme(project?.status)" variant="light">{{ getStatusText(project?.status)
-                    }}</t-tag>
+                        }}</t-tag>
                 </div>
             </div>
             <div class="header-center">
@@ -178,9 +178,11 @@
                                 <t-checkbox :checked="checkAllScenes" :indeterminate="isSceneIndeterminate"
                                     @change="handleSelectAllScenes">全选</t-checkbox>
                                 <t-tooltip content="批量生成选中场景图片">
-                                    <t-button shape="square" variant="outline" size="small"
+                                    <t-button shape="square" variant="outline" theme="primary" size="small"
                                         :disabled="selectedSceneIds.length === 0" @click="batchGenerateSceneImages"
-                                        :loading="batchGeneratingScenes"><t-icon name="magic" /></t-button>
+                                        :loading="batchGeneratingScenes">
+                                        <template #icon><t-icon name="magic" /></template>
+                                    </t-button>
                                 </t-tooltip>
                             </div>
                             <div class="scene-list">
@@ -212,10 +214,15 @@
                                     </div>
                                     <div class="scene-footer">
                                         <t-row :gutter="0" style="width: 100%; text-align: center;">
-                                            <t-col :span="4"><t-tooltip content="AI生成图片"><t-button variant="text"
-                                                        size="small" block @click="generateSceneImage(scene)"
-                                                        :disabled="generatingSceneIds.includes(scene.id)"><t-icon
-                                                            name="magic" /></t-button></t-tooltip></t-col>
+                                            <t-col :span="4">
+                                                <t-tooltip content="AI生成图片">
+                                                    <t-button variant="text" theme="primary" size="small" block
+                                                        @click="generateSceneImage(scene)"
+                                                        :disabled="generatingSceneIds.includes(scene.id)">
+                                                        <template #icon><t-icon name="magic" /></template>
+                                                    </t-button>
+                                                </t-tooltip>
+                                            </t-col>
                                             <t-col :span="4"><t-tooltip content="编辑详情/上传图"><t-button variant="text"
                                                         size="small" block @click="openEditSceneDialog(scene)"><t-icon
                                                             name="edit" /></t-button></t-tooltip></t-col>
@@ -240,7 +247,7 @@
                                             <t-tag size="small" variant="light" theme="primary" v-if="row.shotType">{{
                                                 row.shotType }}</t-tag>
                                             <t-tag size="small" variant="outline" v-if="row.angle">{{ row.angle
-                                            }}</t-tag>
+                                                }}</t-tag>
                                             <t-tag size="small" variant="outline" v-if="row.cameraMovement">{{
                                                 row.cameraMovement }}</t-tag>
                                         </t-space>
@@ -623,7 +630,7 @@ const toggleSceneSelection = (checked: boolean, id: number) => {
 const parseScriptToCharacters = async () => {
     if (!project.value?.id) return; parsingCharacters.value = true
     try {
-        const res = await generateCharactersTask({ projectId: project.value.id, count: 5 })
+        const res = await generateCharactersTask({ projectId: parseInt(project.value.id), count: 5 })
         const taskId = res.data?.data?.task_id || res.data?.taskId || res.data?.task_id
         if (taskId) {
             MessagePlugin.loading('AI 正在提取角色...')

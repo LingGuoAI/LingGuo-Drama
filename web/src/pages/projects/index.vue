@@ -145,6 +145,20 @@
                     <t-input v-model="formData.title" placeholder="例如：霸道总裁爱上我 (第1季)" size="large" />
                 </t-form-item>
 
+                <t-form-item label="全局视觉风格" name="style">
+                    <t-select v-model="formData.style" placeholder="请选择项目的全局生成风格" size="large">
+                        <t-option label="吉卜力风 (Ghibli)" value="ghibli" />
+                        <t-option label="国漫风 (Guoman)" value="guoman" />
+                        <t-option label="废土风 (Wasteland)" value="wasteland" />
+                        <t-option label="复古怀旧 (Nostalgia)" value="nostalgia" />
+                        <t-option label="像素风 (Pixel)" value="pixel" />
+                        <t-option label="体素风 (Voxel)" value="voxel" />
+                        <t-option label="都市写实 (Urban)" value="urban" />
+                        <t-option label="3D国漫 (Guoman3D)" value="guoman3d" />
+                        <t-option label="3D盲盒 (Chibi3D)" value="chibi3d" />
+                    </t-select>
+                </t-form-item>
+
                 <t-row :gutter="24">
                     <t-col :span="6">
                         <t-form-item label="视频比例" name="ratio">
@@ -265,7 +279,8 @@ const drawerVisible = ref(false)
 const submitLoading = ref(false)
 const formType = ref('create')
 const formRef = ref()
-const tempFileList = ref([]) 
+const tempFileList = ref([])
+
 // 表单数据模型
 const formData = ref({
     id: null,
@@ -273,14 +288,16 @@ const formData = ref({
     title: '',
     description: '',
     status: 0,
-    image: '', // 最终提交给后端的图片URL
+    image: '',
+    style: 'ghibli', // 默认风格设置
     totalDuration: 0,
     settings: JSON.stringify({ ratio: '9:16' }), // 默认配置
     serialNo: ''
 })
 
 const rules = {
-    title: [{ required: true, message: '项目名称不能为空' }]
+    title: [{ required: true, message: '项目名称不能为空' }],
+    style: [{ required: true, message: '请选择全局视觉风格' }]
 }
 
 // 解析/获取 Settings 对象
@@ -311,9 +328,10 @@ const onCreate = () => {
         description: '',
         status: 0,
         image: '',
+        style: 'ghibli', //重置为默认风格
         totalDuration: 0,
         settings: JSON.stringify({ ratio: '9:16' }),
-        serialNo: generateSerialNo() // 生成一个临时流水号
+        serialNo: generateSerialNo()
     }
     tempFileList.value = []
     drawerVisible.value = true
@@ -331,7 +349,7 @@ const onEdit = async (row: any) => {
             // 数据回显
             formData.value = {
                 ...data,
-                // 确保 settings 是字符串
+                style: data.style || 'ghibli',
                 settings: typeof data.settings === 'object' ? JSON.stringify(data.settings) : (data.settings || JSON.stringify({ ratio: '9:16' }))
             }
 
@@ -349,6 +367,12 @@ const onEdit = async (row: any) => {
     }
 }
 
+// 取消弹窗
+const onCancel = () => {
+    drawerVisible.value = false
+    formRef.value?.reset()
+}
+
 // ========== 4. 图片上传修复核心逻辑 ==========
 const getAuthToken = () => localStorage.getItem('token')
 
@@ -359,15 +383,11 @@ const uploadConfig = reactive({
 
 // 监听上传成功
 const handleImageUploadSuccess = (context: any) => {
-    console.log('Upload Success Context:', context)
-    // TDesign 的 context.response 是后端返回的原始数据
     const rawResponse = context.response
 
-    // 根据你的后端结构解析 { code: 0, data: { file_url: '...' } }
     if (rawResponse && (rawResponse.code === 0 || rawResponse.code === 200)) {
         const url = rawResponse.data?.file_url || rawResponse.data?.url
         if (url) {
-            // 核心修复：直接赋值给 formData.image
             formData.value.image = url
             MessagePlugin.success('封面上传成功')
         } else {

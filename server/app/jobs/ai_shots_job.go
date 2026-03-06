@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"spiritFruit/pkg/prompt"
 	"strings"
 
 	"github.com/hibiken/asynq"
@@ -88,7 +89,9 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 
 	// 3. 构建 Prompt
 	taskModel.UpdateProgress(30)
-	systemPrompt := getStoryboardSystemPrompt() // 下方定义的辅助函数
+	// 准备 Prompt
+	promptGen := prompt.NewGenerator()
+	systemPrompt := promptGen.GetStoryboardSystemPrompt()
 	userPrompt := fmt.Sprintf(`
 【本剧可用角色列表(JSON)】:
 %s

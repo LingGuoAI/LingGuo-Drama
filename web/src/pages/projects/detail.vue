@@ -608,30 +608,43 @@ const openExtractCharDialog = () => {
     if (episodeList.value.length > 0) extractCharForm.value.scriptId = episodeList.value[0].id
     extractCharDialog.visible = true
 }
+
 const handleExtractFromScript = async () => {
     if (!extractCharForm.value.scriptId) return MessagePlugin.warning('请选择剧集')
     extractCharDialog.loading = true
     try {
         const scriptRes = await findScripts(extractCharForm.value.scriptId)
         if (scriptRes.code !== 0 || !scriptRes.data?.content) {
-            MessagePlugin.error('获取剧本失败'); extractCharDialog.loading = false; return
+            MessagePlugin.error('获取剧本失败')
+            extractCharDialog.loading = false
+            return
         }
+
         const res = await generateCharactersTask({
-            projectId: projectId,
+            projectId: parseInt(projectId),
             count: extractCharForm.value.count,
             outline: scriptRes.data.content
         })
-        const taskId = res.data?.data?.task_id || res.data?.taskId
-        if ((res.code === 0 || res.status === 200) && taskId) {
+
+        const taskId = res.task_id || res.taskId || res.data?.task_id || res.data?.taskId || res.data?.data?.task_id
+
+        if ((res.code === 0 || res.status === 200 || res.success) && taskId) {
             MessagePlugin.success('提取任务已提交')
-            extractCharDialog.visible = false
+            extractCharDialog.visible = false // 🔴 成功时关闭弹窗
             parsingCharacters.value = true
+
             pollTask(taskId,
                 () => { parsingCharacters.value = false; MessagePlugin.success('角色提取完成'); loadCharacters() },
                 () => { parsingCharacters.value = false; MessagePlugin.error('角色提取失败') }
             )
+        } else {
+            throw new Error(res.message || res.msg || '任务提交失败，未获取到任务ID')
         }
-    } catch { MessagePlugin.error('操作异常') } finally { extractCharDialog.loading = false }
+    } catch (e: any) {
+        MessagePlugin.error(e.message || '操作异常')
+    } finally {
+        extractCharDialog.loading = false
+    }
 }
 
 // --- 生图逻辑 (单体/批量) ---
