@@ -380,10 +380,21 @@ func HandleGenerateVideoTask(ctx context.Context, t *asynq.Task) error {
 
 	// 10. 下载视频并更新数据库
 	taskModel.UpdateProgress(90)
-	localPath, err := upload.DownloadAndSaveVideo(result.VideoURL)
-	if err != nil {
-		taskModel.MarkAsFailed(fmt.Errorf("下载视频失败: %v", err))
-		return err
+
+	var localPath string
+
+	// 🔴 判断返回的是网络 URL 还是已经被 Content 接口存好的本地路径
+	if strings.HasPrefix(result.VideoURL, "http://") || strings.HasPrefix(result.VideoURL, "https://") {
+		// 需要网络下载
+		var dlErr error
+		localPath, dlErr = upload.DownloadAndSaveVideo(result.VideoURL)
+		if dlErr != nil {
+			taskModel.MarkAsFailed(fmt.Errorf("下载视频失败: %v", dlErr))
+			return dlErr
+		}
+	} else {
+		// Content API 已经把视频存为本地文件并返回了本地路径
+		localPath = result.VideoURL
 	}
 
 	err = database.DB.Model(&shots.Shots{}).

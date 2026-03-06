@@ -11,6 +11,8 @@ import (
 	"net/textproto"
 	"path/filepath"
 	"strings"
+
+	"spiritFruit/pkg/upload"
 )
 
 type OpenAISoraClient struct {
@@ -24,7 +26,7 @@ type OpenAISoraResponse struct {
 	ID          string `json:"id"`
 	Object      string `json:"object"`
 	Model       string `json:"model"`
-	Status      string `json:"status"`
+	Status      string `json:"status"` // pending, processing, completed, failed
 	Progress    int    `json:"progress"`
 	CreatedAt   int64  `json:"created_at"`
 	CompletedAt int64  `json:"completed_at"`
@@ -41,15 +43,21 @@ type OpenAISoraResponse struct {
 	} `json:"error"`
 }
 
+// OpenAISoraContentResponse 用于解析 content 接口返回的包含 url 的结果
+type OpenAISoraContentResponse struct {
+	URL      string `json:"url"`
+	VideoURL string `json:"video_url"`
+}
+
 func NewOpenAISoraClient(baseURL, apiKey, model string) *OpenAISoraClient {
 	if baseURL == "" {
-		baseURL = "https://api.openai.com"
+		baseURL = "https://api.openai.com/v1"
 	}
 	if model == "" {
 		model = "sora-1.0-turbo"
 	}
 	return &OpenAISoraClient{
-		BaseURL:    baseURL,
+		BaseURL:    strings.TrimRight(baseURL, "/"), // 确保末尾没有斜杠
 		APIKey:     apiKey,
 		Model:      model,
 		HTTPClient: defaultHTTPClient(),
@@ -143,7 +151,8 @@ func (c *OpenAISoraClient) GenerateVideo(prompt string, opts ...VideoOption) (*V
 }
 
 func (c *OpenAISoraClient) GetTaskStatus(taskID string) (*VideoResult, error) {
-	endpoint := c.BaseURL + "/videos/" + taskID
+	// 1. 查询任务基础状态
+	endpoint := fmt.Sprintf("%s/videos/%s", c.BaseURL, taskID)
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -170,11 +179,12 @@ func (c *OpenAISoraClient) GetTaskStatus(taskID string) (*VideoResult, error) {
 	videoResult := &VideoResult{
 		TaskID:    result.ID,
 		Status:    result.Status,
-		Completed: result.Status == "completed",
+		Completed: result.Status == "completed" || result.Status == "succeeded",
 	}
 
 	if result.Error.Message != "" {
 		videoResult.Error = result.Error.Message
+		return videoResult, nil
 	}
 
 	if result.VideoURL != "" {
@@ -183,7 +193,89 @@ func (c *OpenAISoraClient) GetTaskStatus(taskID string) (*VideoResult, error) {
 		videoResult.VideoURL = result.Video.URL
 	}
 
+	// 2. 核心追加逻辑：如果任务已完成，但是基础接口没给 URL，就去调用专用的 content 接口
+	if videoResult.Completed && videoResult.VideoURL == "" {
+		contentURL, fetchErr := c.fetchSoraContentURL(taskID)
+		if fetchErr != nil {
+			videoResult.Error = fmt.Sprintf("fetch content failed: %v", fetchErr)
+			videoResult.Completed = false
+		} else {
+			videoResult.VideoURL = contentURL
+		}
+	}
+
 	return videoResult, nil
+}
+
+// fetchSoraContentURL 专门用于请求 /videos/taskId/content?task_id=taskId 获取最终视频地址或二进制文件
+func (c *OpenAISoraClient) fetchSoraContentURL(taskID string) (string, error) {
+	endpoint := fmt.Sprintf("%s/videos/%s/content?task_id=%s", c.BaseURL, taskID, taskID)
+
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.APIKey)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("content api error, status: %d", resp.StatusCode)
+	}
+
+	// 🔴 1. 检测是否直接返回了 MP4 二进制流
+	contentType := resp.Header.Get("Content-Type")
+	isMP4 := strings.Contains(contentType, "video/mp4") || (len(body) > 8 && string(body[4:8]) == "ftyp")
+
+	if isMP4 {
+		savedPath, err := upload.SaveFileDirByte(body, "videos", ".mp4")
+		if err != nil {
+			return "", fmt.Errorf("failed to save mp4 binary to disk via upload pkg: %w", err)
+		}
+
+		return savedPath, nil
+	}
+
+	// 2. 尝试作为 JSON 解析
+	var contentRes OpenAISoraContentResponse
+	if err := json.Unmarshal(body, &contentRes); err == nil {
+		if contentRes.URL != "" {
+			return contentRes.URL, nil
+		}
+		if contentRes.VideoURL != "" {
+			return contentRes.VideoURL, nil
+		}
+	}
+
+	// 3. 尝试纯文本 URL
+	bodyStr := strings.TrimSpace(string(body))
+	if strings.HasPrefix(bodyStr, "http://") || strings.HasPrefix(bodyStr, "https://") {
+		return bodyStr, nil
+	}
+
+	// 4. 防止二进制乱码导致数据库崩溃（安全过滤非打印字符）
+	safeBody := bodyStr
+	if len(safeBody) > 100 {
+		safeBody = safeBody[:100]
+	}
+	safeBody = strings.Map(func(r rune) rune {
+		if r >= 32 && r != 127 {
+			return r
+		}
+		return ' '
+	}, safeBody)
+
+	return "", fmt.Errorf("failed to parse video url from content api, response: %s", safeBody)
 }
 
 // 辅助方法：将 URL 或 Base64 图片添加到 multipart
@@ -273,4 +365,11 @@ func (c *OpenAISoraClient) addImageToMultipart(writer *multipart.Writer, fieldNa
 	}
 
 	return nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

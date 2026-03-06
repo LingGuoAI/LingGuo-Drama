@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"spiritFruit/pkg/prompt"
 	"strings"
 
 	"github.com/hibiken/asynq"
@@ -12,16 +11,37 @@ import (
 
 	"spiritFruit/app/models/async_tasks"
 	"spiritFruit/app/models/characters"
+	"spiritFruit/app/models/props"
 	"spiritFruit/app/models/scenes"
 	"spiritFruit/app/models/scripts"
-	"spiritFruit/app/models/shots" // 假设您的分镜模型在这个包
+	"spiritFruit/app/models/shots"
 	myAsynq "spiritFruit/pkg/asynq"
 	"spiritFruit/pkg/config"
 	"spiritFruit/pkg/console"
 	"spiritFruit/pkg/database"
 	"spiritFruit/pkg/openai"
+	"spiritFruit/pkg/prompt"
 	"spiritFruit/pkg/utils"
 )
+
+type AIStoryboard struct {
+	SequenceNo     int      `json:"sequenceNo"`
+	Title          string   `json:"title"`
+	ShotType       string   `json:"shotType"`
+	Angle          string   `json:"angle"`
+	CameraMovement string   `json:"cameraMovement"`
+	Time           string   `json:"time"`
+	Location       string   `json:"location"`
+	SceneID        *uint64  `json:"sceneId"`
+	Action         string   `json:"action"`
+	Dialogue       string   `json:"dialogue"`
+	VisualDesc     string   `json:"visualDesc"`
+	Atmosphere     string   `json:"atmosphere"`
+	AudioPrompt    string   `json:"audioPrompt"`
+	DurationSec    int      `json:"durationSec"`  // AI 推理的时长秒数
+	CharacterIDs   []uint64 `json:"characterIds"` // 角色关联
+	PropIDs        []uint64 `json:"propIds"`      // 道具关联
+}
 
 // HandleGenerateShots 处理分镜生成任务
 func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
@@ -82,26 +102,110 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 			if s.Name != nil {
 				sName = *s.Name
 			}
-			infos = append(infos, fmt.Sprintf(`{"id": %d, "name": "%s"}`, s.ID, sName))
+			infos = append(infos, fmt.Sprintf(`{"id": %d, "location": "%s", "time": "%s"}`, s.ID, sName, getString(s.Time)))
 		}
 		sceneInfoStr = fmt.Sprintf("[%s]", strings.Join(infos, ", "))
 	}
 
+	// D. 获取道具列表 (用于 Prompt 上下文，供 AI 绑定 PropIDs)
+	var propList []props.Props
+	database.DB.Where("project_id = ?", p.ProjectID).Find(&propList)
+	propInfoStr := "无道具"
+	if len(propList) > 0 {
+		var infos []string
+		for _, pr := range propList {
+			pName := ""
+			if pr.Name != nil {
+				pName = *pr.Name
+			}
+			infos = append(infos, fmt.Sprintf(`{"id": %d, "name": "%s"}`, pr.ID, pName))
+		}
+		propInfoStr = fmt.Sprintf("[%s]", strings.Join(infos, ", "))
+	}
+
 	// 3. 构建 Prompt
 	taskModel.UpdateProgress(30)
-	// 准备 Prompt
-	promptGen := prompt.NewGenerator()
+	promptGen := prompt.NewGenerator() // 实例化您封装的提示词工具
 	systemPrompt := promptGen.GetStoryboardSystemPrompt()
+
+	// 拼装究极版的用户提示词
 	userPrompt := fmt.Sprintf(`
 【本剧可用角色列表(JSON)】:
 %s
+**重要**：在 characterIds 字段中，只能使用上述角色列表中的角色ID（数字），不得自创角色或使用其他ID。无则填 []。
+
+【本剧可用道具列表(JSON)】:
+%s
+**重要**：在 propIds 字段中，只能使用上述道具列表中的道具ID（数字），不得自创道具或使用其他ID。无则填 []。
 
 【本剧已提取的场景列表(JSON)】:
 %s
+**重要**：在 sceneId 字段中，必须从上述背景列表中选择最匹配的背景ID（数字）。如果没有合适的背景，则填 null。
 
 【剧本原文】:
 %s
-`, charInfoStr, sceneInfoStr, scriptContent)
+
+【分镜要素】每个镜头聚焦单一动作，描述要详尽具体：
+1. **镜头标题(title)**：用3-5个字概括该镜头的核心内容或情绪
+   - 例如："噩梦惊醒"、"对视沉思"、"逃离现场"
+2. **时间(time)**：[清晨/午后/深夜/具体时分+详细光线描述]
+3. **地点(location)**：[场景完整描述+空间布局+环境细节]
+4. **镜头设计**：
+   - **景别(shotType)**：[大远景/远景/全景/中景/近景/特写/大特写]
+   - **镜头角度(angle)**：[平视/仰视/俯视/侧面/背面/鸟瞰]
+   - **运镜方式(cameraMovement)**：[固定镜头/推镜/拉镜/摇镜/跟镜/移镜/环绕]
+5. **人物行为(action)**：**详细动作描述**，包含[谁+具体怎么做+肢体细节+表情状态]
+6. **对话/独白(dialogue)**：提取该镜头中的完整对话或独白内容（如无对话则为空字符串）
+7. **画面结果(visualDesc)**：动作的即时后果+视觉细节，像为盲人讲述画面一样详细
+8. **环境氛围(atmosphere)**：光线质感+色调+声音环境+整体氛围+角色情绪状态
+9. **音效配乐(audioPrompt)**：描述该镜头配乐的氛围、节奏、情绪及关键音效
+
+【输出格式】请以JSON格式输出，每个镜头包含以下字段（**所有键名必须严格遵守如下驼峰格式，描述性字段都要详细完整**）：
+{
+  "storyboards": [
+    {
+      "sequenceNo": 1,
+      "title": "噩梦惊醒",
+      "shotType": "全景",
+      "angle": "俯视45度角",
+      "cameraMovement": "固定镜头",
+      "time": "深夜22:30·月光从破窗斜射入仓库，在地面积水中形成银白色反光",
+      "location": "废弃码头仓库·锈蚀货架林立，墙角堆放腐朽木箱和渔网",
+      "sceneId": 1,
+      "action": "陈峥弯腰双手握住撬棍用力撬动保险箱门，手臂青筋暴起，眉头紧锁，汗水滑落",
+      "dialogue": "（独白）这么多年了，里面到底藏着什么秘密？",
+      "visualDesc": "保险箱门突然弹开发出刺耳金属声，扬起灰尘在手电筒光束中飘散，箱内空无一物，陈峥表情从期待转为震惊",
+      "atmosphere": "昏暗冷色调·青灰色为主，只有手电筒光束在黑暗中晃动，整体氛围压抑沉重。情绪：好奇感↑↑转失望↓",
+      "audioPrompt": "低沉紧张的弦乐，节奏缓慢。金属碰撞声、灰尘飘散声、海浪拍打声",
+      "durationSec": 9,
+      "characterIds": [159],
+      "propIds": [12]
+    }
+  ]
+}
+
+**dialogue字段说明**：
+- 如果有对话，格式为：角色名："台词内容"
+- 多人对话用空格分隔：角色A："..." 角色B："..."
+- 独白格式为：（独白）内容
+- 旁白格式为：（旁白）内容
+- 无对话时填写空字符串：""
+- **对话内容必须从原剧本中提取，保持原汁原味**
+
+**durationSec时长估算规则（秒）**：
+- **所有镜头时长必须在4-12秒范围内**，确保节奏合理流畅
+- **综合估算原则**：时长由对话内容、动作复杂度、情绪节奏三方面综合决定
+1. 基础时长：纯对话场景4秒；纯动作场景5秒；混合场景6秒
+2. 对话调整：短对话+1~2秒；中等对话+2~4秒；长对话+4~6秒
+3. 动作调整：简单动作+0~1秒；一般动作+1~2秒；复杂动作+2~4秒
+4. **最终时长** = 基础时长 + 对话调整 + 动作调整，确保结果在4-12秒范围内
+
+**特别要求**：
+- **【极其重要】必须100%%完整拆解整个剧本，不得省略、跳过、压缩任何剧情内容**
+- **从剧本第一个字到最后一个字，逐句逐段转换为分镜**
+- **每个对话、每个动作、每个场景转换都必须有对应的分镜**
+- 严格按照JSON格式输出，不要包含任何markdown代码块、说明文字或其他内容。
+`, charInfoStr, propInfoStr, sceneInfoStr, scriptContent)
 
 	// 4. 调用 AI
 	taskModel.UpdateProgress(40)
@@ -109,22 +213,18 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 		Provider:      config.GetString("ai.provider"),
 		OpenAIBaseURL: config.GetString("ai.openai.base_url"),
 		OpenAIKey:     config.GetString("ai.openai.api_key"),
-		OpenAIModel:   p.Model, // 如果 payload 没传，Provide 内部会处理默认值
-		// ... Gemini 配置 ...
+		OpenAIModel:   p.Model,
 		GeminiBaseURL: config.GetString("ai.gemini.base_url"),
 		GeminiKey:     config.GetString("ai.gemini.api_key"),
 		GeminiModel:   config.GetString("ai.gemini.model"),
 	}
-	// 如果没有指定模型，使用默认长文本能力强的模型
 	if aiConfig.OpenAIModel == "" {
 		aiConfig.OpenAIModel = "gpt-4-turbo"
 	}
 
 	provider := openai.NewProvider(aiConfig)
 
-	// 使用较大的 MaxTokens 确保返回完整 JSON
-	// 注意：openai.ScriptRequest 结构体可能需要扩展 MaxTokens 字段，或者在 GenerateScript 内部处理
-	// 这里假设 provider.GenerateScript 能够处理基本的对话
+	// 模拟单次对话
 	aiReq := openai.ScriptRequest{
 		Messages: []openai.ChatMessage{
 			{Role: "system", Content: systemPrompt},
@@ -142,30 +242,11 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 	// 5. 解析结果
 	taskModel.UpdateProgress(70)
 
-	// 定义接收 AI 结果的结构
-	type AIStoryboard struct {
-		ShotNumber   int      `json:"shot_number"`
-		Title        string   `json:"title"`
-		ShotType     string   `json:"shot_type"` // 景别
-		Angle        string   `json:"angle"`
-		Movement     string   `json:"movement"`
-		Time         string   `json:"time"`
-		Location     string   `json:"location"`
-		SceneID      *uint64  `json:"scene_id"` // 可空
-		Action       string   `json:"action"`
-		Dialogue     string   `json:"dialogue"`
-		Duration     int      `json:"duration"`
-		VisualPrompt string   `json:"result"` // 对应 Prompt 里的 "result" 字段，作为画面描述
-		CharacterIDs []uint64 `json:"characters"`
-	}
-
 	var resultWrapper struct {
 		Storyboards []AIStoryboard `json:"storyboards"`
 	}
 
-	// 尝试解析对象格式 {"storyboards": [...]}
 	if err := utils.SafeParseAIJSON(aiResp, &resultWrapper); err != nil {
-		// 尝试直接解析数组 [...]
 		var arr []AIStoryboard
 		if err2 := utils.SafeParseAIJSON(aiResp, &arr); err2 == nil {
 			resultWrapper.Storyboards = arr
@@ -176,7 +257,7 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 	}
 
 	if len(resultWrapper.Storyboards) == 0 {
-		taskModel.MarkAsFailed(fmt.Errorf("no shots parsed"))
+		taskModel.MarkAsFailed(fmt.Errorf("AI返回的分镜数量为0"))
 		return nil
 	}
 
@@ -184,61 +265,92 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 	taskModel.UpdateProgress(80)
 
 	err = database.DB.Transaction(func(tx *gorm.DB) error {
-		// A. 清理旧分镜 (可选，根据业务需求，这里选择覆盖模式)
-		if err := tx.Where("script_id = ?", p.ScriptID).Delete(&shots.Shots{}).Error; err != nil {
-			return err
+		// A. 清理旧分镜：为了安全，先找出现有分镜ID并删除
+		var oldShotIds []uint64
+		tx.Model(&shots.Shots{}).Where("script_id = ?", p.ScriptID).Pluck("id", &oldShotIds)
+
+		if len(oldShotIds) > 0 {
+			if err := tx.Where("script_id = ?", p.ScriptID).Delete(&shots.Shots{}).Error; err != nil {
+				return err
+			}
 		}
 
 		// B. 插入新分镜
 		for i, sb := range resultWrapper.Storyboards {
-			// 准备基础变量
 			projectID := p.ProjectID
 			scriptID := p.ScriptID
-			sequenceNo := uint64(i + 1)
-			duration := uint64(sb.Duration * 1000)
+
+			// 兜底序号与时长
+			sequenceNo := uint64(sb.SequenceNo)
+			if sequenceNo == 0 {
+				sequenceNo = uint64(i + 1)
+			}
+			durationSec := sb.DurationSec
+			if durationSec < 1 {
+				durationSec = 4 // 时长兜底 4 秒
+			}
+			durationMs := uint64(durationSec * 1000)
 			status := int8(0)
 
-			// 准备字符串变量 (Go中需要取地址，先定义变量更清晰)
+			// 预先生成专用的图生视频、文生图提示词
+			imgPromptStr := generateImagePrompt(sb)
+			vidPromptStr := generateVideoPrompt(sb)
+
+			// 提取各字段副本以用于存入结构体指针
 			title := sb.Title
 			shotType := sb.ShotType
-			cameraMove := sb.Movement
+			cameraMove := sb.CameraMovement
 			angle := sb.Angle
-
-			// 独立字段赋值，不合并
-			timeDesc := sb.Time             // 时间描述
-			locDesc := sb.Location          // 地点描述
-			action := sb.Action             // 动作描述
-			visualResult := sb.VisualPrompt // 画面结果/详细描述 (对应AI返回的 result 字段)
+			timeDesc := sb.Time
+			locDesc := sb.Location
+			action := sb.Action
 			dialogue := sb.Dialogue
-
-			imagePrompt := visualResult
+			visualDesc := sb.VisualDesc
+			atmosphere := sb.Atmosphere
+			audioPrompt := sb.AudioPrompt
 
 			// 构造 Shot 模型
 			newShot := shots.Shots{
-				ProjectId:  &projectID,
-				ScriptId:   &scriptID,
-				SceneId:    sb.SceneID, // AI返回的 scene_id
-				SequenceNo: &sequenceNo,
-
+				ProjectId:      &projectID,
+				ScriptId:       &scriptID,
+				SceneId:        sb.SceneID,
+				SequenceNo:     &sequenceNo,
 				Title:          &title,
 				ShotType:       &shotType,
 				CameraMovement: &cameraMove,
 				Angle:          &angle,
-
-				Time:       &timeDesc,     // 独立存
-				Location:   &locDesc,      // 独立存
-				Action:     &action,       // 独立存
-				VisualDesc: &visualResult, // 独立存 (对应 result)
-
-				Dialogue: &dialogue,
-
-				ImagePrompt: &imagePrompt, // 初始 Prompt
-				DurationMs:  &duration,
-				Status:      &status,
+				Time:           &timeDesc,
+				Location:       &locDesc,
+				Action:         &action,
+				VisualDesc:     &visualDesc,
+				Atmosphere:     &atmosphere,
+				Dialogue:       &dialogue,
+				ImagePrompt:    &imgPromptStr,
+				VideoPrompt:    &vidPromptStr,
+				AudioPrompt:    &audioPrompt,
+				DurationMs:     &durationMs,
+				Status:         &status,
 			}
 
+			// 保存分镜基础信息
 			if err := tx.Create(&newShot).Error; err != nil {
 				return err
+			}
+
+			// 绑定登场角色 (利用 GORM Association 进行 Many2Many 关联)
+			if len(sb.CharacterIDs) > 0 {
+				var chars []characters.Characters
+				if err := tx.Where("id IN ?", sb.CharacterIDs).Find(&chars).Error; err == nil && len(chars) > 0 {
+					tx.Model(&newShot).Association("Characters").Append(chars)
+				}
+			}
+
+			// 绑定相关道具 (利用 GORM Association 进行 Many2Many 关联)
+			if len(sb.PropIDs) > 0 {
+				var prps []props.Props
+				if err := tx.Where("id IN ?", sb.PropIDs).Find(&prps).Error; err == nil && len(prps) > 0 {
+					tx.Model(&newShot).Association("Props").Append(prps)
+				}
 			}
 		}
 		return nil
@@ -260,46 +372,104 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 	return nil
 }
 
-// getStoryboardSystemPrompt 返回复杂的 Prompt 提示词
-func getStoryboardSystemPrompt() string {
-	return `你是一个专业的影视分镜师。请根据用户提供的【剧本原文】，结合【角色列表】和【场景列表】，将其拆解为详细的分镜头脚本。
+// ==========================================
+// 辅助方法区
+// ==========================================
 
-【分镜要素要求】每个镜头聚焦单一动作，描述要详尽具体：
-1. **镜头标题(title)**：3-5字概括核心内容。
-2. **场景(scene_id)**：从提供的【场景列表】中选择最匹配的ID（数字）。如果没有合适的，返回null。
-3. **镜头设计**：
-   - **景别(shot_type)**：[远景/全景/中景/近景/特写]
-   - **角度(angle)**：[平视/仰视/俯视/侧面/背面]
-   - **运镜(movement)**：[固定/推/拉/摇/跟/移]
-4. **人物(characters)**：该镜头出现的人物ID数组。仅使用【角色列表】中存在的ID。
-5. **对话(dialogue)**：提取该镜头中的台词（保留角色名）。无对话留空。
-6. **画面结果(result)**：用于AI生图的详细画面描述。包含：人物动作+表情+光影+氛围+环境细节。
-   - 必须包含≥20字的详细描述。
-   - 像给盲人讲画面一样详细。
-7. **时长(duration)**：估算该镜头时长（秒），范围4-12秒。
-
-【输出JSON格式】:
-{
-  "storyboards": [
-    {
-      "shot_number": 1,
-      "title": "...",
-      "shot_type": "...",
-      "angle": "...",
-      "movement": "...",
-      "time": "...",
-      "location": "...",
-      "scene_id": 1, 
-      "action": "...",
-      "dialogue": "...",
-      "result": "详细的画面描述...",
-      "duration": 5,
-      "characters": [1, 2]
-    }
-  ]
+func getString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
-注意：
-1. 必须100%覆盖剧本内容，不得遗漏。
-2. 严格输出 JSON 格式，不要包含 Markdown 代码块标记。
-`
+
+// generateImagePrompt 生成专用于图片生成的提示词（提取首帧静态画面）
+func generateImagePrompt(sb AIStoryboard) string {
+	var parts []string
+
+	if sb.Location != "" {
+		locationDesc := sb.Location
+		if sb.Time != "" {
+			locationDesc += ", " + sb.Time
+		}
+		parts = append(parts, locationDesc)
+	}
+
+	// 角色初始静态姿态（去除动作过程，只保留起始状态）
+	if sb.Action != "" {
+		initialPose := extractInitialPose(sb.Action)
+		if initialPose != "" {
+			parts = append(parts, initialPose)
+		}
+	}
+
+	if sb.Atmosphere != "" {
+		parts = append(parts, sb.Atmosphere)
+	}
+
+	// 兜底补丁
+	parts = append(parts, "cinematic lighting, highly detailed")
+
+	if len(parts) > 0 {
+		return strings.Join(parts, ", ")
+	}
+	return "highly detailed scene"
+}
+
+// generateVideoPrompt 生成专用于视频生成的结构化提示词
+func generateVideoPrompt(sb AIStoryboard) string {
+	var parts []string
+
+	if sb.Action != "" {
+		parts = append(parts, fmt.Sprintf("Action: %s", sb.Action))
+	}
+	if sb.Dialogue != "" {
+		parts = append(parts, fmt.Sprintf("Dialogue: %s", sb.Dialogue))
+	}
+	if sb.CameraMovement != "" {
+		parts = append(parts, fmt.Sprintf("Camera movement: %s", sb.CameraMovement))
+	}
+	if sb.ShotType != "" {
+		parts = append(parts, fmt.Sprintf("Shot type: %s", sb.ShotType))
+	}
+	if sb.Angle != "" {
+		parts = append(parts, fmt.Sprintf("Camera angle: %s", sb.Angle))
+	}
+	if sb.Location != "" {
+		locationDesc := sb.Location
+		if sb.Time != "" {
+			locationDesc += ", " + sb.Time
+		}
+		parts = append(parts, fmt.Sprintf("Scene: %s", locationDesc))
+	}
+	if sb.Atmosphere != "" {
+		parts = append(parts, fmt.Sprintf("Atmosphere: %s", sb.Atmosphere))
+	}
+	if sb.VisualDesc != "" {
+		parts = append(parts, fmt.Sprintf("Result: %s", sb.VisualDesc))
+	}
+
+	if len(parts) > 0 {
+		return strings.Join(parts, ". ")
+	}
+	return "cinematic video scene"
+}
+
+// extractInitialPose 提取初始静态姿态（去除过程动词）
+func extractInitialPose(action string) string {
+	processWords := []string{
+		"然后", "接着", "接下来", "随后", "紧接着",
+		"向下", "向上", "向前", "向后", "向左", "向右",
+		"开始", "继续", "逐渐", "慢慢", "快速", "突然", "猛然",
+	}
+
+	result := action
+	for _, word := range processWords {
+		if idx := strings.Index(result, word); idx > 0 {
+			result = result[:idx]
+			break
+		}
+	}
+	result = strings.TrimRight(result, "，。,. ")
+	return strings.TrimSpace(result)
 }
