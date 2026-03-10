@@ -97,14 +97,25 @@ func HandleExtractFramePromptTask(ctx context.Context, t *asynq.Task) error {
 
 	// 4. 初始化 AI 客户端并调用
 	taskModel.UpdateProgress(40)
+	// 准备 AI 配置
 	aiConfig := openai.Config{
-		Provider:      config.GetString("ai.provider"),
+		Provider: config.GetString("ai.provider", "openai"), // 提供默认值
+
+		// OpenAI 配置
 		OpenAIBaseURL: config.GetString("ai.openai.base_url"),
 		OpenAIKey:     config.GetString("ai.openai.api_key"),
-		OpenAIModel:   p.Model,
+		OpenAIModel:   config.GetString("ai.openai.model"),
+
+		// Gemini 配置
 		GeminiBaseURL: config.GetString("ai.gemini.base_url"),
 		GeminiKey:     config.GetString("ai.gemini.api_key"),
 		GeminiModel:   config.GetString("ai.gemini.model"),
+
+		// 豆包 (Volcengine) 配置
+		DoubaoBaseURL:    config.GetString("ai.doubao.base_url"),
+		DoubaoKey:        config.GetString("ai.doubao.api_key"),
+		DoubaoModel:      config.GetString("ai.doubao.model"),
+		DoubaoImageModel: config.GetString("ai.doubao.image_model"),
 	}
 
 	if aiConfig.OpenAIModel == "" {

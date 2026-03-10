@@ -20,6 +20,7 @@ type CommonErrorResponse struct {
 type ScriptRequest struct {
 	Messages    []ChatMessage
 	Temperature float64
+	MaxTokens   int `json:"max_tokens"`
 }
 
 // ImageRequest 图片生成请求（业务层通用）

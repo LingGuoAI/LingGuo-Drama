@@ -7,6 +7,7 @@ import (
 	"spiritFruit/pkg/config"
 	"spiritFruit/pkg/console"
 	"sync"
+	"time"
 )
 
 var (
@@ -96,7 +97,12 @@ func EnqueueGenerateShots(payload GenerateShotsPayload) (*asynq.TaskInfo, error)
 	}
 	// 分镜生成耗时较长，建议放入 default 或 critical 队列
 	task := asynq.NewTask(TypeGenerateShots, bytes)
-	return GetClient().Enqueue(task, asynq.Queue("default"))
+	return GetClient().Enqueue(
+		task,
+		asynq.Queue("default"),
+		asynq.Timeout(10*time.Minute), // 设置任务最大执行时间为 10 分钟
+		asynq.MaxRetry(3),             // (可选) 如果任务失败，最多重试 3 次
+	)
 }
 
 // EnqueueExtractProps 投递[从剧本提取道具]任务

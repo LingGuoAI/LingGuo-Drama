@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"fmt"
 	"spiritFruit/app/models"
 	"spiritFruit/app/models/projects"
 	"spiritFruit/app/models/scripts"
@@ -42,11 +43,14 @@ func (ctrl *ShotsController) Index(c *gin.Context) {
 
 	// 获取分页参数
 	perPage := 10
-	if perPageStr := c.Query("per_page"); perPageStr != "" {
-		if pp, err := strconv.Atoi(perPageStr); err == nil && pp > 0 && pp <= 100 {
+	if perPageStr := c.Query("pageSize"); perPageStr != "" {
+		fmt.Println(perPageStr)
+		if pp, err := strconv.Atoi(perPageStr); err == nil && pp > 0 && pp <= 1000 {
 			perPage = pp
 		}
 	}
+	fmt.Println(perPage)
+
 	where["ORDER"] = "id asc"
 	data, pager := shots.Paginate(c, perPage, where)
 	response.JSON(c, gin.H{

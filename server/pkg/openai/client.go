@@ -29,7 +29,7 @@ func initGlobalHTTPClient() {
 		TLSHandshakeTimeout: 10 * time.Second,
 	}
 	globalHTTPClient = &http.Client{
-		Timeout:   120 * time.Second, // AI 请求较慢
+		Timeout:   300 * time.Second,
 		Transport: apiTransport,
 	}
 }
@@ -41,6 +41,8 @@ func NewProvider(cfg Config) Provider {
 	switch cfg.Provider {
 	case "gemini":
 		return &GeminiClient{Config: cfg, client: globalHTTPClient}
+	case "doubao", "volces":
+		return &DoubaoClient{Config: cfg, client: globalHTTPClient}
 	case "openai":
 		fallthrough
 	default:

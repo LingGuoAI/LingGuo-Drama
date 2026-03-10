@@ -42,7 +42,6 @@ func (ctrl *SourceController) Index(c *gin.Context) {
 			perPage = pp
 		}
 	}
-
 	data, pager := source.Paginate(c, perPage, where)
 	response.JSON(c, gin.H{
 		"code": 0,

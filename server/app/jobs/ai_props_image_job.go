@@ -37,14 +37,25 @@ func HandleGeneratePropImageTask(ctx context.Context, t *asynq.Task) error {
 
 	// 3. 初始化 AI 配置
 	taskModel.UpdateProgress(20)
+	// 准备 AI 配置
 	aiConfig := openai.Config{
-		Provider:      config.GetString("ai.provider"),
+		Provider: config.GetString("ai.provider", "openai"), // 提供默认值
+
+		// OpenAI 配置
 		OpenAIBaseURL: config.GetString("ai.openai.base_url"),
 		OpenAIKey:     config.GetString("ai.openai.api_key"),
-		OpenAIModel:   "dall-e-3", // 默认模型，可根据配置调整
+		OpenAIModel:   config.GetString("ai.openai.model"),
+
+		// Gemini 配置
 		GeminiBaseURL: config.GetString("ai.gemini.base_url"),
 		GeminiKey:     config.GetString("ai.gemini.api_key"),
-		GeminiModel:   "imagen-3.0-generate-001",
+		GeminiModel:   config.GetString("ai.gemini.model"),
+
+		// 豆包 (Volcengine) 配置
+		DoubaoBaseURL:    config.GetString("ai.doubao.base_url"),
+		DoubaoKey:        config.GetString("ai.doubao.api_key"),
+		DoubaoModel:      config.GetString("ai.doubao.model"),
+		DoubaoImageModel: config.GetString("ai.doubao.image_model"),
 	}
 	aiProvider := openai.NewProvider(aiConfig)
 

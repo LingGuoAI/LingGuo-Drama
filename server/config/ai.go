@@ -14,6 +14,13 @@ func init() {
 				"model":    config.Env("OPENAI_MODEL", "gpt-3.5-turbo"),
 			},
 
+			"doubao": map[string]interface{}{
+				"base_url":    config.Env("DOUBAO_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"),
+				"api_key":     config.Env("DOUBAO_API_KEY", ""),
+				"model":       config.Env("DOUBAO_MODEL", ""),       // 文本模型 Endpoint
+				"image_model": config.Env("DOUBAO_IMAGE_MODEL", ""), // 生图模型 Endpoint
+			},
+
 			"gemini": map[string]interface{}{
 				"base_url": config.Env("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta"),
 				"api_key":  config.Env("GEMINI_API_KEY", ""),

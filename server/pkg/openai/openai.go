@@ -12,8 +12,9 @@ type OpenAIClient struct {
 
 // 内部请求结构体 (OpenAI 特有)
 type openAIChatReq struct {
-	Model    string        `json:"model"`
-	Messages []ChatMessage `json:"messages"`
+	Model     string        `json:"model"`
+	Messages  []ChatMessage `json:"messages"`
+	MaxTokens int           `json:"max_tokens,omitempty"`
 }
 
 type openAIChatResp struct {
@@ -25,8 +26,9 @@ type openAIChatResp struct {
 // GenerateScript 实现 GenerateScript
 func (c *OpenAIClient) GenerateScript(req ScriptRequest) (string, error) {
 	payload := openAIChatReq{
-		Model:    c.Config.OpenAIModel,
-		Messages: req.Messages,
+		Model:     c.Config.OpenAIModel,
+		Messages:  req.Messages,
+		MaxTokens: req.MaxTokens,
 	}
 
 	headers := map[string]string{
@@ -78,7 +80,7 @@ func (c *OpenAIClient) GenerateImage(req ImageRequest) ([]string, error) {
 		"Authorization": "Bearer " + c.Config.OpenAIKey,
 	}
 
-	// 3. 拼接 URL (注意：生图的路径是 /images/generations)
+	// 3. 拼接 URL
 	url := c.Config.OpenAIBaseURL + "/images/generations"
 
 	// 4. 发送请求 (复用泛型 doRequest)

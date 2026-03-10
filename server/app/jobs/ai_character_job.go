@@ -78,14 +78,28 @@ func HandleGenerateCharacters(ctx context.Context, t *asynq.Task) error {
 
 	// 准备 AI 配置
 	aiConfig := openai.Config{
-		Provider:      config.GetString("ai.provider"),
+		Provider: config.GetString("ai.provider", "openai"), // 提供默认值
+
+		// OpenAI 配置
 		OpenAIBaseURL: config.GetString("ai.openai.base_url"),
 		OpenAIKey:     config.GetString("ai.openai.api_key"),
 		OpenAIModel:   config.GetString("ai.openai.model"),
+
+		// Gemini 配置
 		GeminiBaseURL: config.GetString("ai.gemini.base_url"),
 		GeminiKey:     config.GetString("ai.gemini.api_key"),
 		GeminiModel:   config.GetString("ai.gemini.model"),
+
+		// 豆包 (Volcengine) 配置
+		DoubaoBaseURL:    config.GetString("ai.doubao.base_url"),
+		DoubaoKey:        config.GetString("ai.doubao.api_key"),
+		DoubaoModel:      config.GetString("ai.doubao.model"),
+		DoubaoImageModel: config.GetString("ai.doubao.image_model"),
 	}
+	if aiConfig.OpenAIModel == "" {
+		aiConfig.OpenAIModel = "gpt-4-turbo"
+	}
+
 	aiProvider := openai.NewProvider(aiConfig)
 
 	// [Stage 3] 发起 AI 请求，进度 -> 30%

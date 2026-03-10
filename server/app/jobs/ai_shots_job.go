@@ -210,16 +210,47 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 	// 4. 调用 AI
 	taskModel.UpdateProgress(40)
 	aiConfig := openai.Config{
-		Provider:      config.GetString("ai.provider"),
+		Provider: config.GetString("ai.provider", "openai"), // 提供默认值
+
+		// OpenAI 配置
 		OpenAIBaseURL: config.GetString("ai.openai.base_url"),
 		OpenAIKey:     config.GetString("ai.openai.api_key"),
-		OpenAIModel:   p.Model,
+		OpenAIModel:   config.GetString("ai.openai.model"),
+
+		// Gemini 配置
 		GeminiBaseURL: config.GetString("ai.gemini.base_url"),
 		GeminiKey:     config.GetString("ai.gemini.api_key"),
 		GeminiModel:   config.GetString("ai.gemini.model"),
+
+		// 豆包 (Volcengine) 配置
+		DoubaoBaseURL:    config.GetString("ai.doubao.base_url"),
+		DoubaoKey:        config.GetString("ai.doubao.api_key"),
+		DoubaoModel:      config.GetString("ai.doubao.model"),
+		DoubaoImageModel: config.GetString("ai.doubao.image_model"),
 	}
 	if aiConfig.OpenAIModel == "" {
 		aiConfig.OpenAIModel = "gpt-4-turbo"
+	}
+
+	// 如果前端 Payload 显式指定了要使用的模型名，优先使用它
+	if p.Model != "" {
+		switch aiConfig.Provider {
+		case "doubao", "volces":
+			aiConfig.DoubaoModel = p.Model
+		case "gemini":
+			aiConfig.GeminiModel = p.Model
+		case "openai":
+			fallthrough
+		default:
+			aiConfig.OpenAIModel = p.Model
+		}
+	} else {
+		// 如果什么都没传，且配置文件里也为空，给出安全的默认值
+		if (aiConfig.Provider == "openai" || aiConfig.Provider == "") && aiConfig.OpenAIModel == "" {
+			aiConfig.OpenAIModel = "gpt-4-turbo" // 默认使用 OpenAI
+		} else if aiConfig.Provider == "gemini" && aiConfig.GeminiModel == "" {
+			aiConfig.GeminiModel = "gemini-1.5-pro"
+		}
 	}
 
 	provider := openai.NewProvider(aiConfig)
@@ -230,7 +261,9 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: userPrompt},
 		},
-		Temperature: 0.7,
+		Temperature: 0.3,
+		//MaxTokens:   4096,// openai
+		MaxTokens: 16384, // 豆包
 	}
 
 	aiResp, err := provider.GenerateScript(aiReq)
@@ -238,7 +271,7 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 		taskModel.MarkAsFailed(err)
 		return err
 	}
-
+	fmt.Println("aiResp", aiResp)
 	// 5. 解析结果
 	taskModel.UpdateProgress(70)
 
