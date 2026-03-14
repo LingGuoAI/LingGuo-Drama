@@ -9,7 +9,9 @@ import (
 	"strings"
 
 	"spiritFruit/pkg/config"
+	"spiritFruit/pkg/upload"
 
+	"cloud.google.com/go/storage"
 	"google.golang.org/genai"
 )
 
@@ -17,7 +19,6 @@ type VertexVideoClient struct {
 	Model string
 }
 
-// 注意：由于 SDK 强制分离，我们不再需要在这里保存 APIKey
 func NewVertexVideoClient(baseURL, apiKey, model string) *VertexVideoClient {
 	if model == "" {
 		model = "veo-3.1-fast-generate-001"
@@ -58,7 +59,7 @@ func fetchImageBytes(imageURL string) (string, []byte, error) {
 	return "", nil, fmt.Errorf("unsupported image url format")
 }
 
-// 🔴 核心重构：完全遵循官方文档初始化 Vertex AI 客户端
+// 初始化官方 GenAI 客户端
 func (c *VertexVideoClient) getGenaiClient(ctx context.Context) (*genai.Client, error) {
 	projectID := config.GetString("ai.vertex.project_id")
 	region := config.GetString("ai.vertex.region", "us-central1")
@@ -67,16 +68,42 @@ func (c *VertexVideoClient) getGenaiClient(ctx context.Context) (*genai.Client, 
 		return nil, fmt.Errorf("VERTEX_PROJECT_ID is missing in config")
 	}
 
-	// 严格按照文档：只传 Project, Location 和 Backend
 	clientConfig := &genai.ClientConfig{
-		Project:  projectID,
-		Location: region,
-		Backend:  genai.BackendVertexAI,
-		// 保留 v1 API 版本的设置，因为视频接口需要
+		Project:     projectID,
+		Location:    region,
+		Backend:     genai.BackendVertexAI,
 		HTTPOptions: genai.HTTPOptions{APIVersion: "v1"},
 	}
 
 	return genai.NewClient(ctx, clientConfig)
+}
+
+// 🔴 通过 ADC 权限从 GCS 存储桶下载文件
+func downloadFromGCS(ctx context.Context, gsURI string) ([]byte, error) {
+	// 解析 gs://bucket/object
+	trimmed := strings.TrimPrefix(gsURI, "gs://")
+	parts := strings.SplitN(trimmed, "/", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid gs URI format: %s", gsURI)
+	}
+	bucketName := parts[0]
+	objectName := parts[1]
+
+	// 创建 Storage 客户端 (它会自动使用你配置好的 ADC 凭证)
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create storage client: %w", err)
+	}
+	defer client.Close()
+
+	// 读取对象流
+	rc, err := client.Bucket(bucketName).Object(objectName).NewReader(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read GCS object: %w", err)
+	}
+	defer rc.Close()
+
+	return io.ReadAll(rc)
 }
 
 func (c *VertexVideoClient) GenerateVideo(prompt string, opts ...VideoOption) (*VideoResult, error) {
@@ -93,7 +120,6 @@ func (c *VertexVideoClient) GenerateVideo(prompt string, opts ...VideoOption) (*
 		model = options.Model
 	}
 
-	// Veo 模型强制要求输出到 GCS 存储桶
 	gcsBucket := config.GetString("ai.vertex.gcs_bucket")
 	if gcsBucket == "" {
 		return nil, fmt.Errorf("VERTEX_GCS_BUCKET is missing in config (e.g., gs://your-bucket)")
@@ -106,29 +132,14 @@ func (c *VertexVideoClient) GenerateVideo(prompt string, opts ...VideoOption) (*
 		return nil, fmt.Errorf("failed to init client: %w", err)
 	}
 
-	// 构建生成配置
 	genConfig := &genai.GenerateVideosConfig{
 		AspectRatio:  options.AspectRatio,
 		OutputGCSURI: outputURI,
 	}
 
-	// 处理参考图（如果有）
-	//var imagePart *genai.Part
-	//if options.ImageURL != "" {
-	//	mimeType, data, err := fetchImageBytes(options.ImageURL)
-	//	if err == nil {
-	//		imagePart = &genai.Part{
-	//			InlineData: &genai.Blob{
-	//				MIMEType: mimeType,
-	//				Data:     data,
-	//			},
-	//		}
-	//	}
-	//}
-
 	fmt.Printf("Vertex SDK: Submitting GenerateVideos task to model %s...\n", model)
 
-	// 一键调用 SDK 提交任务
+	// 文本生成视频 (Image 传 nil)
 	operation, err := client.Models.GenerateVideos(ctx, model, prompt, nil, genConfig)
 	if err != nil {
 		return nil, fmt.Errorf("sdk generate videos error: %w", err)
@@ -149,7 +160,6 @@ func (c *VertexVideoClient) GetTaskStatus(taskID string) (*VideoResult, error) {
 		return nil, err
 	}
 
-	// 构造专用 Operation 对象并调用 GetVideosOperation
 	dummyOp := &genai.GenerateVideosOperation{Name: taskID}
 	op, err := client.Operations.GetVideosOperation(ctx, dummyOp, nil)
 	if err != nil {
@@ -162,7 +172,6 @@ func (c *VertexVideoClient) GetTaskStatus(taskID string) (*VideoResult, error) {
 		Completed: op.Done,
 	}
 
-	// 解析可能存在的错误
 	if op.Error != nil {
 		if msg, ok := op.Error["message"].(string); ok && msg != "" {
 			videoResult.Error = msg
@@ -171,11 +180,36 @@ func (c *VertexVideoClient) GetTaskStatus(taskID string) (*VideoResult, error) {
 		}
 	}
 
-	// 任务完成，返回 gs:// 格式的视频地址
+	// 🔴 如果完成，下载 GCS 视频并转存到本地
 	if op.Done {
 		videoResult.Status = "completed"
 		if op.Response != nil && len(op.Response.GeneratedVideos) > 0 {
-			videoResult.VideoURL = op.Response.GeneratedVideos[0].Video.URI
+			gsURI := op.Response.GeneratedVideos[0].Video.URI
+
+			// 如果是谷歌云存储桶链接
+			if strings.HasPrefix(gsURI, "gs://") {
+				videoBytes, dlErr := downloadFromGCS(ctx, gsURI)
+				if dlErr == nil {
+					// 复用你写好的本地存储逻辑，生成 uploads/videos/xxxx.mp4
+					savedPath, saveErr := upload.SaveFileDirByte(videoBytes, "videos", ".mp4")
+					if saveErr == nil {
+						if !strings.HasPrefix(savedPath, "/") {
+							savedPath = "/" + savedPath
+						}
+						// 替换为本地标准路径
+						videoResult.VideoURL = savedPath
+					} else {
+						videoResult.Error = "save local video err: " + saveErr.Error()
+						videoResult.Status = "failed"
+					}
+				} else {
+					videoResult.Error = "download GCS err: " + dlErr.Error()
+					videoResult.Status = "failed"
+				}
+			} else {
+				// 兜底：如果直接返回了 http 链接，则原样返回交由 Job 处理
+				videoResult.VideoURL = gsURI
+			}
 		}
 	}
 
