@@ -40,6 +40,7 @@ type VideoAPIConfig struct {
 	PikaKey        string
 	OpenAIBaseURL  string
 	OpenAIKey      string
+	VertexKey      string
 }
 
 // helper: 根据模型名字自动获取对应的 API 配置
@@ -57,11 +58,14 @@ func getProviderConfig(modelName string) (provider, baseURL, apiKey string) {
 		PikaKey:        config.GetString("ai.pika.api_key"),
 		OpenAIBaseURL:  config.GetString("ai.openai.base_url"),
 		OpenAIKey:      config.GetString("ai.openai.api_key"),
+		VertexKey:      config.GetString("ai.vertex.api_key"),
 	}
 
 	modelName = strings.ToLower(modelName)
 
-	if strings.Contains(modelName, "doubao") || strings.Contains(modelName, "seedance") {
+	if strings.Contains(modelName, "veo") || strings.Contains(modelName, "vertex") {
+		return "vertex", "", cfg.VertexKey
+	} else if strings.Contains(modelName, "doubao") || strings.Contains(modelName, "seedance") {
 		return "volces", cfg.VolcesBaseURL, cfg.VolcesKey
 	} else if strings.Contains(modelName, "sora") {
 		return "openai", cfg.OpenAIBaseURL, cfg.OpenAIKey
@@ -73,6 +77,7 @@ func getProviderConfig(modelName string) (provider, baseURL, apiKey string) {
 		return "minimax", cfg.MinimaxBaseURL, cfg.MinimaxKey
 	}
 
+	// 兜底默认使用 getgoapi 中转
 	return "getgoapi", cfg.GetGoBaseURL, cfg.GetGoKey
 }
 

@@ -227,6 +227,11 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 		DoubaoKey:        config.GetString("ai.doubao.api_key"),
 		DoubaoModel:      config.GetString("ai.doubao.model"),
 		DoubaoImageModel: config.GetString("ai.doubao.image_model"),
+
+		// Vertex AI 配置
+		VertexKey:        config.GetString("ai.vertex.api_key"),
+		VertexModel:      config.GetString("ai.vertex.model"),
+		VertexImageModel: config.GetString("ai.vertex.image_model"),
 	}
 	if aiConfig.OpenAIModel == "" {
 		aiConfig.OpenAIModel = "gpt-4-turbo"
@@ -239,17 +244,33 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 			aiConfig.DoubaoModel = p.Model
 		case "gemini":
 			aiConfig.GeminiModel = p.Model
+		case "vertex", "gcp":
+			aiConfig.VertexModel = p.Model
 		case "openai":
 			fallthrough
 		default:
 			aiConfig.OpenAIModel = p.Model
 		}
 	} else {
-		// 如果什么都没传，且配置文件里也为空，给出安全的默认值
-		if (aiConfig.Provider == "openai" || aiConfig.Provider == "") && aiConfig.OpenAIModel == "" {
-			aiConfig.OpenAIModel = "gpt-4-turbo" // 默认使用 OpenAI
-		} else if aiConfig.Provider == "gemini" && aiConfig.GeminiModel == "" {
-			aiConfig.GeminiModel = "gemini-1.5-pro"
+		// 如果前端未指定，且配置中也为空，则为各个平台提供最安全的保底默认值
+		switch aiConfig.Provider {
+		case "gemini":
+			if aiConfig.GeminiModel == "" {
+				aiConfig.GeminiModel = "gemini-1.5-pro"
+			}
+		case "vertex", "gcp":
+			if aiConfig.VertexModel == "" {
+				aiConfig.VertexModel = "gemini-1.5-pro"
+			}
+		case "doubao", "volces":
+			// ⚠️ 豆包依赖控制台动态生成的 Endpoint ID (ep-xxx)，代码里无法写死兜底
+			// 必须依赖 .env 中的配置
+		case "openai":
+			fallthrough
+		default:
+			if aiConfig.OpenAIModel == "" {
+				aiConfig.OpenAIModel = "gpt-4-turbo"
+			}
 		}
 	}
 

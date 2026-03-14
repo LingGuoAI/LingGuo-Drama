@@ -167,7 +167,7 @@ func EnqueueGenerateVideo(payload GenerateVideoPayload) (*asynq.TaskInfo, error)
 	}
 	// 视频生成非常耗时，放入 default 或 critical 队列
 	task := asynq.NewTask(TypeGenerateVideo, bytes)
-	info, err := GetClient().Enqueue(task, asynq.Queue("default"))
+	info, err := GetClient().Enqueue(task, asynq.Queue("default"), asynq.Timeout(10*time.Minute))
 	if err != nil {
 		console.Error(fmt.Sprintf("投递生成视频任务失败: %v", err))
 		return nil, err

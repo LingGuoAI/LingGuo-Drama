@@ -8,7 +8,7 @@
                 <div class="header-title">
                     <span class="title">{{ project?.title || '加载中...' }}</span>
                     <t-tag :theme="getStatusTheme(project?.status)" variant="light">{{ getStatusText(project?.status)
-                    }}</t-tag>
+                        }}</t-tag>
                 </div>
             </div>
             <div class="header-center">
@@ -247,7 +247,7 @@
                                             <t-tag size="small" variant="light" theme="primary" v-if="row.shotType">{{
                                                 row.shotType }}</t-tag>
                                             <t-tag size="small" variant="outline" v-if="row.angle">{{ row.angle
-                                            }}</t-tag>
+                                                }}</t-tag>
                                             <t-tag size="small" variant="outline" v-if="row.cameraMovement">{{
                                                 row.cameraMovement }}</t-tag>
                                         </t-space>
@@ -690,7 +690,7 @@ const handleCharacterSubmit = async () => { saving.value = true; try { let res; 
 const deleteCharacter = async (char: any) => { try { const res = await deleteCharacters(char.id); if (res.code === 0) { MessagePlugin.success('删除成功'); loadCharacters() } else { MessagePlugin.error('删除失败') } } catch { MessagePlugin.error('删除请求失败') } }
 
 const handleUploadSuccess = (ctx: any, isReupload: boolean, type: 'character' | 'scene') => {
-    uploading.value = false; const response = ctx.response; if (response?.code === 0 || response?.code === 200) { const responseData = response.data; let fileUrl = responseData.file_url || responseData.url; if (fileUrl && fileUrl.startsWith('/')) fileUrl = import.meta.env.VITE_API_URL.replace(/\/admin\/v1$/, '').replace(/\/v1$/, '') + fileUrl; if (type === 'character') { newCharacter.value.avatarUrl = fileUrl; characterFileList.value = [{ url: fileUrl, name: '角色图' }] } else { newScene.value.visualPrompt = fileUrl; sceneFileList.value = [{ url: fileUrl, name: '场景图' }] } MessagePlugin.success('上传成功') } else { MessagePlugin.error(response?.msg || '上传失败') }
+    uploading.value = false; const response = ctx.response; if (response?.code === 0 || response?.code === 200) { const responseData = response.data; let fileUrl = responseData.file_url || responseData.url; if (fileUrl && fileUrl.startsWith('/')) fileUrl = import.meta.env.VITE_API_URL.replace(/\/admin\/v1$/, '').replace(/\/v1$/, '') + fileUrl; if (type === 'character') { newCharacter.value.avatarUrl = fileUrl; characterFileList.value = [{ url: fileUrl, name: '角色图' }] } else { newScene.value.imageUrl = fileUrl; sceneFileList.value = [{ url: fileUrl, name: '场景图' }] } MessagePlugin.success('上传成功') } else { MessagePlugin.error(response?.msg || '上传失败') }
 }
 
 

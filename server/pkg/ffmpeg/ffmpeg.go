@@ -203,7 +203,7 @@ func (c *Client) downloadVideo(url, destPath string) (string, error) {
 	// 本地文件处理
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		if _, err := os.Stat(url); err == nil {
-			// 修复点：copyFile 返回 error，不能直接作为 string 返回
+			// copyFile 返回 error，不能直接作为 string 返回
 			if err := c.copyFile(url, destPath); err != nil {
 				return "", err
 			}
@@ -229,7 +229,7 @@ func (c *Client) downloadVideo(url, destPath string) (string, error) {
 		return "", err
 	}
 	defer func() {
-		// 修复点：处理 Close 错误
+		// 处理 Close 错误
 		if closeErr := out.Close(); closeErr != nil {
 			logger.Error(fmt.Sprintf("Failed to close file %s: %v", destPath, closeErr))
 		}
@@ -313,7 +313,7 @@ func (c *Client) concatenateVideosWithTransitions(inputPaths []string, clips []V
 func (c *Client) concatenateSimple(inputPaths []string, outputPath string) error {
 	listFile := filepath.Join(c.tempDir, fmt.Sprintf("filelist_%d.txt", time.Now().Unix()))
 	defer func() {
-		// 修复点：处理 Remove 错误
+		// 处理 Remove 错误
 		if err := os.Remove(listFile); err != nil {
 			logger.Error(fmt.Sprintf("Failed to remove list file: %v", err))
 		}
@@ -496,7 +496,7 @@ func (c *Client) mergeWithXfade(inputPaths []string, clips []VideoClip, outputPa
 				}
 				if t, ok := clips[i].Transition["type"].(string); ok {
 					if c.mapTransitionType(t) == "none" {
-						// 🔴 修复核心点2：音频也用极短渐变防报错
+						// 音频也用极短渐变防报错
 						tDuration = 0.05
 					}
 				}
@@ -586,7 +586,7 @@ func (c *Client) copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	// 修复点：处理 Close 错误
+	// 处理 Close 错误
 	defer func() {
 		if err := destFile.Close(); err != nil {
 			logger.Error(fmt.Sprintf("Failed to close dest file %s: %v", dst, err))
@@ -601,7 +601,7 @@ func (c *Client) copyFile(src, dst string) error {
 
 func (c *Client) cleanupFiles(paths []string) {
 	for _, path := range paths {
-		// 修复点：处理 Remove 错误
+		// 处理 Remove 错误
 		if err := os.Remove(path); err != nil {
 			// 可以选择忽略错误或打印日志，这里选择打印日志
 			logger.Warn(fmt.Sprintf("Failed to cleanup file %s: %v", path, err))

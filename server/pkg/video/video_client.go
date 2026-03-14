@@ -128,11 +128,11 @@ func WithReferenceImages(urls []string) VideoOption {
 // 辅助函数：创建一个默认的 HTTP Client
 func defaultHTTPClient() *http.Client {
 	return &http.Client{
-		Timeout: 5 * time.Minute, // 视频生成请求可能较长，默认5分钟
+		Timeout: 10 * time.Minute, // 视频生成请求可能较长，默认10分钟
 	}
 }
 
-// NewClient 辅助函数：根据 provider 实例化客户端的工厂方法
+// NewClient 根据 provider 实例化客户端的工厂方法
 func NewClient(provider, baseURL, apiKey, model, endpoint, queryEndpoint string) (VideoClient, error) {
 	switch provider {
 	case "openai", "sora":
@@ -145,6 +145,8 @@ func NewClient(provider, baseURL, apiKey, model, endpoint, queryEndpoint string)
 		return NewRunwayClient(baseURL, apiKey, model), nil
 	case "pika":
 		return NewPikaClient(baseURL, apiKey, model), nil
+	case "vertex", "gcp":
+		return NewVertexVideoClient(baseURL, apiKey, model), nil
 	case "getgoapi":
 		return NewGetGoAPIClient(baseURL, apiKey, model, endpoint, queryEndpoint), nil
 	default:

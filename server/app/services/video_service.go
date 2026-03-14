@@ -84,7 +84,7 @@ func (s *VideoService) FinalizeEpisode(req FinalizeEpisodeReq) (map[string]inter
 			}
 
 			if videoURL == "" {
-				// 🔴 修复：将 seqNo 声明为 uint64，并做对应转换
+				// 🔴 将 seqNo 声明为 uint64，并做对应转换
 				var seqNo uint64 = 0
 				if scene.SequenceNo != nil {
 					seqNo = uint64(*scene.SequenceNo)

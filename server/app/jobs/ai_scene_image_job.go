@@ -54,6 +54,11 @@ func HandleGenerateSceneImage(ctx context.Context, t *asynq.Task) error {
 		DoubaoKey:        config.GetString("ai.doubao.api_key"),
 		DoubaoModel:      config.GetString("ai.doubao.model"),
 		DoubaoImageModel: config.GetString("ai.doubao.image_model"),
+
+		// Vertex AI 配置
+		VertexKey:        config.GetString("ai.vertex.api_key"),
+		VertexModel:      config.GetString("ai.vertex.model"),
+		VertexImageModel: config.GetString("ai.vertex.image_model"),
 	}
 	aiProvider := openai.NewProvider(aiConfig)
 

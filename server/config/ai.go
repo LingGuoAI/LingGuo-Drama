@@ -21,6 +21,17 @@ func init() {
 				"image_model": config.Env("DOUBAO_IMAGE_MODEL", ""), // 生图模型 Endpoint
 			},
 
+			// Vertex AI 配置 (API Key 模式)
+			"vertex": map[string]interface{}{
+				"api_key":     config.Env("VERTEX_API_KEY", ""),
+				"model":       config.Env("VERTEX_MODEL", "gemini-1.5-pro"),
+				"image_model": config.Env("VERTEX_IMAGE_MODEL", "imagen-3.0-generate-001"),
+				"video_model": config.Env("VERTEX_VIDEO_MODEL", "veo-2.0-generate-001"),
+				"project_id":  config.Env("VERTEX_PROJECT_ID", ""),
+				"region":      config.Env("VERTEX_REGION", "us-central1"),
+				"gcs_bucket":  config.Env("VERTEX_GCS_BUCKET", ""),
+			},
+
 			"gemini": map[string]interface{}{
 				"base_url": config.Env("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta"),
 				"api_key":  config.Env("GEMINI_API_KEY", ""),

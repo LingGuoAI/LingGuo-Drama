@@ -20,7 +20,12 @@ type geminiPart struct {
 	Text string `json:"text"`
 }
 type geminiGenerateReq struct {
-	Contents []geminiContent `json:"contents"`
+	Contents         []geminiContent         `json:"contents"`
+	GenerationConfig *geminiGenerationConfig `json:"generationConfig,omitempty"` // 用于配置生成的参数
+}
+
+type geminiGenerationConfig struct {
+	MaxOutputTokens int `json:"maxOutputTokens,omitempty"` // 控制最大输出 Token 数
 }
 
 // Gemini 特有的响应结构

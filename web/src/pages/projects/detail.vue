@@ -9,7 +9,7 @@
                     <div class="title-row">
                         <span class="title">{{ project.title || '加载中...' }}</span>
                         <t-tag :theme="getStatusTheme(project.status)" variant="light">{{ getStatusText(project.status)
-                            }}</t-tag>
+                        }}</t-tag>
                     </div>
                     <div class="desc">创建时间: {{ formatDate(project.createdAt) }}</div>
                 </div>
@@ -37,11 +37,11 @@
                                     <t-descriptions :column="1" layout="vertical">
                                         <t-descriptions-item label="项目名称">{{ project.title }}</t-descriptions-item>
                                         <t-descriptions-item label="剧情简介">{{ project.description || '暂无简介'
-                                            }}</t-descriptions-item>
+                                        }}</t-descriptions-item>
                                         <t-descriptions-item label="视频比例">{{ getRatioLabel(project.settings)
-                                            }}</t-descriptions-item>
+                                        }}</t-descriptions-item>
                                         <t-descriptions-item label="总时长">{{ formatDuration(project.totalDuration)
-                                            }}</t-descriptions-item>
+                                        }}</t-descriptions-item>
                                     </t-descriptions>
                                 </t-card>
 
@@ -834,7 +834,7 @@ const handleUploadSuccess = (ctx: any, type: string) => {
     if (ctx.response?.code === 0 || ctx.response?.code === 200) {
         const fullUrl = ctx.response.data?.url || ctx.response.data?.file_url
         if (type === 'char') charFormData.value.avatarUrl = fullUrl
-        else if (type === 'scene') sceneFormData.value.visualPrompt = fullUrl
+        else if (type === 'scene') sceneFormData.value.imageUrl = fullUrl
         else if (type === 'prop') propFormData.value.imageUrl = fullUrl
     }
 }

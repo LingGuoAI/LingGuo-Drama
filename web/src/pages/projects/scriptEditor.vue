@@ -912,13 +912,23 @@ interface VideoModelCapability {
     maxImages: number;
 }
 
+
 const videoModelCapabilities = ref<VideoModelCapability[]>([
     { id: 'sora-2', name: 'OpenAI Sora', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: false, supportTextOnly: true, maxImages: 1 },
     { id: 'doubao-seedance-1-5-pro-251215', name: '豆包 (Seedance)', supportSingleImage: true, supportMultipleImages: true, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 6 },
     { id: 'MiniMax-Hailuo-02', name: '海螺 (MiniMax)', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 2 },
     { id: 'kling', name: '可灵 (Kling)', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 2 },
     { id: 'runway', name: 'Runway Gen-3', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 2 },
-    { id: 'pika', name: 'Pika 1.0', supportSingleImage: true, supportMultipleImages: true, supportFirstLastFrame: false, supportTextOnly: true, maxImages: 4 }
+    { id: 'pika', name: 'Pika 1.0', supportSingleImage: true, supportMultipleImages: true, supportFirstLastFrame: false, supportTextOnly: true, maxImages: 4 },
+    {
+        id: 'veo-3.1-fast-generate-001',
+        name: 'Google Veo (Vertex AI)',
+        supportSingleImage: true,       // 支持首帧图生视频
+        supportMultipleImages: false,   // 暂不支持多图
+        supportFirstLastFrame: false,   // 暂不支持首尾帧
+        supportTextOnly: true,          // 支持纯文生视频
+        maxImages: 1
+    }
 ]);
 
 const currentModelCapability = computed(() => {
