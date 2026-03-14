@@ -669,7 +669,8 @@ const batchGenerateCharacterImages = async () => { if (selectedCharacterIds.valu
 const generateSceneImage = async (scene: any) => {
     if (generatingSceneIds.value.includes(scene.id)) return; generatingSceneIds.value.push(scene.id)
     try {
-        const res = await generateSceneImageTask({ sceneId: scene.id }); const taskId = res.data?.data?.task_id || res.data?.taskId
+        const res = await generateSceneImageTask({ sceneId: scene.id });
+        const taskId = res.data?.task_id || res.data?.taskId
         if (taskId) {
             MessagePlugin.success('场景生图任务已提交')
             pollTask(taskId, () => { const idx = generatingSceneIds.value.indexOf(scene.id); if (idx > -1) generatingSceneIds.value.splice(idx, 1); loadScenes() }, () => { const idx = generatingSceneIds.value.indexOf(scene.id); if (idx > -1) generatingSceneIds.value.splice(idx, 1) })

@@ -9,7 +9,7 @@
                     <div class="title-row">
                         <span class="title">{{ project.title || '加载中...' }}</span>
                         <t-tag :theme="getStatusTheme(project.status)" variant="light">{{ getStatusText(project.status)
-                        }}</t-tag>
+                            }}</t-tag>
                     </div>
                     <div class="desc">创建时间: {{ formatDate(project.createdAt) }}</div>
                 </div>
@@ -37,11 +37,11 @@
                                     <t-descriptions :column="1" layout="vertical">
                                         <t-descriptions-item label="项目名称">{{ project.title }}</t-descriptions-item>
                                         <t-descriptions-item label="剧情简介">{{ project.description || '暂无简介'
-                                        }}</t-descriptions-item>
+                                            }}</t-descriptions-item>
                                         <t-descriptions-item label="视频比例">{{ getRatioLabel(project.settings)
-                                        }}</t-descriptions-item>
+                                            }}</t-descriptions-item>
                                         <t-descriptions-item label="总时长">{{ formatDuration(project.totalDuration)
-                                        }}</t-descriptions-item>
+                                            }}</t-descriptions-item>
                                     </t-descriptions>
                                 </t-card>
 
@@ -789,9 +789,17 @@ const loadScenes = async () => {
     if (res.code === 0) { sceneList.value = res.data.list || []; scenePagination.total = res.data.total || 0 }
 }
 const openSceneDialog = (mode: string, row?: any) => {
-    sceneDialog.mode = mode; sceneDialog.visible = true; sceneFileList.value = []
-    if (mode === 'edit' && row) { sceneFormData.value = { ...row }; if (row.visualPrompt) sceneFileList.value = [{ url: getImageUrl(row.visualPrompt), name: 'scene' }] }
-    else { sceneFormData.value = { projectId: Number(projectId), name: '', location: '', time: '', atmosphere: '' } }
+    sceneDialog.mode = mode;
+    sceneDialog.visible = true;
+    sceneFileList.value = [];
+    if (mode === 'edit' && row) {
+        sceneFormData.value = { ...row };
+        if (row.imageUrl) {
+            sceneFileList.value = [{ url: getImageUrl(row.imageUrl), name: 'scene' }];
+        }
+    } else {
+        sceneFormData.value = { projectId: Number(projectId), name: '', location: '', time: '', atmosphere: '', imageUrl: '' };
+    }
 }
 const submitScene = async () => {
     sceneDialog.loading = true

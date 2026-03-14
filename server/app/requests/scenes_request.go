@@ -7,8 +7,9 @@ import (
 
 // ScenesRequest 场景创建/更新请求
 type ScenesRequest struct {
-	ProjectId    uint64 `json:"projectId" valid:"projectId"`       // 所属项目ID
-	Name         string `json:"name" valid:"name"`                 // 场景名称 (通常是 地点+时间)
+	ProjectId    uint64 `json:"projectId" valid:"projectId"` // 所属项目ID
+	Name         string `json:"name" valid:"name"`           // 场景名称 (通常是 地点+时间)
+	ImageUrl     string `json:"imageUrl" valid:"imageUrl"`
 	Location     string `json:"location" valid:"location"`         // 地点
 	Time         string `json:"time" valid:"time"`                 // 时间 (日/夜/黄昏等)
 	Atmosphere   string `json:"atmosphere" valid:"atmosphere"`     // 氛围描述

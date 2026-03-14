@@ -154,6 +154,7 @@ func (ctrl *ScenesController) Store(c *gin.Context) {
 	scenesModel := scenes.Scenes{
 		ProjectId:    &pid,
 		Name:         &request.Name,
+		ImageUrl:     &request.ImageUrl,
 		Location:     &request.Location,
 		Time:         &request.Time,
 		Atmosphere:   &request.Atmosphere,
@@ -216,6 +217,7 @@ func (ctrl *ScenesController) Update(c *gin.Context) {
 
 	updatescenes.ProjectId = &pid
 	updatescenes.Name = &request.Name
+	updatescenes.ImageUrl = &request.ImageUrl
 	updatescenes.Location = &request.Location
 	updatescenes.Time = &request.Time
 	updatescenes.Atmosphere = &request.Atmosphere

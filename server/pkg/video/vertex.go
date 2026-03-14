@@ -2,7 +2,9 @@ package video
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -12,48 +14,71 @@ import (
 )
 
 type VertexVideoClient struct {
-	APIKey string // 必须是 gcloud 产生的 OAuth Token (ya29. 开头)
-	Model  string
+	Model string
 }
 
+// 注意：由于 SDK 强制分离，我们不再需要在这里保存 APIKey
 func NewVertexVideoClient(baseURL, apiKey, model string) *VertexVideoClient {
 	if model == "" {
 		model = "veo-3.1-fast-generate-001"
 	}
 	return &VertexVideoClient{
-		APIKey: apiKey,
-		Model:  model,
+		Model: model,
 	}
 }
 
-// 初始化官方 GenAI 客户端 (严格对齐文档的 v1 版本)
+// 提取并解码图片为 SDK 兼容的格式
+func fetchImageBytes(imageURL string) (string, []byte, error) {
+	if strings.HasPrefix(imageURL, "data:image") {
+		parts := strings.SplitN(imageURL, ",", 2)
+		if len(parts) != 2 {
+			return "", nil, fmt.Errorf("invalid data URI")
+		}
+		mimeType := "image/jpeg"
+		meta := strings.TrimPrefix(parts[0], "data:")
+		metaParts := strings.Split(meta, ";")
+		if len(metaParts) > 0 && metaParts[0] != "" {
+			mimeType = metaParts[0]
+		}
+		data, err := base64.StdEncoding.DecodeString(parts[1])
+		return mimeType, data, err
+	} else if strings.HasPrefix(imageURL, "http") {
+		resp, err := http.Get(imageURL)
+		if err != nil {
+			return "", nil, err
+		}
+		defer resp.Body.Close()
+		mimeType := resp.Header.Get("Content-Type")
+		if mimeType == "" {
+			mimeType = "image/jpeg"
+		}
+		data, err := io.ReadAll(resp.Body)
+		return mimeType, data, err
+	}
+	return "", nil, fmt.Errorf("unsupported image url format")
+}
+
+// 🔴 核心重构：完全遵循官方文档初始化 Vertex AI 客户端
 func (c *VertexVideoClient) getGenaiClient(ctx context.Context) (*genai.Client, error) {
 	projectID := config.GetString("ai.vertex.project_id")
 	region := config.GetString("ai.vertex.region", "us-central1")
 
 	if projectID == "" {
-		return nil, fmt.Errorf("VERTEX_PROJECT_ID is missing in .env")
+		return nil, fmt.Errorf("VERTEX_PROJECT_ID is missing in config")
 	}
 
-	// 🔴 构造自定义 Header，将凭证注入其中，绕过 SDK 的互斥校验
-	headers := make(http.Header)
-	if c.APIKey != "" {
-		headers.Set("Authorization", "Bearer "+c.APIKey)
-	}
-
+	// 严格按照文档：只传 Project, Location 和 Backend
 	clientConfig := &genai.ClientConfig{
 		Project:  projectID,
 		Location: region,
 		Backend:  genai.BackendVertexAI,
-		// 🔴 配置 API 版本，并注入带有 Token 的自定义请求头
-		HTTPOptions: genai.HTTPOptions{
-			APIVersion: "v1",
-			Headers:    headers,
-		},
+		// 保留 v1 API 版本的设置，因为视频接口需要
+		HTTPOptions: genai.HTTPOptions{APIVersion: "v1"},
 	}
 
 	return genai.NewClient(ctx, clientConfig)
 }
+
 func (c *VertexVideoClient) GenerateVideo(prompt string, opts ...VideoOption) (*VideoResult, error) {
 	options := &VideoOptions{
 		Duration:    5,
@@ -68,33 +93,45 @@ func (c *VertexVideoClient) GenerateVideo(prompt string, opts ...VideoOption) (*
 		model = options.Model
 	}
 
-	// 🔴 获取存储桶地址 (Veo 模型强制要求)
+	// Veo 模型强制要求输出到 GCS 存储桶
 	gcsBucket := config.GetString("ai.vertex.gcs_bucket")
 	if gcsBucket == "" {
-		return nil, fmt.Errorf("VERTEX_GCS_BUCKET is missing in .env (e.g., gs://your-bucket). Veo mandates a GCS bucket to output videos.")
+		return nil, fmt.Errorf("VERTEX_GCS_BUCKET is missing in config (e.g., gs://your-bucket)")
 	}
-
-	// 确保加上后缀前缀，例如 gs://your-bucket/videos/
 	outputURI := strings.TrimRight(gcsBucket, "/") + "/videos/"
 
 	ctx := context.Background()
 	client, err := c.getGenaiClient(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to init client: %w", err)
 	}
 
-	// 1. 构建官方配置
+	// 构建生成配置
 	genConfig := &genai.GenerateVideosConfig{
 		AspectRatio:  options.AspectRatio,
-		OutputGCSURI: outputURI, // 指定输出目录
+		OutputGCSURI: outputURI,
 	}
+
+	// 处理参考图（如果有）
+	//var imagePart *genai.Part
+	//if options.ImageURL != "" {
+	//	mimeType, data, err := fetchImageBytes(options.ImageURL)
+	//	if err == nil {
+	//		imagePart = &genai.Part{
+	//			InlineData: &genai.Blob{
+	//				MIMEType: mimeType,
+	//				Data:     data,
+	//			},
+	//		}
+	//	}
+	//}
 
 	fmt.Printf("Vertex SDK: Submitting GenerateVideos task to model %s...\n", model)
 
-	// 2. 调用生成接口。注意第四个参数 (Image) 目前传 nil，先确保纯文本生成完美编译和运行
+	// 一键调用 SDK 提交任务
 	operation, err := client.Models.GenerateVideos(ctx, model, prompt, nil, genConfig)
 	if err != nil {
-		return nil, fmt.Errorf("genai sdk generate videos error: %w", err)
+		return nil, fmt.Errorf("sdk generate videos error: %w", err)
 	}
 
 	return &VideoResult{
@@ -112,13 +149,11 @@ func (c *VertexVideoClient) GetTaskStatus(taskID string) (*VideoResult, error) {
 		return nil, err
 	}
 
-	// 官方的 GenerateVideos 返回的是 *genai.GenerateVideosOperation
+	// 构造专用 Operation 对象并调用 GetVideosOperation
 	dummyOp := &genai.GenerateVideosOperation{Name: taskID}
-
-	// 调用视频专用的查询接口
 	op, err := client.Operations.GetVideosOperation(ctx, dummyOp, nil)
 	if err != nil {
-		return nil, fmt.Errorf("genai sdk get videos operation error: %w", err)
+		return nil, fmt.Errorf("sdk get videos operation error: %w", err)
 	}
 
 	videoResult := &VideoResult{
@@ -127,7 +162,7 @@ func (c *VertexVideoClient) GetTaskStatus(taskID string) (*VideoResult, error) {
 		Completed: op.Done,
 	}
 
-	// 4. 🔴  op.Error.Message 报错：op.Error 是一个 map[string]any
+	// 解析可能存在的错误
 	if op.Error != nil {
 		if msg, ok := op.Error["message"].(string); ok && msg != "" {
 			videoResult.Error = msg
@@ -136,11 +171,10 @@ func (c *VertexVideoClient) GetTaskStatus(taskID string) (*VideoResult, error) {
 		}
 	}
 
-	// 5. 🔴  Bytes 报错：读取视频的 gs:// 地址
+	// 任务完成，返回 gs:// 格式的视频地址
 	if op.Done {
 		videoResult.Status = "completed"
 		if op.Response != nil && len(op.Response.GeneratedVideos) > 0 {
-			// 根据官方文档，这里返回的是 GCS URI (例如: gs://your-bucket/videos/xxx.mp4)
 			videoResult.VideoURL = op.Response.GeneratedVideos[0].Video.URI
 		}
 	}
