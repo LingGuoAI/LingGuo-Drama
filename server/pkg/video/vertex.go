@@ -190,12 +190,12 @@ func (c *VertexVideoClient) GetTaskStatus(taskID string) (*VideoResult, error) {
 			if strings.HasPrefix(gsURI, "gs://") {
 				videoBytes, dlErr := downloadFromGCS(ctx, gsURI)
 				if dlErr == nil {
-					// 复用你写好的本地存储逻辑，生成 uploads/videos/xxxx.mp4
 					savedPath, saveErr := upload.SaveFileDirByte(videoBytes, "videos", ".mp4")
+					fmt.Println("savedPath", savedPath)
 					if saveErr == nil {
-						if !strings.HasPrefix(savedPath, "/") {
-							savedPath = "/" + savedPath
-						}
+						//if !strings.HasPrefix(savedPath, "/") {
+						//	savedPath = "/" + savedPath
+						//}
 						// 替换为本地标准路径
 						videoResult.VideoURL = savedPath
 					} else {
