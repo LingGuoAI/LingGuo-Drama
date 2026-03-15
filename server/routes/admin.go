@@ -100,6 +100,11 @@ func RegisterAdminAPIRoutes(r *gin.Engine) {
 
 			tasksGroup.POST("/generateVideo", aiController.GenerateVideo)
 			tasksGroup.POST("/mergeVideo", videoController.FinalizeEpisode) // 合并视频
+
+			// AI 配置测试接口
+			tasksGroup.POST("/testTextConfig", aiController.TestTextConfig)
+			tasksGroup.POST("/testImageConfig", aiController.TestImageConfig)
+			tasksGroup.POST("/testVideoConfig", aiController.TestVideoConfig)
 		}
 
 		// 剧本相关路由
@@ -173,6 +178,18 @@ func RegisterAdminAPIRoutes(r *gin.Engine) {
 
 			scenesGroup.PUT("/:id", scenesController.Update)    // 更新场景
 			scenesGroup.DELETE("/:id", scenesController.Delete) // 删除场景
+		}
+
+		aiConfigGroup := v1.Group("/ai-config").Use(middlewares.AuthAdminJWT())
+		{
+			aiConfigController := new(controllers.AiConfigController)
+
+			// 基础CRUD路由
+			aiConfigGroup.GET("", aiConfigController.Index)         // 获取AI配置列表
+			aiConfigGroup.GET("/:id", aiConfigController.Show)      // 获取AI配置详情
+			aiConfigGroup.POST("", aiConfigController.Store)        // 创建AI配置
+			aiConfigGroup.PUT("/:id", aiConfigController.Update)    // 更新AI配置
+			aiConfigGroup.DELETE("/:id", aiConfigController.Delete) // 删除AI配置
 		}
 
 		// 道具相关路由

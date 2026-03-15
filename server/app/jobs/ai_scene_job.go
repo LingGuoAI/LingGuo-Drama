@@ -7,6 +7,7 @@ import (
 	"spiritFruit/app/models/async_tasks"
 	"spiritFruit/app/models/scenes"
 	"spiritFruit/app/models/scripts"
+	"spiritFruit/app/services"
 	myAsynq "spiritFruit/pkg/asynq"
 	"spiritFruit/pkg/config"
 	"spiritFruit/pkg/console"
@@ -68,8 +69,11 @@ func HandleExtractScenes(ctx context.Context, t *asynq.Task) error {
 	formatInstructions := getSceneFormatInstructions(promptGen.IsEnglish())
 	finalPrompt := fmt.Sprintf("%s\n\n%s\n%s\n\n%s", systemPrompt, contentLabel, *episode.Content, formatInstructions)
 
-	// AI 配置
-	// 准备 AI 配置
+	// ==========================================
+	// 🔴 文本任务优先查库，后查 .env
+	// ==========================================
+
+	// 1) 先用 .env 环境变量进行基础兜底初始化
 	aiConfig := openai.Config{
 		Provider: config.GetString("ai.provider", "openai"), // 提供默认值
 
@@ -93,6 +97,67 @@ func HandleExtractScenes(ctx context.Context, t *asynq.Task) error {
 		VertexKey:        config.GetString("ai.vertex.api_key"),
 		VertexModel:      config.GetString("ai.vertex.model"),
 		VertexImageModel: config.GetString("ai.vertex.image_model"),
+	}
+	if aiConfig.OpenAIModel == "" {
+		aiConfig.OpenAIModel = "gpt-4-turbo"
+	}
+
+	// 2) 尝试从数据库加载优先级最高的 text (文本) 配置
+	aiService := new(services.AiConfigService)
+	errConfig, dbConfig := aiService.GetActiveConfigByType("text")
+
+	if errConfig == nil && dbConfig.ID > 0 {
+		providerName := *dbConfig.Provider
+		baseURL := *dbConfig.BaseUrl
+		apiKey := *dbConfig.ApiKey
+
+		// 取 JSON 数组配置的第一个模型作为生文模型
+		modelName := ""
+		if len(dbConfig.Model) > 0 {
+			modelName = dbConfig.Model[0]
+		}
+
+		// 动态覆盖兜底配置 (针对文本模型字段)
+		switch providerName {
+		case "openai", "getgoapi":
+			aiConfig.Provider = "openai"
+			aiConfig.OpenAIBaseURL = baseURL
+			aiConfig.OpenAIKey = apiKey
+			if modelName != "" {
+				aiConfig.OpenAIModel = modelName
+			}
+		case "gemini", "google":
+			aiConfig.Provider = "gemini"
+			aiConfig.GeminiBaseURL = baseURL
+			aiConfig.GeminiKey = apiKey
+			if modelName != "" {
+				aiConfig.GeminiModel = modelName
+			}
+		case "doubao", "volcengine":
+			aiConfig.Provider = "doubao"
+			aiConfig.DoubaoBaseURL = baseURL
+			aiConfig.DoubaoKey = apiKey
+			if modelName != "" {
+				aiConfig.DoubaoModel = modelName
+			}
+		case "vertex":
+			aiConfig.Provider = "vertex"
+			aiConfig.VertexKey = apiKey
+			if modelName != "" {
+				aiConfig.VertexModel = modelName
+			}
+		default:
+			aiConfig.Provider = "openai"
+			aiConfig.OpenAIBaseURL = baseURL
+			aiConfig.OpenAIKey = apiKey
+			if modelName != "" {
+				aiConfig.OpenAIModel = modelName
+			}
+		}
+
+		console.Success(fmt.Sprintf("任务[%d] - 成功挂载数据库 AI 文本配置: Provider=%s, Model=%s", p.AsyncTaskID, providerName, modelName))
+	} else {
+		console.Warning(fmt.Sprintf("任务[%d] - 未命中数据库 AI 文本配置，将降级使用 .env 默认配置", p.AsyncTaskID))
 	}
 	aiProvider := openai.NewProvider(aiConfig)
 

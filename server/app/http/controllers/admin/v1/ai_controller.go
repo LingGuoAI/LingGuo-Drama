@@ -1,8 +1,10 @@
 package v1
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"spiritFruit/app/models/async_tasks"
 	"spiritFruit/app/models/characters"
 	"spiritFruit/app/models/props"
 	"spiritFruit/app/models/scenes"
@@ -12,7 +14,11 @@ import (
 	"spiritFruit/app/services"
 	"spiritFruit/pkg/asynq"
 	"spiritFruit/pkg/database"
+	"spiritFruit/pkg/openai"
 	"spiritFruit/pkg/response"
+	"spiritFruit/pkg/video"
+	"strings"
+	"time"
 )
 
 type AiController struct {
@@ -686,6 +692,246 @@ func (ctrl *AiController) GenerateVideo(c *gin.Context) {
 		"message": "视频生成任务已提交",
 		"data": map[string]interface{}{
 			"task_id": task.ID,
+		},
+	})
+}
+
+// TestConfigReq 前端传来的配置数据
+type TestConfigReq struct {
+	BaseURL  string   `json:"base_url" binding:"required"`
+	APIKey   string   `json:"api_key" binding:"required"`
+	Provider string   `json:"provider" binding:"required"`
+	Model    []string `json:"model" binding:"required"`
+}
+
+// helper: 构建测试用的生文/生图配置
+func buildTestAiConfig(req TestConfigReq, serviceType string) openai.Config {
+	aiConfig := openai.Config{
+		Provider: req.Provider,
+	}
+	modelName := ""
+	if len(req.Model) > 0 {
+		modelName = req.Model[0]
+	}
+
+	providerName := strings.ToLower(req.Provider)
+	switch providerName {
+	case "openai", "getgoapi":
+		aiConfig.Provider = "openai"
+		aiConfig.OpenAIBaseURL = req.BaseURL
+		aiConfig.OpenAIKey = req.APIKey
+		if serviceType == "text" {
+			aiConfig.OpenAIModel = modelName
+		}
+	case "gemini", "google":
+		aiConfig.Provider = "gemini"
+		aiConfig.GeminiBaseURL = req.BaseURL
+		aiConfig.GeminiKey = req.APIKey
+		if serviceType == "text" {
+			aiConfig.GeminiModel = modelName
+		}
+	case "doubao", "volcengine", "volces":
+		aiConfig.Provider = "doubao"
+		aiConfig.DoubaoBaseURL = req.BaseURL
+		aiConfig.DoubaoKey = req.APIKey
+		if serviceType == "image" {
+			aiConfig.DoubaoImageModel = modelName
+		} else {
+			aiConfig.DoubaoModel = modelName
+		}
+	case "vertex":
+		aiConfig.Provider = "vertex"
+		aiConfig.VertexKey = req.APIKey
+		if serviceType == "image" {
+			aiConfig.VertexImageModel = modelName
+		} else {
+			aiConfig.VertexModel = modelName
+		}
+	default:
+		aiConfig.Provider = "openai"
+		aiConfig.OpenAIBaseURL = req.BaseURL
+		aiConfig.OpenAIKey = req.APIKey
+		aiConfig.OpenAIModel = modelName
+	}
+	return aiConfig
+}
+
+// TestTextConfig 测试文本大模型配置
+func (ctrl *AiController) TestTextConfig(c *gin.Context) {
+	var req TestConfigReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Abort500(c, "参数错误: "+err.Error())
+		return
+	}
+
+	aiConfig := buildTestAiConfig(req, "text")
+	aiProvider := openai.NewProvider(aiConfig)
+
+	// 发起轻量级文本请求
+	scriptReq := openai.ScriptRequest{
+		Messages: []openai.ChatMessage{
+			{Role: "user", Content: "你好，请用一句话回答：大模型连接测试成功。"},
+		},
+		Temperature: 0.5,
+	}
+
+	aiResp, err := aiProvider.GenerateScript(scriptReq)
+	if err != nil {
+		response.Abort500(c, "文本模型连接失败: "+err.Error())
+		return
+	}
+
+	response.JSON(c, gin.H{
+		"code":    0,
+		"message": "连接成功",
+		"data": map[string]interface{}{
+			"reply": aiResp, // 直接返回 AI 的回答
+		},
+	})
+}
+
+// TestImageConfig 测试生图大模型配置
+func (ctrl *AiController) TestImageConfig(c *gin.Context) {
+	var req TestConfigReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Abort500(c, "参数错误: "+err.Error())
+		return
+	}
+	aiConfig := buildTestAiConfig(req, "image")
+	aiProvider := openai.NewProvider(aiConfig)
+
+	// 发起一张简单的低分辨率生图请求以节省时间和成本
+	imageReq := openai.ImageRequest{
+		Prompt: "A cute little cat, minimalist vector art, clean background",
+		N:      1,
+		Size:   "1024x1024",
+	}
+
+	urls, err := aiProvider.GenerateImage(imageReq)
+	if err != nil {
+		response.Abort500(c, "图片模型连接失败: "+err.Error())
+		return
+	}
+	if len(urls) == 0 {
+		response.Abort500(c, "图片模型连接成功，但未返回图片数据")
+		return
+	}
+	response.JSON(c, gin.H{
+		"code":    0,
+		"message": "连接成功",
+		"data": map[string]interface{}{
+			"image_url": urls[0], // 返回生成的图片URL(或Base64)
+		},
+	})
+}
+
+// TestVideoConfig 测试生视频大模型配置
+func (ctrl *AiController) TestVideoConfig(c *gin.Context) {
+	var req TestConfigReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Abort500(c, "参数错误: "+err.Error())
+		return
+	}
+
+	// 1. 将 Provider 映射为 video.NewClient 支持的底层驱动
+	providerName := strings.ToLower(req.Provider)
+	switch providerName {
+	case "volcengine", "doubao":
+		providerName = "volces"
+	case "chatfire", "getgoapi":
+		providerName = "getgoapi"
+	case "google", "gemini":
+		providerName = "vertex"
+	}
+
+	modelName := ""
+	if len(req.Model) > 0 {
+		modelName = req.Model[0]
+	}
+
+	// 2. 初始化视频客户端
+	client, err := video.NewClient(providerName, req.BaseURL, req.APIKey, modelName, "", "")
+	if err != nil {
+		response.Abort500(c, "视频客户端初始化失败: "+err.Error())
+		return
+	}
+
+	// 智能判断测试时长
+	testDuration := 5
+	if strings.Contains(strings.ToLower(modelName), "sora") {
+		testDuration = 4
+	}
+
+	// 🔴 3. 核心修改：在本地数据库创建测试任务记录 (让前端去轮询这个内部ID)
+	task := async_tasks.AsyncTask{
+		ProjectID: 0, // 测试任务，无实际项目归属
+		Type:      "test_video_config",
+		Status:    async_tasks.StatusProcessing, // 设置为进行中 (通常是2)
+		Payload:   "{}",
+	}
+	database.DB.Create(&task)
+
+	// 4. 提交测试任务到厂商
+	result, err := client.GenerateVideo("A fast running dog in a green field", video.WithDuration(testDuration))
+	if err != nil {
+		task.MarkAsFailed(err)
+		response.Abort500(c, "视频任务提交被拒 (请检查URL/Key/模型名): "+err.Error())
+		return
+	}
+
+	// 🔴 5. 核心修改：开启后台协程，轮询算力厂商的任务进度，并回写到我们刚才创建的本地数据库记录中
+	go func(internalID uint64, externalID string) {
+		maxAttempts := 150
+		interval := 10 * time.Second
+
+		for attempt := 0; attempt < maxAttempts; attempt++ {
+			time.Sleep(interval)
+
+			statusRes, checkErr := client.GetTaskStatus(externalID)
+			if checkErr != nil {
+				continue // 网络波动，继续查
+			}
+
+			// 如果厂商明确返回失败
+			if statusRes.Error != "" {
+				database.DB.Model(&async_tasks.AsyncTask{}).Where("id = ?", internalID).Updates(map[string]interface{}{
+					"status":    async_tasks.StatusFailed, // (通常是4或-1，请根据你的模型定义确认)
+					"error_msg": statusRes.Error,
+				})
+				return
+			}
+
+			// 成功获取到视频地址
+			if statusRes.Completed && statusRes.VideoURL != "" {
+				resBytes, _ := json.Marshal(map[string]interface{}{
+					"video_url": statusRes.VideoURL,
+				})
+				database.DB.Model(&async_tasks.AsyncTask{}).Where("id = ?", internalID).Updates(map[string]interface{}{
+					"status":  async_tasks.StatusSuccess, // (通常是3)
+					"result":  string(resBytes),
+					"process": 100,
+				})
+				return
+			}
+
+			// 更新下进度，让前端看到进度条在走
+			database.DB.Model(&async_tasks.AsyncTask{}).Where("id = ?", internalID).Update("process", 20+attempt)
+		}
+
+		// 超过轮询次数 (超时)
+		database.DB.Model(&async_tasks.AsyncTask{}).Where("id = ?", internalID).Updates(map[string]interface{}{
+			"status":    async_tasks.StatusFailed,
+			"error_msg": "轮询任务超时，未能获取到视频",
+		})
+	}(task.ID, result.TaskID)
+
+	// 6. 给前端返回【本地数据库的TaskID】
+	response.JSON(c, gin.H{
+		"code":    0,
+		"message": "连接成功",
+		"data": map[string]interface{}{
+			"task_id": task.ID, // 👈 现在返回的是数据库递增主键了，例如: 123
+			"status":  "任务已提交，正在轮询",
 		},
 	})
 }

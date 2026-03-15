@@ -17,6 +17,7 @@ import (
 	"spiritFruit/app/models/async_tasks"
 	"spiritFruit/app/models/shot_frame_image"
 	"spiritFruit/app/models/shots"
+	"spiritFruit/app/services"
 	myAsynq "spiritFruit/pkg/asynq"
 	"spiritFruit/pkg/config"
 	"spiritFruit/pkg/console"
@@ -43,8 +44,67 @@ type VideoAPIConfig struct {
 	VertexKey      string
 }
 
-// helper: 根据模型名字自动获取对应的 API 配置
-func getProviderConfig(modelName string) (provider, baseURL, apiKey string) {
+// 🔴 helper: 将数据库的 provider 映射为 video.NewClient 底层包识别的名称
+func mapDBProvider(dbProvider string, modelName string) string {
+	dbProvider = strings.ToLower(dbProvider)
+	switch dbProvider {
+	case "volcengine", "volces", "doubao":
+		return "volces"
+	case "openai":
+		return "openai"
+	case "vertex", "google", "gemini":
+		return "vertex"
+	case "getgoapi":
+		return "getgoapi"
+	case "runway":
+		return "runway"
+	case "pika":
+		return "pika"
+	case "minimax", "hailuo":
+		return "minimax"
+	default:
+		// 未知提供商时，尽量根据模型名推断，推断不出就兜底中转商
+		lowerModel := strings.ToLower(modelName)
+		if strings.Contains(lowerModel, "veo") || strings.Contains(lowerModel, "vertex") {
+			return "vertex"
+		} else if strings.Contains(lowerModel, "doubao") || strings.Contains(lowerModel, "seedance") {
+			return "volces"
+		} else if strings.Contains(lowerModel, "sora") {
+			return "openai"
+		}
+		return "getgoapi"
+	}
+}
+
+// 🔴 helper: 优先从数据库动态查询，无配置则根据模型名字兜底 .env
+func getProviderConfig(modelName string) (provider, baseURL, apiKey string, finalModel string) {
+	finalModel = modelName
+
+	// 1. 优先查库：获取所有激活的 video 配置
+	aiService := new(services.AiConfigService)
+	err, configs := aiService.GetAllActiveConfigsByType("video")
+
+	if err == nil && len(configs) > 0 {
+		// 1.1 如果前端传了指定的 modelName，尝试在配置中精确寻找包含该模型的厂商
+		if finalModel != "" {
+			for _, cfg := range configs {
+				for _, m := range cfg.Model {
+					if m == finalModel {
+						return mapDBProvider(*cfg.Provider, finalModel), *cfg.BaseUrl, *cfg.ApiKey, finalModel
+					}
+				}
+			}
+		}
+
+		// 1.2 如果没找到精确匹配，或者没有传 modelName，直接使用优先级最高的第一个配置
+		topCfg := configs[0]
+		if finalModel == "" && len(topCfg.Model) > 0 {
+			finalModel = topCfg.Model[0] // 取数组第一个模型
+		}
+		return mapDBProvider(*topCfg.Provider, finalModel), *topCfg.BaseUrl, *topCfg.ApiKey, finalModel
+	}
+
+	// 2. 降级查 .env (原逻辑兜底)
 	cfg := VideoAPIConfig{
 		GetGoBaseURL:   config.GetString("ai.getgoapi.base_url"),
 		GetGoKey:       config.GetString("ai.getgoapi.api_key"),
@@ -61,24 +121,24 @@ func getProviderConfig(modelName string) (provider, baseURL, apiKey string) {
 		VertexKey:      config.GetString("ai.vertex.api_key"),
 	}
 
-	modelName = strings.ToLower(modelName)
+	lowerModel := strings.ToLower(finalModel)
 
-	if strings.Contains(modelName, "veo") || strings.Contains(modelName, "vertex") {
-		return "vertex", "", cfg.VertexKey
-	} else if strings.Contains(modelName, "doubao") || strings.Contains(modelName, "seedance") {
-		return "volces", cfg.VolcesBaseURL, cfg.VolcesKey
-	} else if strings.Contains(modelName, "sora") {
-		return "openai", cfg.OpenAIBaseURL, cfg.OpenAIKey
-	} else if strings.Contains(modelName, "runway") {
-		return "runway", cfg.RunwayBaseURL, cfg.RunwayKey
-	} else if strings.Contains(modelName, "pika") {
-		return "pika", cfg.PikaBaseURL, cfg.PikaKey
-	} else if strings.Contains(modelName, "minimax") || strings.Contains(modelName, "hailuo") {
-		return "minimax", cfg.MinimaxBaseURL, cfg.MinimaxKey
+	if strings.Contains(lowerModel, "veo") || strings.Contains(lowerModel, "vertex") {
+		return "vertex", "", cfg.VertexKey, finalModel
+	} else if strings.Contains(lowerModel, "doubao") || strings.Contains(lowerModel, "seedance") {
+		return "volces", cfg.VolcesBaseURL, cfg.VolcesKey, finalModel
+	} else if strings.Contains(lowerModel, "sora") {
+		return "openai", cfg.OpenAIBaseURL, cfg.OpenAIKey, finalModel
+	} else if strings.Contains(lowerModel, "runway") {
+		return "runway", cfg.RunwayBaseURL, cfg.RunwayKey, finalModel
+	} else if strings.Contains(lowerModel, "pika") {
+		return "pika", cfg.PikaBaseURL, cfg.PikaKey, finalModel
+	} else if strings.Contains(lowerModel, "minimax") || strings.Contains(lowerModel, "hailuo") {
+		return "minimax", cfg.MinimaxBaseURL, cfg.MinimaxKey, finalModel
 	}
 
 	// 兜底默认使用 getgoapi 中转
-	return "getgoapi", cfg.GetGoBaseURL, cfg.GetGoKey
+	return "getgoapi", cfg.GetGoBaseURL, cfg.GetGoKey, finalModel
 }
 
 // HandleGenerateVideoTask 处理视频生成任务
@@ -94,12 +154,16 @@ func HandleGenerateVideoTask(ctx context.Context, t *asynq.Task) error {
 		return nil
 	}
 	taskModel.MarkAsProcessing()
-	console.Success(fmt.Sprintf("任务[%d] - 开始生成视频 (ShotID: %d, Model: %s)", p.AsyncTaskID, p.ShotID, p.Model))
+	console.Success(fmt.Sprintf("任务[%d] - 开始生成视频 (ShotID: %d, 请求Model: %s)", p.AsyncTaskID, p.ShotID, p.Model))
 
 	// 2. 初始化客户端
 	taskModel.UpdateProgress(5)
-	provider, baseURL, apiKey := getProviderConfig(p.Model)
-	client, err := video.NewClient(provider, baseURL, apiKey, p.Model, "", "")
+
+	// 🔴 使用重构后的辅助函数获取动态配置
+	provider, baseURL, apiKey, finalModel := getProviderConfig(p.Model)
+	console.Success(fmt.Sprintf("任务[%d] - 命中视频配置: Provider=%s, 最终Model=%s", p.AsyncTaskID, provider, finalModel))
+
+	client, err := video.NewClient(provider, baseURL, apiKey, finalModel, "", "")
 	if err != nil {
 		taskModel.MarkAsFailed(err)
 		return err

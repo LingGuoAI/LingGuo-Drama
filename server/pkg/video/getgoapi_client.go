@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"spiritFruit/pkg/upload"
 	"strings"
 )
 
@@ -104,10 +105,10 @@ func getErrorMessage(errorData json.RawMessage) string {
 
 func NewGetGoAPIClient(baseURL, apiKey, model, endpoint, queryEndpoint string) *GetGoAPIClient {
 	if endpoint == "" {
-		endpoint = "/video/generations"
+		endpoint = "/videos"
 	}
 	if queryEndpoint == "" {
-		queryEndpoint = "/video/task/{taskId}"
+		queryEndpoint = "/videos/{taskId}/content"
 	}
 	return &GetGoAPIClient{
 		BaseURL:       baseURL,
@@ -335,21 +336,25 @@ func (c *GetGoAPIClient) GenerateVideo(prompt string, opts ...VideoOption) (*Vid
 }
 
 func (c *GetGoAPIClient) GetTaskStatus(taskID string) (*VideoResult, error) {
+	// 1. 查询任务基础状态
 	queryPath := c.QueryEndpoint
-	if strings.Contains(queryPath, "{taskId}") {
-		queryPath = strings.ReplaceAll(queryPath, "{taskId}", taskID)
-	} else if strings.Contains(queryPath, "{task_id}") {
-		queryPath = strings.ReplaceAll(queryPath, "{task_id}", taskID)
-	} else {
-		queryPath = queryPath + "/" + taskID
+	// 如果配置的路径包含 content，说明是专用 content 接口，先回退到基础路径查询状态
+	if strings.Contains(queryPath, "/content") {
+		queryPath = "/videos/{taskId}"
 	}
 
-	endpoint := c.BaseURL + queryPath
+	if strings.Contains(queryPath, "{taskId}") {
+		queryPath = strings.ReplaceAll(queryPath, "{taskId}", taskID)
+	} else {
+		queryPath = strings.TrimRight(queryPath, "/") + "/" + taskID
+	}
+
+	endpoint := strings.TrimRight(c.BaseURL, "/") + "/" + strings.TrimLeft(queryPath, "/")
+
 	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-
 	req.Header.Set("Authorization", "Bearer "+c.APIKey)
 
 	resp, err := c.HTTPClient.Do(req)
@@ -363,53 +368,139 @@ func (c *GetGoAPIClient) GetTaskStatus(taskID string) (*VideoResult, error) {
 		return nil, fmt.Errorf("read response: %w", err)
 	}
 
-	fmt.Printf("[GetGoAPI] GetTaskStatus Response body: %s\n", string(body))
+	// 处理 Sora 任务进行中的 400 状态 (GetGoAPI 特色)
+	if resp.StatusCode == http.StatusBadRequest {
+		bodyStr := string(body)
+		if strings.Contains(bodyStr, "IN_PROGRESS") || strings.Contains(bodyStr, "not completed") {
+			return &VideoResult{
+				TaskID:    taskID,
+				Status:    "processing",
+				Completed: false,
+			}, nil
+		}
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
+	}
 
 	var result GetGoAPITaskResponse
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("parse response: %w, body: %s", err, string(body))
 	}
 
-	// 取 ID
-	responseTaskID := result.ID
-	if responseTaskID == "" {
-		responseTaskID = result.TaskID
-	}
-	if result.Data.ID != "" {
-		responseTaskID = result.Data.ID
-	}
-
-	// 取 Status
+	// 提取状态和 ID
 	status := result.Status
-	if status == "" && result.Data.Status != "" {
+	if status == "" {
 		status = result.Data.Status
 	}
 
-	// 按优先级获取 video_url：VideoURL -> Data.VideoURL -> Content.VideoURL
-	videoURL := result.VideoURL
-	if videoURL == "" && result.Data.VideoURL != "" {
-		videoURL = result.Data.VideoURL
-	}
-	if videoURL == "" && result.Content.VideoURL != "" {
-		videoURL = result.Content.VideoURL
-	}
-
-	fmt.Printf("[GetGoAPI] Parsed result - TaskID: %s, Status: %s, VideoURL: %s\n", responseTaskID, status, videoURL)
-
 	videoResult := &VideoResult{
-		TaskID:    responseTaskID,
+		TaskID:    taskID,
 		Status:    status,
 		Completed: status == "completed" || status == "succeeded",
 	}
 
-	if errMsg := getErrorMessage(result.Error); errMsg != "" {
-		videoResult.Error = errMsg
+	// 提取 URL
+	videoURL := result.VideoURL
+	if videoURL == "" {
+		videoURL = result.Data.VideoURL
 	}
+	if videoURL == "" {
+		videoURL = result.Content.VideoURL
+	}
+	videoResult.VideoURL = videoURL
 
-	if videoURL != "" {
-		videoResult.VideoURL = videoURL
-		videoResult.Completed = true
+	// 🔴 核心逻辑：如果任务已完成，但是基础接口没给 URL，就去调用专用的 content 接口提取或保存视频
+	if videoResult.Completed && videoResult.VideoURL == "" {
+		contentURL, fetchErr := c.fetchVideoContent(taskID)
+		if fetchErr != nil {
+			// 如果 content 接口报进度错误，说明还没真正完成
+			if strings.Contains(fetchErr.Error(), "IN_PROGRESS") {
+				videoResult.Completed = false
+				videoResult.Status = "processing"
+			} else {
+				videoResult.Error = fmt.Sprintf("fetch content failed: %v", fetchErr)
+			}
+		} else {
+			videoResult.VideoURL = contentURL
+		}
 	}
 
 	return videoResult, nil
+}
+
+// fetchVideoContent 处理二进制流或 JSON URL
+func (c *GetGoAPIClient) fetchVideoContent(taskID string) (string, error) {
+	// 构造 content 接口地址
+	endpoint := fmt.Sprintf("%s/videos/%s/content", strings.TrimRight(c.BaseURL, "/"), taskID)
+
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.APIKey)
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	// 处理进行中报错
+	if resp.StatusCode == http.StatusBadRequest && strings.Contains(string(body), "IN_PROGRESS") {
+		return "", fmt.Errorf("IN_PROGRESS")
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("content api error, status: %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	// 🔴 1. 检测是否直接返回了视频二进制流 (mp4)
+	contentType := resp.Header.Get("Content-Type")
+	// 检查 Header 或者检查文件头魔数 (ftypmp42 等)
+	isMP4 := strings.Contains(contentType, "video/") || (len(body) > 8 && string(body[4:8]) == "ftyp")
+
+	if isMP4 {
+		// 💡 直接落盘：将二进制流保存到本地服务器
+		savedPath, err := upload.SaveFileDirByte(body, "videos", ".mp4")
+		if err != nil {
+			return "", fmt.Errorf("failed to save binary video: %w", err)
+		}
+		fmt.Printf("[GetGoAPI] 二进制视频已保存至本地: %s\n", savedPath)
+		return savedPath, nil
+	}
+
+	// 2. 尝试解析为 JSON (部分厂商完成时会返回包含 url 的 JSON)
+	var contentRes struct {
+		URL      string `json:"url"`
+		VideoURL string `json:"video_url"`
+		Data     struct {
+			URL string `json:"url"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &contentRes); err == nil {
+		if contentRes.URL != "" {
+			return contentRes.URL, nil
+		}
+		if contentRes.VideoURL != "" {
+			return contentRes.VideoURL, nil
+		}
+		if contentRes.Data.URL != "" {
+			return contentRes.Data.URL, nil
+		}
+	}
+
+	// 3. 尝试纯文本 URL
+	bodyStr := strings.TrimSpace(string(body))
+	if strings.HasPrefix(bodyStr, "http://") || strings.HasPrefix(bodyStr, "https://") {
+		return bodyStr, nil
+	}
+
+	return "", fmt.Errorf("failed to parse video source from content api")
 }

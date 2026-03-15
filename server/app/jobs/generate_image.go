@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"spiritFruit/app/services"
 	"spiritFruit/pkg/upload"
 	"strings"
 
@@ -36,9 +37,13 @@ func HandleGenerateImage(ctx context.Context, t *asynq.Task) error {
 
 	// 2. 初始化 AI
 	taskModel.UpdateProgress(20)
-	// 准备 AI 配置
+	// ==========================================
+	// 🔴 生图任务优先查库，后查 .env
+	// ==========================================
+
+	// 1) 先用 .env 环境变量进行基础兜底初始化
 	aiConfig := openai.Config{
-		Provider: config.GetString("ai.provider", "openai"), // 提供默认值
+		Provider: config.GetString("ai.provider", "openai"),
 
 		// OpenAI 配置
 		OpenAIBaseURL: config.GetString("ai.openai.base_url"),
@@ -60,6 +65,64 @@ func HandleGenerateImage(ctx context.Context, t *asynq.Task) error {
 		VertexKey:        config.GetString("ai.vertex.api_key"),
 		VertexModel:      config.GetString("ai.vertex.model"),
 		VertexImageModel: config.GetString("ai.vertex.image_model"),
+	}
+
+	// 2) 尝试从数据库加载优先级最高的 image (图片) 配置
+	aiService := new(services.AiConfigService)
+	errConfig, dbConfig := aiService.GetActiveConfigByType("image")
+
+	if errConfig == nil && dbConfig.ID > 0 {
+		providerName := *dbConfig.Provider
+		baseURL := *dbConfig.BaseUrl
+		apiKey := *dbConfig.ApiKey
+
+		// 取 JSON 数组配置的第一个模型作为生图模型
+		modelName := ""
+		if len(dbConfig.Model) > 0 {
+			modelName = dbConfig.Model[0]
+		}
+
+		// 动态覆盖兜底配置 (针对图片模型字段)
+		switch providerName {
+		case "openai", "getgoapi":
+			aiConfig.Provider = "openai"
+			aiConfig.OpenAIBaseURL = baseURL
+			aiConfig.OpenAIKey = apiKey
+			if modelName != "" {
+				aiConfig.OpenAIModel = modelName
+			}
+		case "gemini", "google":
+			aiConfig.Provider = "gemini"
+			aiConfig.GeminiBaseURL = baseURL
+			aiConfig.GeminiKey = apiKey
+			if modelName != "" {
+				aiConfig.GeminiModel = modelName
+			}
+		case "doubao", "volcengine":
+			aiConfig.Provider = "doubao"
+			aiConfig.DoubaoBaseURL = baseURL
+			aiConfig.DoubaoKey = apiKey
+			if modelName != "" {
+				aiConfig.DoubaoImageModel = modelName // 赋值给图片模型字段
+			}
+		case "vertex":
+			aiConfig.Provider = "vertex"
+			aiConfig.VertexKey = apiKey
+			if modelName != "" {
+				aiConfig.VertexImageModel = modelName // 赋值给图片模型字段
+			}
+		default:
+			aiConfig.Provider = "openai"
+			aiConfig.OpenAIBaseURL = baseURL
+			aiConfig.OpenAIKey = apiKey
+			if modelName != "" {
+				aiConfig.OpenAIModel = modelName
+			}
+		}
+
+		console.Success(fmt.Sprintf("任务[%d] - 成功挂载数据库 AI 图片配置: Provider=%s, Model=%s", p.AsyncTaskID, providerName, modelName))
+	} else {
+		console.Warning(fmt.Sprintf("任务[%d] - 未命中数据库 AI 图片配置，将降级使用 .env 默认配置", p.AsyncTaskID))
 	}
 	aiProvider := openai.NewProvider(aiConfig)
 

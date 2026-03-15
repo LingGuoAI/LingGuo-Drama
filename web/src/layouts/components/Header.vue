@@ -36,6 +36,14 @@
               <template #suffix><chevron-down-icon /></template>
             </t-button>
           </t-dropdown>
+          <t-tooltip placement="bottom" content="AI 服务配置">
+            <t-button theme="default" variant="text" @click="showAiConfig = true">
+              <template #icon>
+                <cpu-icon />
+              </template>
+              AI 服务配置
+            </t-button>
+          </t-tooltip>
           <t-tooltip placement="bottom" :content="t('layout.header.setting')">
             <t-button theme="default" shape="square" variant="text" @click="toggleSettingPanel">
               <setting-icon />
@@ -44,13 +52,14 @@
         </div>
       </template>
     </t-head-menu>
+    <ai-config-modal v-model:visible="showAiConfig" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ChevronDownIcon, PoweroffIcon, SettingIcon, TranslateIcon, UserCircleIcon } from 'tdesign-icons-vue-next';
+import { ChevronDownIcon, PoweroffIcon, SettingIcon, TranslateIcon, UserCircleIcon, CpuIcon } from 'tdesign-icons-vue-next';
 import type { PropType } from 'vue';
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 
 import LogoFull from '@/assets/assets-logo-full.svg?component';
@@ -63,6 +72,10 @@ import { useSettingStore, useUserStore } from '@/store';
 import type { MenuRoute, ModeType } from '@/types/interface';
 
 import MenuContent from './MenuContent.vue';
+
+import AiConfigModal from './AiConfigModal.vue';
+
+const showAiConfig = ref(false);
 
 const { theme, layout, showLogo, menu, isFixed, isCompact } = defineProps({
   theme: {

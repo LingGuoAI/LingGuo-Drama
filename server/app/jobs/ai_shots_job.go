@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"spiritFruit/app/services"
 	"strings"
 
 	"github.com/hibiken/asynq"
@@ -209,6 +210,11 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 
 	// 4. 调用 AI
 	taskModel.UpdateProgress(40)
+	// ==========================================
+	// 🔴 文本任务优先查库，后查 .env
+	// ==========================================
+
+	// 1) 先用 .env 环境变量进行基础兜底初始化
 	aiConfig := openai.Config{
 		Provider: config.GetString("ai.provider", "openai"), // 提供默认值
 
@@ -237,41 +243,62 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 		aiConfig.OpenAIModel = "gpt-4-turbo"
 	}
 
-	// 如果前端 Payload 显式指定了要使用的模型名，优先使用它
-	if p.Model != "" {
-		switch aiConfig.Provider {
-		case "doubao", "volces":
-			aiConfig.DoubaoModel = p.Model
-		case "gemini":
-			aiConfig.GeminiModel = p.Model
-		case "vertex", "gcp":
-			aiConfig.VertexModel = p.Model
-		case "openai":
-			fallthrough
-		default:
-			aiConfig.OpenAIModel = p.Model
+	// 2) 尝试从数据库加载优先级最高的 text (文本) 配置
+	aiService := new(services.AiConfigService)
+	errConfig, dbConfig := aiService.GetActiveConfigByType("text")
+
+	if errConfig == nil && dbConfig.ID > 0 {
+		providerName := *dbConfig.Provider
+		baseURL := *dbConfig.BaseUrl
+		apiKey := *dbConfig.ApiKey
+
+		// 取 JSON 数组配置的第一个模型作为生文模型
+		modelName := ""
+		if len(dbConfig.Model) > 0 {
+			modelName = dbConfig.Model[0]
 		}
+
+		// 动态覆盖兜底配置 (针对文本模型字段)
+		switch providerName {
+		case "openai", "getgoapi":
+			aiConfig.Provider = "openai"
+			aiConfig.OpenAIBaseURL = baseURL
+			aiConfig.OpenAIKey = apiKey
+			if modelName != "" {
+				aiConfig.OpenAIModel = modelName
+			}
+		case "gemini", "google":
+			aiConfig.Provider = "gemini"
+			aiConfig.GeminiBaseURL = baseURL
+			aiConfig.GeminiKey = apiKey
+			if modelName != "" {
+				aiConfig.GeminiModel = modelName
+			}
+		case "doubao", "volcengine":
+			aiConfig.Provider = "doubao"
+			aiConfig.DoubaoBaseURL = baseURL
+			aiConfig.DoubaoKey = apiKey
+			if modelName != "" {
+				aiConfig.DoubaoModel = modelName
+			}
+		case "vertex":
+			aiConfig.Provider = "vertex"
+			aiConfig.VertexKey = apiKey
+			if modelName != "" {
+				aiConfig.VertexModel = modelName
+			}
+		default:
+			aiConfig.Provider = "openai"
+			aiConfig.OpenAIBaseURL = baseURL
+			aiConfig.OpenAIKey = apiKey
+			if modelName != "" {
+				aiConfig.OpenAIModel = modelName
+			}
+		}
+
+		console.Success(fmt.Sprintf("任务[%d] - 成功挂载数据库 AI 文本配置: Provider=%s, Model=%s", p.AsyncTaskID, providerName, modelName))
 	} else {
-		// 如果前端未指定，且配置中也为空，则为各个平台提供最安全的保底默认值
-		switch aiConfig.Provider {
-		case "gemini":
-			if aiConfig.GeminiModel == "" {
-				aiConfig.GeminiModel = "gemini-1.5-pro"
-			}
-		case "vertex", "gcp":
-			if aiConfig.VertexModel == "" {
-				aiConfig.VertexModel = "gemini-1.5-pro"
-			}
-		case "doubao", "volces":
-			// ⚠️ 豆包依赖控制台动态生成的 Endpoint ID (ep-xxx)，代码里无法写死兜底
-			// 必须依赖 .env 中的配置
-		case "openai":
-			fallthrough
-		default:
-			if aiConfig.OpenAIModel == "" {
-				aiConfig.OpenAIModel = "gpt-4-turbo"
-			}
-		}
+		console.Warning(fmt.Sprintf("任务[%d] - 未命中数据库 AI 文本配置，将降级使用 .env 默认配置", p.AsyncTaskID))
 	}
 
 	provider := openai.NewProvider(aiConfig)
