@@ -104,7 +104,7 @@ func getProviderConfig(modelName string) (provider, baseURL, apiKey string, fina
 		return mapDBProvider(*topCfg.Provider, finalModel), *topCfg.BaseUrl, *topCfg.ApiKey, finalModel
 	}
 
-	// 2. 降级查 .env (原逻辑兜底)
+	// 2. 降级查 .env
 	cfg := VideoAPIConfig{
 		GetGoBaseURL:   config.GetString("ai.getgoapi.base_url"),
 		GetGoKey:       config.GetString("ai.getgoapi.api_key"),

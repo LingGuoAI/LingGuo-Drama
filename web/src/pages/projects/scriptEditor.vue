@@ -827,6 +827,7 @@ import { MessagePlugin, DialogPlugin } from 'tdesign-vue-next'
 
 // API
 import { findProjects } from '@/api/projects'
+import { getAiConfigList } from '@/api/ai_config'
 import { getScriptsList } from '@/api/scripts'
 import { getScenesList } from '@/api/scenes'
 import { getCharactersList } from '@/api/characters'
@@ -912,8 +913,19 @@ interface VideoModelCapability {
     maxImages: number;
 }
 
+// 定义模型能力映射表，用于匹配数据库中导出的模型
+const MODEL_CAPABILITY_MAP: Record<string, any> = {
+    'sora-2': { name: 'OpenAI Sora', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: false, supportTextOnly: true, maxImages: 1 },
+    'doubao-seedance-1-5-pro-251215': { name: '豆包 (Seedance)', supportSingleImage: true, supportMultipleImages: true, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 6 },
+    'MiniMax-Hailuo-02': { name: '海螺 (MiniMax)', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 2 },
+    'kling': { name: '可灵 (Kling)', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 2 },
+    'runway': { name: 'Runway Gen-3', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 2 },
+    'pika': { name: 'Pika 1.0', supportSingleImage: true, supportMultipleImages: true, supportFirstLastFrame: false, supportTextOnly: true, maxImages: 4 },
+    'veo-3.1-fast-generate-001': { name: 'Google Veo', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: false, supportTextOnly: true, maxImages: 1 }
+};
 
-const videoModelCapabilities = ref<VideoModelCapability[]>([
+// 默认兜底模型列表
+const defaultVideoModels: VideoModelCapability[] = [
     { id: 'sora-2', name: 'OpenAI Sora', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: false, supportTextOnly: true, maxImages: 1 },
     { id: 'doubao-seedance-1-5-pro-251215', name: '豆包 (Seedance)', supportSingleImage: true, supportMultipleImages: true, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 6 },
     { id: 'MiniMax-Hailuo-02', name: '海螺 (MiniMax)', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 2 },
@@ -929,7 +941,86 @@ const videoModelCapabilities = ref<VideoModelCapability[]>([
         supportTextOnly: true,          // 支持纯文生视频
         maxImages: 1
     }
-]);
+];
+
+const dbVideoModels = ref<VideoModelCapability[]>([]);
+// const videoModelCapabilities = ref<VideoModelCapability[]>([
+//     { id: 'sora-2', name: 'OpenAI Sora', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: false, supportTextOnly: true, maxImages: 1 },
+//     { id: 'doubao-seedance-1-5-pro-251215', name: '豆包 (Seedance)', supportSingleImage: true, supportMultipleImages: true, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 6 },
+//     { id: 'MiniMax-Hailuo-02', name: '海螺 (MiniMax)', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 2 },
+//     { id: 'kling', name: '可灵 (Kling)', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 2 },
+//     { id: 'runway', name: 'Runway Gen-3', supportSingleImage: true, supportMultipleImages: false, supportFirstLastFrame: true, supportTextOnly: true, maxImages: 2 },
+//     { id: 'pika', name: 'Pika 1.0', supportSingleImage: true, supportMultipleImages: true, supportFirstLastFrame: false, supportTextOnly: true, maxImages: 4 },
+//     {
+//         id: 'veo-3.1-fast-generate-001',
+//         name: 'Google Veo (Vertex AI)',
+//         supportSingleImage: true,       // 支持首帧图生视频
+//         supportMultipleImages: false,   // 暂不支持多图
+//         supportFirstLastFrame: false,   // 暂不支持首尾帧
+//         supportTextOnly: true,          // 支持纯文生视频
+//         maxImages: 1
+//     }
+// ]);
+
+// 计算最终显示在下拉框的模型列表
+const videoModelCapabilities = computed(() => {
+    // 1. 获取数据库配置的模型 ID 集合
+    const dbModelIds = new Set(dbVideoModels.value.map(m => m.id));
+
+    // 2. 过滤掉默认列表中已在数据库中存在的，避免重复
+    const filteredDefaults = defaultVideoModels.filter(m => !dbModelIds.has(m.id));
+
+    // 3. 数据库优先 + 默认靠后
+    return [...dbVideoModels.value, ...filteredDefaults];
+});
+
+const loadDbAiConfigs = async () => {
+    try {
+        const res = await getAiConfigList({
+            service_type: 'video',
+            is_active: 1,
+            pageSize: 100
+        });
+
+        if (res.code === 0) {
+            const list = res.data?.list || [];
+            const extractedModels: VideoModelCapability[] = [];
+
+            list.forEach((config: any) => {
+                const models = Array.isArray(config.model) ? config.model : [config.model];
+                models.forEach((modelId: string) => {
+                    // 如果本地 Map 里有详细能力定义，则取定义，否则给个默认通用定义
+                    if (MODEL_CAPABILITY_MAP[modelId]) {
+                        extractedModels.push({
+                            id: modelId,
+                            ...MODEL_CAPABILITY_MAP[modelId],
+                            name: `${MODEL_CAPABILITY_MAP[modelId].name} (${config.name})` // 标记来源
+                        });
+                    } else {
+                        extractedModels.push({
+                            id: modelId,
+                            name: `${modelId} (${config.name})`,
+                            supportSingleImage: true,
+                            supportMultipleImages: false,
+                            supportFirstLastFrame: false,
+                            supportTextOnly: true,
+                            maxImages: 1
+                        });
+                    }
+                });
+            });
+            dbVideoModels.value = extractedModels;
+
+            // 如果当前选中的模型不在新列表中，默认选中第一个
+            if (dbVideoModels.value.length > 0 && !videoModelCapabilities.value.find(m => m.id === selectedVideoModel.value)) {
+                selectedVideoModel.value = dbVideoModels.value[0].id;
+            }
+        }
+    } catch (e) {
+        console.error("加载 AI 配置失败:", e);
+    }
+};
+
 
 const currentModelCapability = computed(() => {
     return videoModelCapabilities.value.find(m => m.id === selectedVideoModel.value);
@@ -1205,7 +1296,7 @@ const initData = async () => {
 
         const propRes = await getPropsList({ projectId: dramaId, pageSize: 100 })
         if (propRes.code === 0) availableProps.value = propRes.data?.list || []
-
+        await loadDbAiConfigs();
         await loadShotsData()
         await loadVideoAssets()
         await loadMergeList()

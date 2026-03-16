@@ -39,7 +39,7 @@ func (ctrl *ProjectsController) Index(c *gin.Context) {
 
 	// 获取分页参数
 	perPage := 10
-	if perPageStr := c.Query("per_page"); perPageStr != "" {
+	if perPageStr := c.Query("pageSize"); perPageStr != "" {
 		if pp, err := strconv.Atoi(perPageStr); err == nil && pp > 0 && pp <= 100 {
 			perPage = pp
 		}

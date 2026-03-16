@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"spiritFruit/app/models"
 	"spiritFruit/app/models/admins"
+	"spiritFruit/app/models/ai_config"
 	"spiritFruit/app/models/characters"
 	"spiritFruit/app/models/projects"
 	"spiritFruit/app/models/props"
@@ -41,6 +42,7 @@ func SetupAutoMigrate() {
 	err = database.DB.AutoMigrate(
 		&admins.Admins{},
 		&sys_base_menus.SysBaseMenus{},
+		&ai_config.AiConfig{},
 		&async_tasks.AsyncTask{},
 		&characters.Characters{},
 		&props.Props{},

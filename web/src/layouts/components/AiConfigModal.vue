@@ -119,7 +119,7 @@
 import { ref, reactive, computed, watch } from 'vue';
 import { MessagePlugin, DialogPlugin, FormRule } from 'tdesign-vue-next';
 import { PlusIcon } from 'tdesign-icons-vue-next';
-import { request } from "@/utils/request"; // 引入底层 request 以便轮询
+import { request } from "@/utils/request";
 
 import {
     getAiConfigList,
@@ -131,7 +131,7 @@ import {
     testVideoConfig
 } from '@/api/ai_config';
 
-import type { AIServiceConfig, AIServiceType, CreateAIConfigRequest, UpdateAIConfigRequest } from '@/types/ai';
+import type { AIServiceType } from '@/types/ai';
 import { getImageUrl } from '@/utils/format';
 
 const props = defineProps({
@@ -175,7 +175,7 @@ const form = reactive({
     api_key: '',
     model: [],
     priority: 0,
-    is_active: 1, // 默认设为 1 (启用)
+    is_active: 1,
 });
 
 // --- 常量配置 ---
@@ -186,27 +186,30 @@ interface ProviderConfig {
     disabled?: boolean;
 }
 
-const providerConfigs: Record<AIServiceType, ProviderConfig[]> = {
+const providerConfigs: Record<string, ProviderConfig[]> = {
     text: [
-        { id: 'openai', name: 'OpenAI', models: ['gpt-5.2', 'gemini-3-flash-preview'] },
-        { id: 'getgoapi', name: 'GetGo API', models: ['gemini-3-flash-preview', 'claude-sonnet-4-5-20250929', 'doubao-seed-1-8-251228'] },
-        { id: 'gemini', name: 'Google Gemini', models: ['gemini-2.5-pro', 'gemini-3-flash-preview'] },
+        { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4-turbo'] },
+        { id: 'getgoapi', name: 'GetGo API', models: ['gemini-3-flash-preview', 'claude-3-5-sonnet-20240620', 'doubao-seed-1-8-251228'] },
+        { id: 'gemini', name: 'Google Gemini', models: ['gemini-1.5-pro', 'gemini-3-flash-preview'] },
     ],
     image: [
         { id: 'volcengine', name: '火山引擎', models: ['doubao-seedream-4-5-251128', 'doubao-seedream-4-0-250828'] },
-        { id: 'getgoapi', name: 'GetGo API', models: ['doubao-seedream-4-5-251128', 'nano-banana-pro'] },
-        { id: 'gemini', name: 'Google Gemini', models: ['gemini-3-pro-image-preview'] },
-        { id: 'openai', name: 'OpenAI', models: ['dall-e-3', 'dall-e-2'] },
+        { id: 'getgoapi', name: 'GetGo API', models: ['doubao-seedream-4-5-251128', 'dall-e-3'] },
+        { id: 'openai', name: 'OpenAI', models: ['dall-e-3'] },
     ],
     video: [
-        { id: 'volces', name: '火山引擎', models: ['doubao-seedance-1-5-pro-251215', 'doubao-seedance-1-0-lite-i2v-250428', 'doubao-seedance-1-0-pro-250528'] },
-        { id: 'getgoapi', name: 'GetGo API', models: ['doubao-seedance-1-5-pro-251215', 'sora-2', 'sora-2-pro'] },
-        { id: 'openai', name: 'OpenAI', models: ['sora-2', 'sora-2-pro'] },
+        { id: 'volces', name: '火山引擎', models: ['doubao-seedance-1-5-pro-251215'] },
+        { id: 'openai', name: 'OpenAI Sora', models: ['sora-2'] },
+        { id: 'minimax', name: '海螺 MiniMax', models: ['MiniMax-Hailuo-02'] },
+        { id: 'kling', name: '可灵 Kling', models: ['kling'] },
+        { id: 'runway', name: 'Runway', models: ['runway'] },
+        { id: 'pika', name: 'Pika', models: ['pika'] },
+        { id: 'google', name: 'Google Veo', models: ['veo-3.1-fast-generate-001'] },
+        { id: 'getgoapi', name: 'GetGo API', models: ['doubao-seedance-1-5-pro-251215', 'sora-2', 'MiniMax-Hailuo-02'] },
     ],
 };
 
-const availableProviders = computed(() => providerConfigs[form.service_type as AIServiceType] || []);
-
+const availableProviders = computed(() => providerConfigs[form.service_type] || []);
 const availableModels = computed(() => {
     if (!form.provider) return [];
     const providerDef = availableProviders.value.find(p => p.id === form.provider);
@@ -218,58 +221,34 @@ const fullEndpointExample = computed(() => {
     const provider = form.provider;
     const serviceType = form.service_type;
     let endpoint = '';
-
     if (serviceType === 'text') {
         endpoint = (provider === 'gemini') ? '/v1beta/models/{model}:generateContent' : '/chat/completions';
     } else if (serviceType === 'image') {
         endpoint = (provider === 'gemini') ? '/v1beta/models/{model}:generateContent' : '/images/generations';
     } else if (serviceType === 'video') {
-        if (provider === 'doubao' || provider === 'volcengine' || provider === 'volces') endpoint = '/contents/generations/tasks';
-        else if (provider === 'openai') endpoint = '/videos';
-        else endpoint = '/video/generations';
+        endpoint = '/videos';
     }
     return baseUrl + endpoint;
 });
 
-// TDesign 校验规则
 const rules: Record<string, FormRule[]> = {
-    name: [{ required: true, message: '请输入配置名称', type: 'error' }],
-    provider: [{ required: true, message: '请选择厂商', type: 'error' }],
-    base_url: [
-        { required: true, message: '请输入 Base URL', type: 'error' },
-        { url: true, message: '请输入正确的 URL 格式', type: 'error' }
-    ],
-    api_key: [{ required: true, message: '请输入 API Key', type: 'error' }],
-    model: [
-        { required: true, message: '请至少选择一个模型', type: 'error' },
-        {
-            validator: (val) => (Array.isArray(val) && val.length > 0) || (typeof val === 'string' && val.length > 0),
-            message: '请至少选择一个模型',
-            type: 'error'
-        }
-    ]
+    name: [{ required: true, message: '请输入配置名称' }],
+    provider: [{ required: true, message: '请选择厂商' }],
+    base_url: [{ required: true, message: '请输入 Base URL' }],
+    api_key: [{ required: true, message: '请输入 API Key' }],
+    model: [{ required: true, message: '请选择模型' }]
 };
 
-// --- 方法 ---
-
+// --- 核心业务方法 ---
 const loadConfigs = async () => {
     loading.value = true;
     try {
-        const res: any = await getAiConfigList({
-            service_type: activeTab.value,
-            per_page: 100
-        });
+        const res: any = await getAiConfigList({ service_type: activeTab.value, per_page: 100 });
         configs.value = res.data?.list || [];
-    } catch (error: any) {
-        MessagePlugin.error(error.message || '加载失败');
-    } finally {
-        loading.value = false;
-    }
+    } finally { loading.value = false; }
 };
 
-watch(visible, (val) => {
-    if (val) loadConfigs();
-});
+watch(visible, (val) => { if (val) loadConfigs(); });
 
 const handleTabChange = (value: AIServiceType) => {
     activeTab.value = value;
@@ -277,23 +256,14 @@ const handleTabChange = (value: AIServiceType) => {
 };
 
 const generateConfigName = (provider: string, serviceType: AIServiceType) => {
-    const providerNames: Record<string, string> = { getgoapi: 'GetGo', openai: 'OpenAI', gemini: 'Gemini' };
+    const providerNames: Record<string, string> = { getgoapi: 'GetGo', openai: 'OpenAI', gemini: 'Gemini', volces: 'Volc', volcengine: 'Volc' };
     const serviceNames: Record<AIServiceType, string> = { text: '文本', image: '图片', video: '视频' };
     const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     return `${providerNames[provider] || provider}-${serviceNames[serviceType] || serviceType}-${randomNum}`;
 };
 
 const resetForm = () => {
-    Object.assign(form, {
-        service_type: activeTab.value,
-        provider: '',
-        name: '',
-        base_url: '',
-        api_key: '',
-        model: [],
-        priority: 0,
-        is_active: 1,
-    });
+    Object.assign(form, { service_type: activeTab.value, provider: '', name: '', base_url: '', api_key: '', model: [], priority: 0, is_active: 1 });
     formRef.value?.clearValidate();
 };
 
@@ -301,7 +271,7 @@ const showCreateDialog = () => {
     isEdit.value = false;
     editingId.value = undefined;
     resetForm();
-    form.service_type = activeTab.value;
+    // 恢复默认初始逻辑
     form.provider = 'getgoapi';
     form.base_url = 'https://api.getgoapi.com/v1';
     form.name = generateConfigName('getgoapi', activeTab.value);
@@ -312,82 +282,61 @@ const handleEdit = (config: any) => {
     isEdit.value = true;
     editingId.value = config.id;
     Object.assign(form, {
-        service_type: config.service_type,
-        provider: config.provider || 'getgoapi',
-        name: config.name,
-        base_url: config.base_url,
-        api_key: config.api_key,
+        ...config,
         model: Array.isArray(config.model) ? config.model : [config.model],
-        priority: config.priority || 0,
-        is_active: config.is_active,
     });
     dialogVisible.value = true;
 };
 
 const handleProviderChange = () => {
     form.model = [];
-    form.base_url = (form.provider === 'gemini') ? 'https://generativelanguage.googleapis.com/v1beta' : 'https://api.getgoapi.com/v1';
+    // 自动适配 BaseUrl 逻辑
+    if (form.provider === 'getgoapi') {
+        form.base_url = 'https://api.getgoapi.com/v1';
+    } else if (form.provider === 'gemini') {
+        form.base_url = 'https://generativelanguage.googleapis.com/v1beta';
+    }
+    // 只有在创建模式下才自动更名
     if (!isEdit.value) {
         form.name = generateConfigName(form.provider, form.service_type as AIServiceType);
-    }
-};
-
-const handleDelete = (config: any) => {
-    const confirmDia = DialogPlugin.confirm({
-        header: '警告',
-        body: `确定要删除配置 [${config.name}] 吗？此操作无法恢复。`,
-        theme: 'danger',
-        onConfirm: async () => {
-            try {
-                await deleteAiConfig(config.id);
-                MessagePlugin.success('删除成功');
-                loadConfigs();
-            } catch (error: any) {
-                MessagePlugin.error(error.message || '删除失败');
-            } finally {
-                confirmDia.destroy();
-            }
-        }
-    });
-};
-
-const handleToggleActive = async (config: any) => {
-    try {
-        await updateAiConfig(config.id, {
-            ...config,
-            is_active: config.is_active
-        });
-        MessagePlugin.success(config.is_active === 1 ? '已启用配置' : '已禁用配置');
-    } catch (error: any) {
-        config.is_active = config.is_active === 1 ? 0 : 1;
-        MessagePlugin.error(error.message || '操作失败');
     }
 };
 
 const handleSubmit = async () => {
     const validateResult = await formRef.value.validate();
     if (validateResult !== true) return;
-
     submitting.value = true;
     try {
-        if (isEdit.value && editingId.value) {
-            await updateAiConfig(editingId.value, form);
-            MessagePlugin.success('更新成功');
-        } else {
-            await createAiConfig(form);
-            MessagePlugin.success('创建成功');
-        }
+        isEdit.value ? await updateAiConfig(editingId.value!, form) : await createAiConfig(form);
+        MessagePlugin.success('操作成功');
         dialogVisible.value = false;
         loadConfigs();
-    } catch (error: any) {
-        MessagePlugin.error(error.message || '操作失败');
-    } finally {
-        submitting.value = false;
+    } finally { submitting.value = false; }
+};
+
+const handleToggleActive = async (config: any) => {
+    try {
+        await updateAiConfig(config.id, { is_active: config.is_active });
+        MessagePlugin.success('状态已更新');
+    } catch (e) {
+        config.is_active = config.is_active === 1 ? 0 : 1;
     }
 };
 
+const handleDelete = (config: any) => {
+    DialogPlugin.confirm({
+        header: '警告',
+        body: `确定要删除配置 [${config.name}] 吗？`,
+        theme: 'danger',
+        onConfirm: async () => {
+            await deleteAiConfig(config.id);
+            loadConfigs();
+        }
+    });
+};
+
 // ==========================================
-// 🔴 测试连接与轮询逻辑 
+// 🔴 测试与轮询逻辑 
 // ==========================================
 const testResultVisible = ref(false);
 const testPolling = ref(false);
@@ -395,15 +344,8 @@ const testResultType = ref('');
 const testResultData = ref('');
 let pollTimer: any = null;
 
-// 清除轮询器
-const stopPolling = () => {
-    if (pollTimer) {
-        clearTimeout(pollTimer);
-        pollTimer = null;
-    }
-};
+const stopPolling = () => { if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; } };
 
-// 开始轮询 TaskID 的结果
 const startPolling = (taskId: number | string, type: string) => {
     testResultVisible.value = true;
     testPolling.value = true;
@@ -415,111 +357,66 @@ const startPolling = (taskId: number | string, type: string) => {
             const res: any = await request.get({ url: `/tasks/${taskId}` });
             const task = res.data;
 
-            if ((task.status === 2 || task.status === 3) && task.process === 100) {
+            // 适配 status: 2, process: 100
+            if (task.status === 2 && task.process === 100) {
                 testPolling.value = false;
-
                 let resultObj: any = {};
-                try {
-                    resultObj = JSON.parse(task.result || '{}');
-                } catch (e) {
-                    resultObj = { raw: task.result };
-                }
-
-                const rawUrl = resultObj.video_url || resultObj.url || resultObj.image_url || task.result;
+                try { resultObj = JSON.parse(task.result || '{}'); } catch (e) { resultObj = { raw: task.result }; }
 
                 if (type === 'text') {
                     testResultData.value = resultObj.reply || task.result;
                 } else {
-                    // 图片和视频都需要转换路径
+                    const rawUrl = resultObj.video_url || resultObj.url || resultObj.image_url;
                     testResultData.value = getImageUrl(rawUrl);
-                    console.log('testResultData', testResultData)
                 }
-
-                MessagePlugin.success('AI 处理完成！');
-                stopPolling(); // 停止定时器
-
-            } else if (task.status === 4 || task.status === -1) {
-                // 失败状态处理
+                MessagePlugin.success('测试成功！');
+                stopPolling();
+            } else if (task.status === 4 || task.status === -1 || task.status === 3) {
                 testPolling.value = false;
-                testResultData.value = task.error_msg || '任务执行失败';
-                MessagePlugin.error(`测试失败: ${testResultData.value}`);
+                testResultData.value = task.error_msg || '任务失败';
+                MessagePlugin.error('测试执行失败');
                 stopPolling();
             } else {
-                // 继续轮询
                 pollTimer = setTimeout(poll, 3000);
             }
-        } catch (error) {
+        } catch (e) {
             testPolling.value = false;
-            MessagePlugin.error('查询任务状态异常');
             stopPolling();
         }
     };
-
     poll();
 };
 
 const executeTest = async (payload: any, serviceType: string) => {
     testing.value = true;
-    stopPolling(); // 确保清理旧的轮询
-
+    stopPolling();
     try {
         let res: any;
-        if (serviceType === 'text') {
-            res = await testTextConfig(payload);
-        } else if (serviceType === 'image') {
-            res = await testImageConfig(payload);
-        } else if (serviceType === 'video') {
-            res = await testVideoConfig(payload);
-        }
+        if (serviceType === 'text') res = await testTextConfig(payload);
+        else if (serviceType === 'image') res = await testImageConfig(payload);
+        else if (serviceType === 'video') res = await testVideoConfig(payload);
 
-        // 💡 核心分发逻辑
-        // 如果后端同步直接返回了数据 (如 reply 或 image_url)
         if (res.data?.reply || res.data?.image_url) {
             testResultVisible.value = true;
             testPolling.value = false;
             testResultType.value = serviceType;
-            testResultData.value = res.data.reply || res.data.image_url;
+            testResultData.value = serviceType === 'text' ? res.data.reply : getImageUrl(res.data.image_url);
             MessagePlugin.success('测试成功！');
-        }
-        // 如果后端走的是异步队列，返回了 task_id
-        else if (res.data?.task_id) {
-            MessagePlugin.info(`任务已提交 [TaskID: ${res.data.task_id}]，正在等待结果...`);
+        } else if (res.data?.task_id) {
+            MessagePlugin.info('任务已提交，正在生成...');
             startPolling(res.data.task_id, serviceType);
         }
-        // 其他兜底情况
-        else {
-            MessagePlugin.success('连接测试成功，但未返回内容。');
-        }
-
-    } catch (error: any) {
-        MessagePlugin.error(error.message || '连接测试请求失败');
-    } finally {
-        testing.value = false;
-    }
+    } catch (e: any) {
+        MessagePlugin.error(e.message || '请求失败');
+    } finally { testing.value = false; }
 };
 
-const testConnection = async () => {
-    const validateResult = await formRef.value.validate();
-    if (validateResult !== true) return;
-    executeTest(
-        { base_url: form.base_url, api_key: form.api_key, model: form.model, provider: form.provider },
-        form.service_type
-    );
+const testConnection = () => {
+    executeTest({ ...form }, form.service_type as AIServiceType);
 };
 
 const handleTest = (config: any) => {
-    executeTest(
-        { base_url: config.base_url, api_key: config.api_key, model: config.model, provider: config.provider },
-        config.service_type
-    );
-};
-
-// 处理资源 URL
-const getResourceUrl = (url: string) => {
-    if (!url) return '';
-    if (url.startsWith('http') || url.startsWith('data:')) return url;
-    const baseUrl = (import.meta.env.VITE_APP_RESOURCE_URL || '').replace(/\/$/, '');
-    return `${baseUrl}/${url.replace(/^\//, '')}`;
+    executeTest({ ...config }, config.service_type as AIServiceType);
 };
 </script>
 
@@ -530,12 +427,6 @@ const getResourceUrl = (url: string) => {
     align-items: center;
     border-bottom: 1px solid var(--td-component-stroke);
     padding-bottom: 12px;
-}
-
-:deep(.t-form__help) {
-    margin-top: 4px;
-    line-height: 1.4;
-    color: var(--td-text-color-placeholder);
 }
 
 .polling-container {

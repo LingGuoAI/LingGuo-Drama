@@ -55,7 +55,7 @@ func (c *DoubaoClient) GenerateImage(req ImageRequest) ([]string, error) {
 	if n <= 0 {
 		n = 1
 	}
-
+	fmt.Println("req-------", req.Size)
 	// 1920 * 1920 = 3686400
 	// 2560 * 1440 = 3686400
 	size := req.Size
