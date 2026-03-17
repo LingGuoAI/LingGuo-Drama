@@ -28,8 +28,8 @@ func CharactersSave(data interface{}, c *gin.Context) map[string][]string {
 		"roleType":       []string{"max:50"},
 		"gender":         []string{"max:20"},
 		"ageGroup":       []string{"max:50"},
-		"personality":    []string{"max:255"},
-		"appearanceDesc": []string{"max:255"},
+		"personality":    []string{"max:10000"},
+		"appearanceDesc": []string{"max:10000"},
 		"avatarUrl":      []string{"max:1024"},
 		"voiceId":        []string{"max:100"},
 	}
