@@ -57,7 +57,7 @@ func CharactersSave(data interface{}, c *gin.Context) map[string][]string {
 			"max:性格描述长度不能超过 255 个字符",
 		},
 		"appearanceDesc": []string{
-			"max:外貌长文本描述(原appearance)长度不能超过 255 个字符",
+			"max:外貌长文本描述(原appearance)长度不能超过 10000 个字符",
 		},
 		"avatarUrl": []string{
 			"max:头像/定妆照长度不能超过 1024 个字符",
