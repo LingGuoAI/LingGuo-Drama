@@ -7,9 +7,10 @@ import (
 
 // ProjectsRequest 短剧项目请求结构体
 type ProjectsRequest struct {
-	SerialNo      string `valid:"serialNo" json:"serialNo"`           // 业务流水号
-	Title         string `valid:"title" json:"title" `                // 项目名称/短剧标题
-	Description   string `valid:"description" json:"description"`     // 项目简介
+	SerialNo      string `valid:"serialNo" json:"serialNo"`       // 业务流水号
+	Title         string `valid:"title" json:"title" `            // 项目名称/短剧标题
+	Description   string `valid:"description" json:"description"` // 项目简介
+	Style         string `valid:"style" json:"style"`
 	Status        int8   `valid:"status" json:"status" `              // 状态
 	Image         string `valid:"image" json:"image"`                 // 封面图
 	TotalDuration uint64 `valid:"totalDuration" json:"totalDuration"` // 总时长(秒)

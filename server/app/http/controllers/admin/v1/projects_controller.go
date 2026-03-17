@@ -138,6 +138,7 @@ func (ctrl *ProjectsController) Store(c *gin.Context) {
 		SerialNo:      &request.SerialNo,
 		Title:         &request.Title,
 		Description:   &request.Description,
+		Style:         &request.Style,
 		Status:        &request.Status,
 		Image:         &request.Image,
 		TotalDuration: &request.TotalDuration,
@@ -198,6 +199,7 @@ func (ctrl *ProjectsController) Update(c *gin.Context) {
 	updateProjects.SerialNo = &request.SerialNo
 	updateProjects.Title = &request.Title
 	updateProjects.Description = &request.Description
+	updateProjects.Style = &request.Style
 	updateProjects.Status = &request.Status
 	updateProjects.Image = &request.Image
 	updateProjects.TotalDuration = &request.TotalDuration
