@@ -96,7 +96,7 @@
                                         name="user-search" /></template>从剧本智能提取</t-button>
                             <t-button theme="primary" variant="outline" :disabled="selectedCharacterIds.length === 0"
                                 :loading="batchGenerating" @click="batchGenerateCharacterImages"><template #icon><t-icon
-                                        name="magic" /></template>批量生成选中形象</t-button>
+                                        name="image" /></template>批量生成选中形象</t-button>
                             <t-button theme="success" @click="nextStep" :disabled="!allCharactersHaveImages">下一步：分镜拆解
                                 <template #suffix><t-icon name="chevron-right" /></template></t-button>
                         </div>
@@ -219,7 +219,7 @@
                                                     <t-button variant="text" theme="primary" size="small" block
                                                         @click="generateSceneImage(scene)"
                                                         :disabled="generatingSceneIds.includes(scene.id)">
-                                                        <template #icon><t-icon name="magic" /></template>
+                                                        <template #icon><t-icon name="image" /></template>
                                                     </t-button>
                                                 </t-tooltip>
                                             </t-col>

@@ -9,7 +9,7 @@
                     <div class="title-row">
                         <span class="title">{{ project.title || '加载中...' }}</span>
                         <t-tag :theme="getStatusTheme(project.status)" variant="light">{{ getStatusText(project.status)
-                            }}</t-tag>
+                        }}</t-tag>
                     </div>
                     <div class="desc">创建时间: {{ formatDate(project.createdAt) }}</div>
                 </div>
@@ -37,11 +37,11 @@
                                     <t-descriptions :column="1" layout="vertical">
                                         <t-descriptions-item label="项目名称">{{ project.title }}</t-descriptions-item>
                                         <t-descriptions-item label="剧情简介">{{ project.description || '暂无简介'
-                                            }}</t-descriptions-item>
+                                        }}</t-descriptions-item>
                                         <t-descriptions-item label="视频比例">{{ getRatioLabel(project.settings)
-                                            }}</t-descriptions-item>
+                                        }}</t-descriptions-item>
                                         <t-descriptions-item label="总时长">{{ formatDuration(project.totalDuration)
-                                            }}</t-descriptions-item>
+                                        }}</t-descriptions-item>
                                     </t-descriptions>
                                 </t-card>
 
@@ -107,7 +107,7 @@
                                 </t-button>
                                 <t-button theme="default" variant="outline" :disabled="selectedCharIds.length === 0"
                                     @click="batchGenerate('char')" :loading="batchGeneratingChar">
-                                    <template #icon><t-icon name="magic" /></template>批量生图
+                                    <template #icon><t-icon name="image" /></template>批量生图
                                 </t-button>
                             </div>
 
@@ -141,7 +141,7 @@
                                         <t-tooltip content="AI生成形象">
                                             <t-button shape="circle" theme="success" size="small"
                                                 @click="singleGenerate('char', char)">
-                                                <t-icon name="magic" />
+                                                <t-icon name="image" />
                                             </t-button>
                                         </t-tooltip>
 
@@ -176,7 +176,7 @@
                                             name="image" /></template>添加场景</t-button>
                                 <t-button theme="default" variant="outline" :disabled="selectedSceneIds.length === 0"
                                     @click="batchGenerate('scene')" :loading="batchGeneratingScene">
-                                    <template #icon><t-icon name="magic" /></template>批量生图
+                                    <template #icon><t-icon name="image" /></template>批量生图
                                 </t-button>
                             </div>
 
@@ -210,7 +210,7 @@
                                         <t-tooltip content="AI生成图片">
                                             <t-button shape="circle" theme="success" size="small"
                                                 @click="singleGenerate('scene', scene)">
-                                                <t-icon name="magic" />
+                                                <t-icon name="image" />
                                             </t-button>
                                         </t-tooltip>
 
@@ -248,7 +248,7 @@
                                 </t-button>
                                 <t-button theme="default" variant="outline" :disabled="selectedPropIds.length === 0"
                                     @click="batchGenerate('prop')" :loading="batchGeneratingProp">
-                                    <template #icon><t-icon name="magic" /></template>批量生图
+                                    <template #icon><t-icon name="image" /></template>批量生图
                                 </t-button>
                             </div>
 
@@ -282,7 +282,7 @@
                                         <t-tooltip content="AI生成图片">
                                             <t-button shape="circle" theme="success" size="small"
                                                 @click="singleGenerate('prop', prop)">
-                                                <template #icon><t-icon name="magic" /></template>
+                                                <template #icon><t-icon name="image" /></template>
                                             </t-button>
                                         </t-tooltip>
 

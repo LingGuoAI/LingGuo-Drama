@@ -49,6 +49,7 @@ func IsExist(field string, value uint64) bool {
 func Paginate(c *gin.Context, perPage int, filters map[string]interface{}) (scripts []Scripts, paging paginator.Paging) {
 	// 构建带关联预加载的查询
 	query := database.DB.Model(Scripts{}).
+		Select("scripts.*, (SELECT COUNT(*) FROM shots WHERE shots.script_id = scripts.id) as shots_count").
 		Preload("Projectss", func(db *gorm.DB) *gorm.DB {
 			// 只加载关联表的必要字段
 			fields := []string{"id", "admin_id", "serial_no", "title"}
