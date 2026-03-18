@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"spiritFruit/app/models/async_tasks"
 	"spiritFruit/app/models/characters"
+	"spiritFruit/app/models/projects"
 	"spiritFruit/app/models/props"
 	"spiritFruit/app/models/scenes"
 	"spiritFruit/app/models/scripts"
@@ -94,46 +95,77 @@ func (ctrl *AiController) ExtractScenes(c *gin.Context) {
 
 // GenerateCharacterImage 生成角色图片
 func (ctrl *AiController) GenerateCharacterImage(c *gin.Context) {
-	// 1. 定义简易请求参数 (或者在 requests 包中定义验证器)
+	// 1. 定义请求参数
 	type Req struct {
 		CharacterID uint64 `json:"characterId" binding:"required"`
 	}
 	var req Req
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Abort500(c, "参数错误")
+		response.Abort500(c, "参数错误: "+err.Error())
 		return
 	}
 
-	// 2. 查询角色信息以获取 visualPrompt
+	// 2. 查询角色信息
 	var char characters.Characters
 	if err := database.DB.First(&char, req.CharacterID).Error; err != nil {
 		response.Abort500(c, "角色不存在")
 		return
 	}
 
-	prompt := ""
-	if char.VisualPrompt != nil {
-		prompt = *char.VisualPrompt
-	}
-	if prompt == "" {
-		// 如果没有 visualPrompt，使用外观描述回退
-		if char.AppearanceDesc != nil {
-			prompt = *char.AppearanceDesc
-		} else {
-			response.Abort500(c, "角色缺少外貌描述，无法生成")
-			return
-		}
-	}
-
-	// 确保 ProjectId 存在
+	// 初始化 ProjectId
 	projectID := uint64(0)
 	if char.ProjectId != nil {
 		projectID = *char.ProjectId
 	}
 
+	projectStyle := ""
+	// 只有当角色归属于某个项目时，才去查询项目风格
+	if projectID > 0 {
+		var proj projects.Projects
+		// 尝试查询项目信息
+		if err := database.DB.Select("style").First(&proj, projectID).Error; err == nil {
+			// 如果查询成功且 Style 字段不为 nil，获取其值
+			if proj.Style != nil {
+				projectStyle = *proj.Style
+			}
+		} else {
+			// 这里可以选择记录日志，或者视作非致命错误继续
+			fmt.Printf("Warning: Failed to load project style for character %d: %v\n", req.CharacterID, err)
+		}
+	}
+
+	// --- 确定基础描述 (VisualPrompt 或 AppearanceDesc) ---
+	basePrompt := ""
+	if char.VisualPrompt != nil && *char.VisualPrompt != "" {
+		basePrompt = *char.VisualPrompt
+	} else if char.AppearanceDesc != nil && *char.AppearanceDesc != "" {
+		// 如果没有专门的视觉提示词，回退到外观描述
+		basePrompt = *char.AppearanceDesc
+	}
+
+	// 如果两项描述都为空，则无法生成
+	if basePrompt == "" {
+		response.Abort500(c, "角色缺少外貌描述或视觉提示词，无法生成")
+		return
+	}
+
+	// --- 组合最终提示词 ---
+	finalPrompt := ""
+	if projectStyle != "" {
+		// 如果有项目风格，将其作为高质量前缀，用逗号分隔
+		finalPrompt = fmt.Sprintf("%s, %s", projectStyle, basePrompt)
+	} else {
+		finalPrompt = basePrompt
+	}
+
+	// 记录一下最终的提示词，方便调试
+	fmt.Printf("Final generated prompt for char %d: %s\n", req.CharacterID, finalPrompt)
+
+	// --- 优化部分结束 ---
+
 	// 3. 调用 Service 创建任务
 	taskService := new(services.TaskService)
-	task, err := taskService.CreateImageGenerationTask(projectID, req.CharacterID, prompt)
+	task, err := taskService.CreateImageGenerationTask(projectID, req.CharacterID, finalPrompt)
 
 	if err != nil {
 		response.Abort500(c, "任务启动失败: "+err.Error())
@@ -142,7 +174,7 @@ func (ctrl *AiController) GenerateCharacterImage(c *gin.Context) {
 
 	// 4. 返回结果
 	response.JSON(c, gin.H{
-		"status":  200,
+		"code":    200,
 		"message": "图片生成任务已在后台运行",
 		"data": map[string]interface{}{
 			"task_id": task.ID,

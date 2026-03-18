@@ -3,6 +3,7 @@ package jwt
 
 import (
 	"errors"
+	"fmt"
 	"spiritFruit/pkg/app"
 	"spiritFruit/pkg/config"
 	"spiritFruit/pkg/logger"
@@ -133,10 +134,10 @@ func (jwt *JWT) IssueAdminToken(adminID string, adminName string) string {
 		adminName,
 		expireAtTime,
 		jwtpkg.StandardClaims{
-			NotBefore: app.TimeNowInTimezone().Unix(), // 签名生效时间
-			IssuedAt:  app.TimeNowInTimezone().Unix(), // 首次签名时间（后续刷新 Token 不会更新）
-			ExpiresAt: expireAtTime,                   // 签名过期时间
-			Issuer:    config.GetString("app.name"),   // 签名颁发者
+			NotBefore: app.TimeNowInTimezone().Unix() - 60, // 签名生效时间
+			IssuedAt:  app.TimeNowInTimezone().Unix(),      // 首次签名时间（后续刷新 Token 不会更新）
+			ExpiresAt: expireAtTime,                        // 签名过期时间
+			Issuer:    config.GetString("app.name"),        // 签名颁发者
 		},
 	}
 
@@ -187,12 +188,17 @@ func (jwt *JWT) createToken(claims JWTCustomClaims) (string, error) {
 // expireAtTime 过期时间
 func (jwt *JWT) expireAtTime() int64 {
 	timeNow := app.TimeNowInTimezone()
-
 	var expireTime int64
+
 	if config.GetBool("app.debug") {
 		expireTime = config.GetInt64("jwt.debug_expire_time")
 	} else {
 		expireTime = config.GetInt64("jwt.expire_time")
+	}
+	fmt.Printf("Current Token Expire Minutes: %d\n", expireTime)
+	// 强制兜底：如果读取配置为 0，给一个默认 120 分钟
+	if expireTime == 0 {
+		expireTime = 120
 	}
 
 	expire := time.Duration(expireTime) * time.Minute
