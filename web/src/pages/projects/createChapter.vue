@@ -8,7 +8,7 @@
                 <div class="header-title">
                     <span class="title">{{ project?.title || '加载中...' }}</span>
                     <t-tag :theme="getStatusTheme(project?.status)" variant="light">{{ getStatusText(project?.status)
-                        }}</t-tag>
+                    }}</t-tag>
                 </div>
             </div>
             <div class="header-center">
@@ -151,15 +151,25 @@
                     <template #header>
                         <div class="card-header-flex">
                             <div class="header-info">
+
                                 <t-icon name="film" size="24px" style="color: var(--td-brand-color)" />
                                 <span class="title">场景与分镜</span>
                             </div>
                             <div class="header-actions">
+                                <div v-if="isShotTaskRunning"
+                                    style="width: 120px; margin-right: 10px; display: flex; align-items: center;">
+                                    <t-progress theme="line" :percentage="shotProcessPercent" :label="false" />
+                                    <span style="font-size: 12px; margin-left: 8px; color: var(--td-brand-color);">{{
+                                        shotProcessPercent }}%</span>
+                                </div>
+
                                 <t-button theme="warning" variant="outline" @click="handleExtractScenes"
-                                    :loading="extractingScenes">
+                                    :loading="extractingScenes" :disabled="isShotTaskRunning">
                                     <template #icon><t-icon name="image" /></template> 提取场景
                                 </t-button>
-                                <t-button theme="default" @click="regenerateShots" :disabled="!shotList?.length">
+
+                                <t-button theme="default" @click="regenerateShots"
+                                    :disabled="!shotList?.length || isShotTaskRunning">
                                     <template #icon><t-icon name="refresh" /></template> 重新拆分
                                 </t-button>
                             </div>
@@ -247,7 +257,7 @@
                                             <t-tag size="small" variant="light" theme="primary" v-if="row.shotType">{{
                                                 row.shotType }}</t-tag>
                                             <t-tag size="small" variant="outline" v-if="row.angle">{{ row.angle
-                                                }}</t-tag>
+                                            }}</t-tag>
                                             <t-tag size="small" variant="outline" v-if="row.cameraMovement">{{
                                                 row.cameraMovement }}</t-tag>
                                         </t-space>
@@ -285,10 +295,18 @@
                                     </template>
                                 </t-table>
 
-                                <div class="step-actions mt-4">
-                                    <t-button theme="default" @click="prevStep">上一步</t-button>
-                                    <t-button theme="success" @click="goToScriptEditor" size="large">
-                                        进入专业制作 <template #icon><t-icon name="arrow-right" /></template>
+                                <div class="step-actions mt-4" v-if="shotList.length > 0">
+                                    <t-button theme="default" @click="prevStep" :disabled="isShotTaskRunning">
+                                        上一步
+                                    </t-button>
+
+                                    <t-button theme="success" @click="goToScriptEditor" size="large"
+                                        :disabled="isShotTaskRunning">
+                                        {{ isShotTaskRunning ? `AI 拆解中 (${shotProcessPercent}%)...` : '进入专业制作' }}
+
+                                        <template #icon v-if="!isShotTaskRunning">
+                                            <t-icon name="arrow-right" />
+                                        </template>
                                     </t-button>
                                 </div>
                             </div>
@@ -496,6 +514,11 @@ const allCharactersHaveImages = computed(() => characterList.value.length > 0 &&
 const checkAllScenes = computed(() => sceneList.value.length > 0 && selectedSceneIds.value.length === sceneList.value.length)
 const isSceneIndeterminate = computed(() => selectedSceneIds.value.length > 0 && selectedSceneIds.value.length < sceneList.value.length)
 
+// 记录分镜拆解的实时进度
+const shotProcessPercent = ref(100) // 默认 100，表示没有任务在运行
+// 是否正在进行分镜相关的 AI 任务
+const isShotTaskRunning = computed(() => shotProcessPercent.value < 100 || generatingShots.value)
+
 // 场景下拉列表
 const sceneOptions = computed(() => sceneList.value.map(s => ({ label: s.name, value: s.id })))
 // 列表展示中获取场景名
@@ -505,21 +528,35 @@ const getSceneName = (id: number) => {
 }
 
 // ========== 3. 工具函数 ==========
-const pollTask = async (taskId: string, onSuccess: () => void, onFail: () => void) => {
+const pollTask = async (
+    taskId: string,
+    onSuccess: () => void,
+    onFail: () => void,
+    onProgress?: (percent: number) => void
+) => {
     const timer = setInterval(async () => {
         try {
             const res = await findTasks(taskId)
             const data = res.data?.data || res.data
             const status = data?.status
-            if (status === 'completed' || status === 2) {
+            const percent = data?.process || 0 // 🔴 获取后端返回的 process 字段
+
+            // 执行进度回调
+            if (onProgress) onProgress(percent)
+
+            if (status === 'completed' || status === 2 || percent >= 100) {
                 clearInterval(timer)
+                if (onProgress) onProgress(100)
                 onSuccess()
             } else if (status === 'failed' || status === 3) {
                 clearInterval(timer)
                 MessagePlugin.error(data?.error || '任务执行失败')
                 onFail()
             }
-        } catch { clearInterval(timer); onFail() }
+        } catch (e) {
+            clearInterval(timer)
+            onFail()
+        }
     }, 2000)
 }
 const formatTime = (val: string) => dayjs(val).format('YYYY-MM-DD HH:mm')
@@ -711,22 +748,40 @@ const handleExtractScenes = async () => {
 
 const generateShots = async () => {
     if (!currentScriptData.value?.id) return MessagePlugin.warning('请先保存剧本')
+
     generatingShots.value = true
+    shotProcessPercent.value = 0 // 重置进度
+
     try {
         const res = await generateShotsTask({ scriptId: currentScriptData.value.id })
         const taskId = res.data?.data?.task_id || res.data?.taskId || res.data?.task_id
+
         if (taskId) {
-            MessagePlugin.loading('AI 正在拆分镜头，请稍候...')
-            pollTask(taskId,
+            MessagePlugin.info('AI 正在拆分镜头，请稍候...')
+            pollTask(
+                taskId,
                 () => {
                     generatingShots.value = false
+                    shotProcessPercent.value = 100
                     MessagePlugin.success('分镜拆解完成')
                     loadShots(currentScriptData.value.id)
                 },
-                () => { generatingShots.value = false; MessagePlugin.error('分镜拆解失败') }
+                () => {
+                    generatingShots.value = false
+                    shotProcessPercent.value = 100 // 失败也重置，允许重新操作
+                },
+                (p) => {
+                    shotProcessPercent.value = p // 🔴 更新实时进度
+                }
             )
-        } else { MessagePlugin.error('任务提交失败'); generatingShots.value = false }
-    } catch { generatingShots.value = false; MessagePlugin.error('请求异常') }
+        } else {
+            generatingShots.value = false
+            shotProcessPercent.value = 100
+        }
+    } catch {
+        generatingShots.value = false
+        shotProcessPercent.value = 100
+    }
 }
 
 // 隐藏弹窗避免卡顿
