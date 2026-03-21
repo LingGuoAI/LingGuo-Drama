@@ -45,9 +45,16 @@ func HandleGenerateSceneImage(ctx context.Context, t *asynq.Task) error {
 		Provider: config.GetString("ai.provider", "openai"),
 
 		// OpenAI 配置
-		OpenAIBaseURL: config.GetString("ai.openai.base_url"),
-		OpenAIKey:     config.GetString("ai.openai.api_key"),
-		OpenAIModel:   config.GetString("ai.openai.model"),
+		OpenAIBaseURL:    config.GetString("ai.openai.base_url"),
+		OpenAIKey:        config.GetString("ai.openai.api_key"),
+		OpenAIModel:      config.GetString("ai.openai.model"),
+		OpenAIImageModel: config.GetString("ai.openai.image_model", "dall-e-3"),
+
+		// GetGoAPI 配置 (新增)
+		GetGoAPIBaseURL:    config.GetString("ai.getgoapi.base_url"),
+		GetGoAPIKey:        config.GetString("ai.getgoapi.api_key"),
+		GetGoAPIModel:      config.GetString("ai.getgoapi.model"),
+		GetGoAPIImageModel: config.GetString("ai.getgoapi.image_model", "gpt-4o-image"),
 
 		// Gemini 配置
 		GeminiBaseURL: config.GetString("ai.gemini.base_url"),
@@ -81,15 +88,23 @@ func HandleGenerateSceneImage(ctx context.Context, t *asynq.Task) error {
 			modelName = dbConfig.Model[0]
 		}
 
-		// 动态覆盖兜底配置 (针对图片模型字段)
 		switch providerName {
-		case "openai", "getgoapi":
+		case "getgoapi":
+			aiConfig.Provider = "getgoapi"
+			aiConfig.GetGoAPIBaseURL = baseURL
+			aiConfig.GetGoAPIKey = apiKey
+			if modelName != "" {
+				aiConfig.GetGoAPIImageModel = modelName
+			}
+
+		case "openai":
 			aiConfig.Provider = "openai"
 			aiConfig.OpenAIBaseURL = baseURL
 			aiConfig.OpenAIKey = apiKey
 			if modelName != "" {
-				aiConfig.OpenAIModel = modelName
+				aiConfig.OpenAIImageModel = modelName
 			}
+
 		case "gemini", "google":
 			aiConfig.Provider = "gemini"
 			aiConfig.GeminiBaseURL = baseURL
@@ -97,25 +112,29 @@ func HandleGenerateSceneImage(ctx context.Context, t *asynq.Task) error {
 			if modelName != "" {
 				aiConfig.GeminiModel = modelName
 			}
-		case "doubao", "volcengine":
+
+		case "doubao", "volcengine", "volces":
 			aiConfig.Provider = "doubao"
 			aiConfig.DoubaoBaseURL = baseURL
 			aiConfig.DoubaoKey = apiKey
 			if modelName != "" {
-				aiConfig.DoubaoImageModel = modelName // 赋值给图片模型字段
+				aiConfig.DoubaoImageModel = modelName // 赋值给豆包图片模型字段
 			}
+
 		case "vertex":
 			aiConfig.Provider = "vertex"
 			aiConfig.VertexKey = apiKey
 			if modelName != "" {
-				aiConfig.VertexImageModel = modelName // 赋值给图片模型字段
+				aiConfig.VertexImageModel = modelName // 赋值给 Vertex 图片模型字段
 			}
+
 		default:
+			// 兜底逻辑
 			aiConfig.Provider = "openai"
 			aiConfig.OpenAIBaseURL = baseURL
 			aiConfig.OpenAIKey = apiKey
 			if modelName != "" {
-				aiConfig.OpenAIModel = modelName
+				aiConfig.OpenAIImageModel = modelName
 			}
 		}
 

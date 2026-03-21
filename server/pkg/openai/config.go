@@ -2,12 +2,19 @@ package openai
 
 // Config AI 全局配置
 type Config struct {
-	Provider string // "openai", "gemini" 或 "doubao"
+	Provider string // "openai", "gemini", "doubao" 或 "getgoapi"
 
 	// OpenAI 配置
-	OpenAIBaseURL string
-	OpenAIKey     string
-	OpenAIModel   string
+	OpenAIBaseURL    string
+	OpenAIKey        string
+	OpenAIModel      string // 默认文本模型
+	OpenAIImageModel string // 生图专用模型字段 (如 dall-e-3)
+
+	// GetGoAPI 配置 (用于中转渠道)
+	GetGoAPIBaseURL    string
+	GetGoAPIKey        string
+	GetGoAPIModel      string // GetGo 文本模型 (如 gpt-4o)
+	GetGoAPIImageModel string // GetGo 生图模型 (如 gpt-4o-image)
 
 	// Gemini 配置
 	GeminiBaseURL string

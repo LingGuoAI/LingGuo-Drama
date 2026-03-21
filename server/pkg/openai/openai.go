@@ -51,7 +51,7 @@ func (c *OpenAIClient) GenerateScript(req ScriptRequest) (string, error) {
 // GenerateImage 实现 GenerateImage (支持 DALL-E 3/2)
 func (c *OpenAIClient) GenerateImage(req ImageRequest) ([]string, error) {
 	// 1. 设置默认值与构建请求体
-	model := c.Config.OpenAIModel
+	model := c.Config.OpenAIImageModel
 	if model == "" {
 		model = "dall-e-3" // 默认使用 DALL-E 3
 	}

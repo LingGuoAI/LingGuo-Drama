@@ -129,4 +129,5 @@ type MergeVideoPayload struct {
 	EpisodeID   uint64      `json:"episode_id"` // 剧集/脚本ID
 	Title       string      `json:"title"`
 	Clips       []MergeClip `json:"clips"`
+	AspectRatio string      `json:"aspect_ratio"`
 }

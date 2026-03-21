@@ -15,6 +15,7 @@ import (
 	"spiritFruit/pkg/openai"
 	"spiritFruit/pkg/prompt"
 	"spiritFruit/pkg/utils"
+	"strings"
 
 	"github.com/hibiken/asynq"
 )
@@ -86,9 +87,16 @@ func HandleGenerateCharacters(ctx context.Context, t *asynq.Task) error {
 		Provider: config.GetString("ai.provider", "openai"),
 
 		// OpenAI 配置
-		OpenAIBaseURL: config.GetString("ai.openai.base_url"),
-		OpenAIKey:     config.GetString("ai.openai.api_key"),
-		OpenAIModel:   config.GetString("ai.openai.model"),
+		OpenAIBaseURL:    config.GetString("ai.openai.base_url"),
+		OpenAIKey:        config.GetString("ai.openai.api_key"),
+		OpenAIModel:      config.GetString("ai.openai.model"),
+		OpenAIImageModel: config.GetString("ai.openai.image_model", "dall-e-3"),
+
+		// GetGoAPI 配置
+		GetGoAPIBaseURL:    config.GetString("ai.getgoapi.base_url"),
+		GetGoAPIKey:        config.GetString("ai.getgoapi.api_key"),
+		GetGoAPIModel:      config.GetString("ai.getgoapi.model"),
+		GetGoAPIImageModel: config.GetString("ai.getgoapi.image_model", "gpt-4o-image"),
 
 		// Gemini 配置
 		GeminiBaseURL: config.GetString("ai.gemini.base_url"),
@@ -106,16 +114,13 @@ func HandleGenerateCharacters(ctx context.Context, t *asynq.Task) error {
 		VertexModel:      config.GetString("ai.vertex.model"),
 		VertexImageModel: config.GetString("ai.vertex.image_model"),
 	}
-	if aiConfig.OpenAIModel == "" {
-		aiConfig.OpenAIModel = "gpt-4-turbo"
-	}
 
-	// 2. 尝试从数据库加载优先级最高的 text 配置
+	// 2. 尝试从数据库加载优先级最高的 text (文本) 配置
 	aiService := new(services.AiConfigService)
 	errConfig, dbConfig := aiService.GetActiveConfigByType("text")
 
 	if errConfig == nil && dbConfig.ID > 0 {
-		providerName := *dbConfig.Provider
+		providerName := strings.ToLower(*dbConfig.Provider)
 		baseURL := *dbConfig.BaseUrl
 		apiKey := *dbConfig.ApiKey
 
@@ -127,14 +132,22 @@ func HandleGenerateCharacters(ctx context.Context, t *asynq.Task) error {
 
 		// 动态覆盖兜底配置
 		switch providerName {
-		case "openai", "getgoapi":
-			// getgoapi 等中转站底层走的都是 OpenAI 标准客户端库，故 Provider 强转为 openai
+		case "getgoapi":
+			aiConfig.Provider = "getgoapi"
+			aiConfig.GetGoAPIBaseURL = baseURL
+			aiConfig.GetGoAPIKey = apiKey
+			if modelName != "" {
+				aiConfig.GetGoAPIModel = modelName
+			}
+
+		case "openai":
 			aiConfig.Provider = "openai"
 			aiConfig.OpenAIBaseURL = baseURL
 			aiConfig.OpenAIKey = apiKey
 			if modelName != "" {
 				aiConfig.OpenAIModel = modelName
 			}
+
 		case "gemini", "google":
 			aiConfig.Provider = "gemini"
 			aiConfig.GeminiBaseURL = baseURL
@@ -142,21 +155,24 @@ func HandleGenerateCharacters(ctx context.Context, t *asynq.Task) error {
 			if modelName != "" {
 				aiConfig.GeminiModel = modelName
 			}
-		case "doubao", "volcengine":
+
+		case "doubao", "volcengine", "volces":
 			aiConfig.Provider = "doubao"
 			aiConfig.DoubaoBaseURL = baseURL
 			aiConfig.DoubaoKey = apiKey
 			if modelName != "" {
 				aiConfig.DoubaoModel = modelName
 			}
+
 		case "vertex":
 			aiConfig.Provider = "vertex"
 			aiConfig.VertexKey = apiKey
 			if modelName != "" {
 				aiConfig.VertexModel = modelName
 			}
+
 		default:
-			// 未知提供商时，默认当作 OpenAI 格式兼容处理
+			// 兜底当作 OpenAI 协议处理
 			aiConfig.Provider = "openai"
 			aiConfig.OpenAIBaseURL = baseURL
 			aiConfig.OpenAIKey = apiKey
@@ -165,9 +181,9 @@ func HandleGenerateCharacters(ctx context.Context, t *asynq.Task) error {
 			}
 		}
 
-		console.Success(fmt.Sprintf("任务[%d] - 成功挂载数据库 AI 动态配置: Provider=%s, Model=%s", p.AsyncTaskID, providerName, modelName))
+		console.Success(fmt.Sprintf("任务[%d] - 成功挂载数据库 AI 文本配置: Provider=%s, Model=%s", p.AsyncTaskID, providerName, modelName))
 	} else {
-		console.Warning(fmt.Sprintf("任务[%d] - 未命中数据库 AI 配置，将降级使用 .env 默认配置", p.AsyncTaskID))
+		console.Warning(fmt.Sprintf("任务[%d] - 未命中数据库 AI 文本配置，将降级使用 .env 默认配置", p.AsyncTaskID))
 	}
 
 	aiProvider := openai.NewProvider(aiConfig)

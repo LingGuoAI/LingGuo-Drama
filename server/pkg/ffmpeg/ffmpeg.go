@@ -29,8 +29,9 @@ type VideoClip struct {
 
 // MergeOptions 合并选项
 type MergeOptions struct {
-	OutputPath string
-	Clips      []VideoClip
+	OutputPath  string
+	Clips       []VideoClip
+	AspectRatio string
 }
 
 // New 创建一个新的 FFmpeg 客户端
@@ -93,7 +94,7 @@ func (c *Client) MergeVideos(opts *MergeOptions) (string, error) {
 		downloadedPaths = append(downloadedPaths, localPath)
 
 		trimmedPath := filepath.Join(c.tempDir, fmt.Sprintf("trimmed_%d_%d.mp4", time.Now().Unix(), i))
-		err = c.trimAndNormalizeVideo(localPath, trimmedPath, clip.StartTime, clip.EndTime)
+		err = c.trimAndNormalizeVideo(localPath, trimmedPath, clip.StartTime, clip.EndTime, opts.AspectRatio)
 		if err != nil {
 			c.cleanupFiles(downloadedPaths)
 			c.cleanupFiles(trimmedPaths)
@@ -120,14 +121,29 @@ func (c *Client) MergeVideos(opts *MergeOptions) (string, error) {
 	return opts.OutputPath, nil
 }
 
-// trimAndNormalizeVideo 裁剪并标准化（统一音频参数解决无声问题）
-func (c *Client) trimAndNormalizeVideo(inputPath, outputPath string, startTime, endTime float64) error {
+// trimAndNormalizeVideo 裁剪并标准化（统一音视频参数、强制画幅规范防止变形）
+func (c *Client) trimAndNormalizeVideo(inputPath, outputPath string, startTime, endTime float64, aspectRatio string) error {
+	maxWidth, maxHeight := 1280, 720
+	if aspectRatio == "9:16" || aspectRatio == "9/16" {
+		maxWidth, maxHeight = 720, 1280
+	} else if aspectRatio == "16:9" || aspectRatio == "16/9" {
+		maxWidth, maxHeight = 1280, 720
+	} else {
+		w, h := c.getVideoResolution(inputPath)
+		if w > 0 {
+			maxWidth, maxHeight = w, h
+		}
+	}
+
+	filter := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2", maxWidth, maxHeight, maxWidth, maxHeight)
+
 	args := []string{"-i", inputPath}
 	if endTime > startTime && endTime > 0 {
 		args = append(args, "-ss", fmt.Sprintf("%.2f", startTime), "-to", fmt.Sprintf("%.2f", endTime))
 	}
 
 	args = append(args,
+		"-vf", filter,
 		"-c:v", "libx264",
 		"-pix_fmt", "yuv420p",
 		"-c:a", "aac",

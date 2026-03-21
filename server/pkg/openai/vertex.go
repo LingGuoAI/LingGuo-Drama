@@ -43,8 +43,6 @@ func (c *VertexClient) GenerateScript(req ScriptRequest) (string, error) {
 		return "", fmt.Errorf("VERTEX_API_KEY is required for vertex ai")
 	}
 
-	// 2. 🔴 按照你截图中的官方最新 API 格式拼接 (无需 ProjectID 和 Region)
-	// 例如: https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-1.5-pro:generateContent?key=xxx
 	url := fmt.Sprintf("https://aiplatform.googleapis.com/v1/publishers/google/models/%s:generateContent?key=%s",
 		model, apiKey)
 

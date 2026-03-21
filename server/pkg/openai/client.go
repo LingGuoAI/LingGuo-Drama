@@ -37,8 +37,9 @@ func initGlobalHTTPClient() {
 // NewProvider 工厂方法：根据配置返回对应的实现
 func NewProvider(cfg Config) Provider {
 	once.Do(func() { initGlobalHTTPClient() })
-
 	switch cfg.Provider {
+	case "getgoapi":
+		return &GetGoAPIClient{Config: cfg, client: globalHTTPClient}
 	case "gemini":
 		return &GeminiClient{Config: cfg, client: globalHTTPClient}
 	case "doubao", "volces":

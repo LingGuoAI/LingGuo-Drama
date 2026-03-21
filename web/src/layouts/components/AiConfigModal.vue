@@ -189,7 +189,7 @@ interface ProviderConfig {
 const providerConfigs: Record<string, ProviderConfig[]> = {
     text: [
         { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4-turbo'] },
-        { id: 'getgoapi', name: 'GetGo API', models: ['gemini-3-flash-preview', 'claude-3-5-sonnet-20240620', 'doubao-seed-1-8-251228'] },
+        { id: 'getgoapi', name: 'GetGo API', models: ['gemini-3-flash-preview', 'claude-sonnet-4-6', 'doubao-seed-1-8-251228'] },
         { id: 'gemini', name: 'Google Gemini', models: ['gemini-1.5-pro', 'gemini-3-flash-preview'] },
     ],
     image: [
@@ -273,7 +273,7 @@ const showCreateDialog = () => {
     resetForm();
     // 恢复默认初始逻辑
     form.provider = 'getgoapi';
-    form.base_url = 'https://api.getgoapi.com/v1';
+    form.base_url = 'http://api.lingguoai.com/v1';
     form.name = generateConfigName('getgoapi', activeTab.value);
     dialogVisible.value = true;
 };
@@ -292,7 +292,7 @@ const handleProviderChange = () => {
     form.model = [];
     // 自动适配 BaseUrl 逻辑
     if (form.provider === 'getgoapi') {
-        form.base_url = 'https://api.getgoapi.com/v1';
+        form.base_url = 'http://api.lingguoai.com/v1';
     } else if (form.provider === 'gemini') {
         form.base_url = 'https://generativelanguage.googleapis.com/v1beta';
     }

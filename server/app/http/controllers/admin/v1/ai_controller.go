@@ -739,31 +739,44 @@ type TestConfigReq struct {
 // helper: 构建测试用的生文/生图配置
 func buildTestAiConfig(req TestConfigReq, serviceType string) openai.Config {
 	aiConfig := openai.Config{
-		Provider: req.Provider,
+		Provider: strings.ToLower(req.Provider),
 	}
+
 	modelName := ""
 	if len(req.Model) > 0 {
 		modelName = req.Model[0]
 	}
 
-	providerName := strings.ToLower(req.Provider)
+	providerName := aiConfig.Provider
+
 	switch providerName {
-	case "openai", "getgoapi":
-		aiConfig.Provider = "openai"
+	case "getgoapi":
+		aiConfig.GetGoAPIBaseURL = req.BaseURL
+		aiConfig.GetGoAPIKey = req.APIKey
+		if serviceType == "image" {
+			aiConfig.GetGoAPIImageModel = modelName
+		} else {
+			aiConfig.GetGoAPIModel = modelName
+		}
+		// 同时也给 OpenAI 字段赋值，以防万一内部有引用
 		aiConfig.OpenAIBaseURL = req.BaseURL
 		aiConfig.OpenAIKey = req.APIKey
-		if serviceType == "text" {
+
+	case "openai":
+		aiConfig.OpenAIBaseURL = req.BaseURL
+		aiConfig.OpenAIKey = req.APIKey
+		if serviceType == "image" {
+			aiConfig.OpenAIImageModel = modelName
+		} else {
 			aiConfig.OpenAIModel = modelName
 		}
+
 	case "gemini", "google":
-		aiConfig.Provider = "gemini"
 		aiConfig.GeminiBaseURL = req.BaseURL
 		aiConfig.GeminiKey = req.APIKey
-		if serviceType == "text" {
-			aiConfig.GeminiModel = modelName
-		}
+		aiConfig.GeminiModel = modelName
+
 	case "doubao", "volcengine", "volces":
-		aiConfig.Provider = "doubao"
 		aiConfig.DoubaoBaseURL = req.BaseURL
 		aiConfig.DoubaoKey = req.APIKey
 		if serviceType == "image" {
@@ -771,19 +784,25 @@ func buildTestAiConfig(req TestConfigReq, serviceType string) openai.Config {
 		} else {
 			aiConfig.DoubaoModel = modelName
 		}
+
 	case "vertex":
-		aiConfig.Provider = "vertex"
 		aiConfig.VertexKey = req.APIKey
 		if serviceType == "image" {
 			aiConfig.VertexImageModel = modelName
 		} else {
 			aiConfig.VertexModel = modelName
 		}
+
 	default:
+		// 默认走 OpenAI 协议
 		aiConfig.Provider = "openai"
 		aiConfig.OpenAIBaseURL = req.BaseURL
 		aiConfig.OpenAIKey = req.APIKey
-		aiConfig.OpenAIModel = modelName
+		if serviceType == "image" {
+			aiConfig.OpenAIImageModel = modelName
+		} else {
+			aiConfig.OpenAIModel = modelName
+		}
 	}
 	return aiConfig
 }
@@ -838,7 +857,6 @@ func (ctrl *AiController) TestImageConfig(c *gin.Context) {
 		N:      1,
 		Size:   "1024x1024",
 	}
-
 	urls, err := aiProvider.GenerateImage(imageReq)
 	if err != nil {
 		response.Abort500(c, "图片模型连接失败: "+err.Error())
@@ -894,7 +912,7 @@ func (ctrl *AiController) TestVideoConfig(c *gin.Context) {
 		testDuration = 4
 	}
 
-	// 🔴 3. 核心修改：在本地数据库创建测试任务记录 (让前端去轮询这个内部ID)
+	// 🔴 3. 在本地数据库创建测试任务记录 (让前端去轮询这个内部ID)
 	task := async_tasks.AsyncTask{
 		ProjectID: 0, // 测试任务，无实际项目归属
 		Type:      "test_video_config",
@@ -911,7 +929,7 @@ func (ctrl *AiController) TestVideoConfig(c *gin.Context) {
 		return
 	}
 
-	// 🔴 5. 核心修改：开启后台协程，轮询算力厂商的任务进度，并回写到我们刚才创建的本地数据库记录中
+	// 🔴 5. 开启后台协程，轮询算力厂商的任务进度，并回写到我们刚才创建的本地数据库记录中
 	go func(internalID uint64, externalID string) {
 		maxAttempts := 150
 		interval := 10 * time.Second
@@ -962,7 +980,7 @@ func (ctrl *AiController) TestVideoConfig(c *gin.Context) {
 		"code":    0,
 		"message": "连接成功",
 		"data": map[string]interface{}{
-			"task_id": task.ID, // 👈 现在返回的是数据库递增主键了，例如: 123
+			"task_id": task.ID,
 			"status":  "任务已提交，正在轮询",
 		},
 	})

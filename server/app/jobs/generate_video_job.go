@@ -162,7 +162,6 @@ func HandleGenerateVideoTask(ctx context.Context, t *asynq.Task) error {
 	// 🔴 使用重构后的辅助函数获取动态配置
 	provider, baseURL, apiKey, finalModel := getProviderConfig(p.Model)
 	console.Success(fmt.Sprintf("任务[%d] - 命中视频配置: Provider=%s, 最终Model=%s", p.AsyncTaskID, provider, finalModel))
-
 	client, err := video.NewClient(provider, baseURL, apiKey, finalModel, "", "")
 	if err != nil {
 		taskModel.MarkAsFailed(err)

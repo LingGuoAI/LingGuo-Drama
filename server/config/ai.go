@@ -9,9 +9,17 @@ func init() {
 			"provider": config.Env("AI_PROVIDER", "openai"),
 
 			"openai": map[string]interface{}{
-				"base_url": config.Env("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-				"api_key":  config.Env("OPENAI_API_KEY", ""),
-				"model":    config.Env("OPENAI_MODEL", "gpt-3.5-turbo"),
+				"base_url":    config.Env("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+				"api_key":     config.Env("OPENAI_API_KEY", ""),
+				"model":       config.Env("OPENAI_MODEL", "gpt-3.5-turbo"),
+				"image_model": config.Env("OPENAI_IMAGE_MODEL", "dall-e-3"),
+			},
+
+			"getgoapi": map[string]interface{}{
+				"base_url":    config.Env("GETGOAPI_BASE_URL", "https://api.lingguoai.com/v1"),
+				"api_key":     config.Env("GETGOAPI_API_KEY", ""),
+				"model":       config.Env("GETGOAPI_MODEL", "gpt-4o"),
+				"image_model": config.Env("GETGOAPI_IMAGE_MODEL", "gpt-4o-image"),
 			},
 
 			"doubao": map[string]interface{}{
@@ -40,11 +48,6 @@ func init() {
 
 			// --- 视频生成大模型配置 ---
 			"video_provider": config.Env("VIDEO_PROVIDER", "getgoapi"),
-
-			"getgoapi": map[string]interface{}{
-				"base_url": config.Env("GETGOAPI_BASE_URL", "https://api.getgoapi.com/v1"),
-				"api_key":  config.Env("GETGOAPI_API_KEY", ""),
-			},
 
 			"volces": map[string]interface{}{
 				"base_url": config.Env("VOLCES_BASE_URL", "https://ark.cn-beijing.volces.com/api"),
