@@ -9,7 +9,7 @@ markdown
 
 **灵果AI (LingGuo AI)** 是一个专注于 **AIGC 视频生成**的开源项目，致力于为创作者提供从“文本到视频 (Text-to-Video)”的一站式解决方案。无论你是想制作跌宕起伏的**AI短剧**，还是想创作画风精美的**AI动漫**，灵果AI 都能通过自动化分镜、角色一致性保持、AI配音与视频合成技术，帮你将创意瞬间转化为视觉盛宴。
 
-[📖 官方文档 (Docs)]() | [🌐 在线体验 (Demo)]() | [💬 加入社区 (Discord/WeChat)]()
+[📖 官方文档 (Docs)]() | [🌐 在线体验 (Demo)](http://www.lingguoai.com/) | [💬 加入社区 (Discord/WeChat)]()
 
 ---
 
