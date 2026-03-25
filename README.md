@@ -228,6 +228,10 @@ server {
 
 ---
 
+## API 配置站点
+
+2 分钟完成配置：[API 聚合站点](https://api.lingguoai.com/pricing)
+
 📢 灵果短剧 (Lingo Short Video) 项目社群
 
 ![灵果短剧交流群二维码](https://img.aiaiapi.com/zhoudao.png)
