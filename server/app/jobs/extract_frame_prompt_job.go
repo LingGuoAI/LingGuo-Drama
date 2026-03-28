@@ -137,7 +137,17 @@ func HandleExtractFramePromptTask(ctx context.Context, t *asynq.Task) error {
 
 	// 2. 尝试从数据库加载优先级最高的 text (文本) 配置
 	aiService := new(services.AiConfigService)
-	errConfig, dbConfig := aiService.GetActiveConfigByType("text")
+	// 如果任务指定了模型，尝试使用特定模型
+	var errConfig error
+	var dbConfig ai_config.AiConfig
+
+	if p.Model != "" {
+		errConfig, dbConfig = aiService.GetSpecificModelConfig("text", "", p.Model, taskModel.AdminID)
+	}
+
+	if p.Model == "" || errConfig != nil {
+		errConfig, dbConfig = aiService.GetActiveConfigByType("text", taskModel.AdminID)
+	}
 
 	if errConfig == nil && dbConfig.ID > 0 {
 		providerName := strings.ToLower(*dbConfig.Provider)

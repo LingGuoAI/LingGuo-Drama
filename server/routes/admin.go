@@ -27,6 +27,7 @@ func RegisterAdminAPIRoutes(r *gin.Engine) {
 	{
 		lgc := new(auth.LoginController)
 		authGroup.POST("/login/using-phone", lgc.LoginByPassword)
+		authGroup.POST("/register", lgc.Register)
 	}
 
 	// 需要认证的路由组

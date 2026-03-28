@@ -36,7 +36,8 @@ func (ctrl *AiController) GenerateCharacters(c *gin.Context) {
 
 	// 2. 调用 TaskService
 	taskService := new(services.TaskService)
-	task, err := taskService.CreateGenerateCharactersTask(uint64(request.ProjectId), request.Count, request.Outline)
+	adminID := ctrl.GetAdminID(c)
+	task, err := taskService.CreateGenerateCharactersTask(adminID, uint64(request.ProjectId), request.Count, request.Outline)
 
 	if err != nil {
 		response.Abort500(c, "任务启动失败: "+err.Error())
@@ -75,7 +76,8 @@ func (ctrl *AiController) ExtractScenes(c *gin.Context) {
 
 	// 2. 调用 TaskService
 	taskService := new(services.TaskService)
-	task, err := taskService.CreateExtractScenesTask(projectID, uint64(request.ScriptId))
+	adminID := ctrl.GetAdminID(c)
+	task, err := taskService.CreateExtractScenesTask(adminID, projectID, uint64(request.ScriptId))
 
 	if err != nil {
 		response.Abort500(c, "任务启动失败: "+err.Error())
@@ -165,7 +167,8 @@ func (ctrl *AiController) GenerateCharacterImage(c *gin.Context) {
 
 	// 3. 调用 Service 创建任务
 	taskService := new(services.TaskService)
-	task, err := taskService.CreateImageGenerationTask(projectID, req.CharacterID, finalPrompt)
+	adminID := ctrl.GetAdminID(c)
+	task, err := taskService.CreateImageGenerationTask(adminID, projectID, req.CharacterID, finalPrompt)
 
 	if err != nil {
 		response.Abort500(c, "任务启动失败: "+err.Error())
@@ -233,7 +236,8 @@ func (ctrl *AiController) BatchGenerateCharacterImages(c *gin.Context) {
 		}
 
 		// B. 创建任务
-		task, err := taskService.CreateImageGenerationTask(projectID, charID, prompt)
+		adminID := ctrl.GetAdminID(c)
+		task, err := taskService.CreateImageGenerationTask(adminID, projectID, charID, prompt)
 		if err == nil {
 			results = append(results, TaskResult{
 				CharacterID: charID,
@@ -304,7 +308,8 @@ func (ctrl *AiController) GenerateSceneImage(c *gin.Context) {
 
 	// 3. 创建任务
 	taskService := new(services.TaskService)
-	task, err := taskService.CreateSceneImageGenerationTask(projectID, req.SceneID, prompt)
+	adminID := ctrl.GetAdminID(c)
+	task, err := taskService.CreateSceneImageGenerationTask(adminID, projectID, req.SceneID, prompt)
 	if err != nil {
 		response.Abort500(c, "任务启动失败: "+err.Error())
 		return
@@ -369,7 +374,7 @@ func (ctrl *AiController) BatchGenerateSceneImages(c *gin.Context) {
 			projectID = *scene.ProjectId
 		}
 
-		task, err := taskService.CreateSceneImageGenerationTask(projectID, sceneID, prompt)
+		task, err := taskService.CreateSceneImageGenerationTask(ctrl.GetAdminID(c), projectID, sceneID, prompt)
 		if err == nil {
 			results = append(results, TaskResult{
 				SceneID: sceneID,
@@ -411,7 +416,8 @@ func (ctrl *AiController) GenerateShots(c *gin.Context) {
 
 	// 2. 创建任务
 	taskService := new(services.TaskService)
-	task, err := taskService.CreateGenerateShotsTask(projectID, req.ScriptID, req.Model)
+	adminID := ctrl.GetAdminID(c)
+	task, err := taskService.CreateGenerateShotsTask(adminID, projectID, req.ScriptID, req.Model)
 	if err != nil {
 		response.Abort500(c, "任务启动失败: "+err.Error())
 		return
@@ -451,7 +457,8 @@ func (ctrl *AiController) ExtractProps(c *gin.Context) {
 	}
 
 	// 创建任务
-	task, err := taskService.CreateExtractPropsTask(projectID, req.EpisodeID)
+	adminID := ctrl.GetAdminID(c)
+	task, err := taskService.CreateExtractPropsTask(adminID, projectID, req.EpisodeID)
 	if err != nil {
 		response.Abort500(c, "任务创建失败: "+err.Error())
 		return
@@ -507,7 +514,8 @@ func (ctrl *AiController) GeneratePropImage(c *gin.Context) {
 		projectID = *prop.ProjectId
 	}
 
-	task, err := taskService.CreatePropImageGenerationTask(projectID, req.PropID, prompt)
+	adminID := ctrl.GetAdminID(c)
+	task, err := taskService.CreatePropImageGenerationTask(adminID, projectID, req.PropID, prompt)
 	if err != nil {
 		response.Abort500(c, "任务创建失败: "+err.Error())
 		return
@@ -565,7 +573,7 @@ func (ctrl *AiController) BatchGeneratePropImages(c *gin.Context) {
 			projectID = *prop.ProjectId
 		}
 
-		task, err := taskService.CreatePropImageGenerationTask(projectID, propID, prompt)
+		task, err := taskService.CreatePropImageGenerationTask(ctrl.GetAdminID(c), projectID, propID, prompt)
 		if err == nil {
 			results = append(results, TaskResult{
 				PropID: propID,
@@ -608,7 +616,8 @@ func (ctrl *AiController) ExtractPrompt(c *gin.Context) {
 
 	// 2. 创建异步任务
 	taskService := new(services.TaskService)
-	task, err := taskService.CreateExtractFramePromptTask(projectID, req.ShotID, req.FrameType, req.Model)
+	adminID := ctrl.GetAdminID(c)
+	task, err := taskService.CreateExtractFramePromptTask(adminID, projectID, req.ShotID, req.FrameType, req.Model)
 	if err != nil {
 		response.Abort500(c, "任务创建失败: "+err.Error())
 		return
@@ -652,7 +661,8 @@ func (ctrl *AiController) GenerateImageByPrompt(c *gin.Context) {
 
 	// 2. 调用 Service 创建任务
 	taskService := new(services.TaskService)
-	task, err := taskService.CreateGenerateFrameImageTask(projectID, req.ShotID, req.FrameType, req.Prompt)
+	adminID := ctrl.GetAdminID(c)
+	task, err := taskService.CreateGenerateFrameImageTask(adminID, projectID, req.ShotID, req.FrameType, req.Prompt)
 	if err != nil {
 		response.Abort500(c, "任务启动失败: "+err.Error())
 		return
@@ -712,7 +722,8 @@ func (ctrl *AiController) GenerateVideo(c *gin.Context) {
 
 	// 3. 调用 Service 创建并投递任务
 	taskService := new(services.TaskService)
-	task, err := taskService.CreateGenerateVideoTask(payload)
+	adminID := ctrl.GetAdminID(c)
+	task, err := taskService.CreateGenerateVideoTask(adminID, payload)
 	if err != nil {
 		response.Abort500(c, "视频生成任务启动失败: "+err.Error())
 		return

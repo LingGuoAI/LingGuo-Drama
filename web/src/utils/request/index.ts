@@ -9,7 +9,7 @@ import { useUserStore } from '@/store';
 import { VAxios } from './Axios';
 import type { AxiosTransform, CreateAxiosOptions } from './AxiosTransform';
 import { formatRequestDate, joinTimestamp, setObjToUrlParams } from './utils';
-import {MessagePlugin} from "tdesign-vue-next";
+import { MessagePlugin } from "tdesign-vue-next";
 
 // const env = import.meta.env.MODE || 'development';
 
@@ -89,9 +89,9 @@ const transform: AxiosTransform = {
         formatRequestDate(params);
       }
       if (
-          Reflect.has(config, 'data') &&
-          config.data &&
-          (Object.keys(config.data).length > 0 || data instanceof FormData)
+        Reflect.has(config, 'data') &&
+        config.data &&
+        (Object.keys(config.data).length > 0 || data instanceof FormData)
       ) {
         config.data = data;
         config.params = params;
@@ -119,8 +119,8 @@ const transform: AxiosTransform = {
     if (token && (config as Recordable)?.requestOptions?.withToken !== false) {
       // jwt token
       (config as Recordable).headers.Authorization = options.authenticationScheme
-          ? `${options.authenticationScheme} ${token}`
-          : token;
+        ? `${options.authenticationScheme} ${token}`
+        : token;
     }
     return config;
   },
@@ -138,6 +138,19 @@ const transform: AxiosTransform = {
     if (response) {
       const { status, data } = response;
       const errorMessage = data?.message || '请求失败';
+      const errorData = data?.errors || {};
+      let finalMessage = errorMessage;
+      if (errorData && typeof errorData === 'object') {
+        const keys = Object.keys(errorData);
+        if (keys.length > 0) {
+          const firstError = errorData[keys[0]];
+          if (Array.isArray(firstError) && firstError.length > 0) {
+            finalMessage = firstError[0];
+          } else if (typeof firstError === 'string') {
+            finalMessage = firstError;
+          }
+        }
+      }
 
       switch (status) {
         case 401:
@@ -157,13 +170,17 @@ const transform: AxiosTransform = {
           console.error('请求的资源不存在');
           break;
         case 400:
-          MessagePlugin.error(errorMessage || '请求错误');
+        case 422:
+          MessagePlugin.error(finalMessage || '请求错误');
+          break;
         case 500:
+          MessagePlugin.error(errorMessage || '服务器错误');
+          break;
         case 502:
         case 503:
         case 504:
           // 服务器错误
-          console.error('服务器错误，请稍后重试');
+          MessagePlugin.error('服务器错误，请稍后重试');
           break;
 
         default:
@@ -186,61 +203,64 @@ const transform: AxiosTransform = {
       }, config.requestOptions.retry.delay || 1);
     });
 
-    config.headers = { ...config.headers, 'Content-Type': ContentTypeEnum.Json };
-    return backoff.then((config) => instance.request(config));
+    if (!config.headers) {
+      config.headers = {} as any;
+    }
+    (config.headers as any)['Content-Type'] = ContentTypeEnum.Json;
+    return backoff.then((config) => instance.request(config as any));
   },
 };
 
 function createAxios(opt?: Partial<CreateAxiosOptions>) {
   return new VAxios(
-      merge(
-          <CreateAxiosOptions>{
-            // https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication#authentication_schemes
-            // 例如: authenticationScheme: 'Bearer'
-            authenticationScheme: '',
-            // 超时
-            timeout: 10 * 1000,
-            // 携带Cookie
-            withCredentials: true,
-            // 头信息
-            headers: { 'Content-Type': ContentTypeEnum.Json },
-            // 数据处理方式
-            transform,
-            // 配置项，下面的选项都可以在独立的接口请求中覆盖
-            requestOptions: {
-              // 接口地址
-              apiUrl: host,
-              // 是否自动添加接口前缀
-              isJoinPrefix: true,
-              // 接口前缀
-              // 例如: https://www.baidu.com/api
-              // urlPrefix: '/api'
-              urlPrefix: import.meta.env.VITE_API_URL_PREFIX,
-              // 是否返回原生响应头 比如：需要获取响应头时使用该属性
-              isReturnNativeResponse: false,
-              // 需要对返回数据进行处理
-              isTransformResponse: true,
-              // post请求的时候添加参数到url
-              joinParamsToUrl: false,
-              // 格式化提交参数时间
-              formatDate: true,
-              // 是否加入时间戳
-              joinTime: false,
-              // 是否忽略请求取消令牌
-              // 如果启用，则重复请求时不进行处理
-              // 如果禁用，则重复请求时会取消当前请求
-              ignoreCancelToken: true,
-              // 是否携带token
-              withToken: true,
-              // 重试
-              retry: {
-                count: 3,
-                delay: 1000,
-              },
-            },
+    merge(
+      <CreateAxiosOptions>{
+        // https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication#authentication_schemes
+        // 例如: authenticationScheme: 'Bearer'
+        authenticationScheme: '',
+        // 超时
+        timeout: 10 * 1000,
+        // 携带Cookie
+        withCredentials: true,
+        // 头信息
+        headers: { 'Content-Type': ContentTypeEnum.Json },
+        // 数据处理方式
+        transform,
+        // 配置项，下面的选项都可以在独立的接口请求中覆盖
+        requestOptions: {
+          // 接口地址
+          apiUrl: host,
+          // 是否自动添加接口前缀
+          isJoinPrefix: true,
+          // 接口前缀
+          // 例如: https://www.baidu.com/api
+          // urlPrefix: '/api'
+          urlPrefix: import.meta.env.VITE_API_URL_PREFIX,
+          // 是否返回原生响应头 比如：需要获取响应头时使用该属性
+          isReturnNativeResponse: false,
+          // 需要对返回数据进行处理
+          isTransformResponse: true,
+          // post请求的时候添加参数到url
+          joinParamsToUrl: false,
+          // 格式化提交参数时间
+          formatDate: true,
+          // 是否加入时间戳
+          joinTime: false,
+          // 是否忽略请求取消令牌
+          // 如果启用，则重复请求时不进行处理
+          // 如果禁用，则重复请求时会取消当前请求
+          ignoreCancelToken: true,
+          // 是否携带token
+          withToken: true,
+          // 重试
+          retry: {
+            count: 3,
+            delay: 1000,
           },
-          opt || {},
-      ),
+        },
+      },
+      opt || {},
+    ),
   );
 }
 export const request = createAxios();

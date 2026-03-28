@@ -109,7 +109,7 @@ func HandleExtractScenes(ctx context.Context, t *asynq.Task) error {
 
 	// 2. 尝试从数据库加载优先级最高的 text (文本) 配置
 	aiService := new(services.AiConfigService)
-	errConfig, dbConfig := aiService.GetActiveConfigByType("text")
+	errConfig, dbConfig := aiService.GetActiveConfigByType("text", taskModel.AdminID)
 
 	if errConfig == nil && dbConfig.ID > 0 {
 		providerName := strings.ToLower(*dbConfig.Provider)

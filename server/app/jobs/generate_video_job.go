@@ -77,12 +77,12 @@ func mapDBProvider(dbProvider string, modelName string) string {
 }
 
 // 🔴 helper: 优先从数据库动态查询，无配置则根据模型名字兜底 .env
-func getProviderConfig(modelName string) (provider, baseURL, apiKey string, finalModel string) {
+func getProviderConfig(modelName string, adminID *uint64) (provider, baseURL, apiKey string, finalModel string) {
 	finalModel = modelName
 
 	// 1. 优先查库：获取所有激活的 video 配置
 	aiService := new(services.AiConfigService)
-	err, configs := aiService.GetAllActiveConfigsByType("video")
+	err, configs := aiService.GetAllActiveConfigsByType("video", adminID)
 
 	if err == nil && len(configs) > 0 {
 		// 1.1 如果前端传了指定的 modelName，尝试在配置中精确寻找包含该模型的厂商
@@ -160,7 +160,7 @@ func HandleGenerateVideoTask(ctx context.Context, t *asynq.Task) error {
 	taskModel.UpdateProgress(5)
 
 	// 🔴 使用重构后的辅助函数获取动态配置
-	provider, baseURL, apiKey, finalModel := getProviderConfig(p.Model)
+	provider, baseURL, apiKey, finalModel := getProviderConfig(p.Model, taskModel.AdminID)
 	console.Success(fmt.Sprintf("任务[%d] - 命中视频配置: Provider=%s, 最终Model=%s", p.AsyncTaskID, provider, finalModel))
 	client, err := video.NewClient(provider, baseURL, apiKey, finalModel, "", "")
 	if err != nil {

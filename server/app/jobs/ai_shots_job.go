@@ -247,9 +247,20 @@ func HandleGenerateShots(ctx context.Context, t *asynq.Task) error {
 		VertexImageModel: config.GetString("ai.vertex.image_model"),
 	}
 
-	// 2. 尝试从数据库加载优先级最高的 text (文本) 配置
+	// 2. 尝试加载 AI 配置
 	aiService := new(services.AiConfigService)
-	errConfig, dbConfig := aiService.GetActiveConfigByType("text")
+	var errConfig error
+	var dbConfig ai_config.AiConfig
+
+	// 如果指定了模型，优先寻找对应的配置
+	if p.Model != "" {
+		errConfig, dbConfig = aiService.GetSpecificModelConfig("text", "", p.Model, taskModel.AdminID)
+	}
+
+	// 如果未指定或未找到，使用默认激活配置
+	if p.Model == "" || errConfig != nil {
+		errConfig, dbConfig = aiService.GetActiveConfigByType("text", taskModel.AdminID)
+	}
 
 	if errConfig == nil && dbConfig.ID > 0 {
 		providerName := strings.ToLower(*dbConfig.Provider)

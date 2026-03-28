@@ -57,6 +57,11 @@ func (ctrl *AiConfigController) Index(c *gin.Context) {
 func (ctrl *AiConfigController) buildSearchConditions(c *gin.Context) map[string]interface{} {
 	where := map[string]interface{}{}
 
+	// 配置只获取当前登录用户的配置
+	if adminID := c.GetString("current_admin_id"); adminID != "" {
+		where["admin_id"] = adminID
+	}
+
 	if serviceType := strings.TrimSpace(c.Query("service_type")); serviceType != "" {
 		where["service_type"] = serviceType
 	}
@@ -77,7 +82,7 @@ func (ctrl *AiConfigController) buildSearchConditions(c *gin.Context) map[string
 // @Router /admin/v1/ai-config/{id} [get]
 func (ctrl *AiConfigController) Show(c *gin.Context) {
 	configModel := ai_config.Get(c.Param("id"))
-	if configModel.ID == 0 {
+	if configModel.ID == 0 || (configModel.AdminID != nil && strconv.FormatUint(*configModel.AdminID, 10) != c.GetString("current_admin_id")) {
 		response.JSON(c, gin.H{
 			"code":    404,
 			"message": "数据不存在",
@@ -101,6 +106,9 @@ func (ctrl *AiConfigController) Store(c *gin.Context) {
 		return
 	}
 
+	currentAdminIDStr := c.GetString("current_admin_id")
+	currentAdminID, _ := strconv.ParseUint(currentAdminIDStr, 10, 64)
+
 	configModel := ai_config.AiConfig{
 		Name:        &request.Name,
 		ServiceType: &request.ServiceType,
@@ -110,6 +118,7 @@ func (ctrl *AiConfigController) Store(c *gin.Context) {
 		Model:       request.Model,
 		Priority:    &request.Priority,
 		IsActive:    &request.IsActive,
+		AdminID:     &currentAdminID,
 	}
 
 	configModel.Create()
@@ -130,7 +139,7 @@ func (ctrl *AiConfigController) Store(c *gin.Context) {
 func (ctrl *AiConfigController) Update(c *gin.Context) {
 	id := c.Param("id")
 	existingConfig := ai_config.Get(id)
-	if existingConfig.ID == 0 {
+	if existingConfig.ID == 0 || (existingConfig.AdminID != nil && strconv.FormatUint(*existingConfig.AdminID, 10) != c.GetString("current_admin_id")) {
 		response.JSON(c, gin.H{
 			"code":    404,
 			"message": "数据不存在",
@@ -185,7 +194,7 @@ func (ctrl *AiConfigController) Update(c *gin.Context) {
 // @Router /admin/v1/ai-config/{id} [delete]
 func (ctrl *AiConfigController) Delete(c *gin.Context) {
 	configModel := ai_config.Get(c.Param("id"))
-	if configModel.ID == 0 {
+	if configModel.ID == 0 || (configModel.AdminID != nil && strconv.FormatUint(*configModel.AdminID, 10) != c.GetString("current_admin_id")) {
 		response.JSON(c, gin.H{
 			"code":    404,
 			"message": "数据不存在",

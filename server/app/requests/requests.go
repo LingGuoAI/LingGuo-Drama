@@ -2,6 +2,7 @@
 package requests
 
 import (
+	_ "spiritFruit/app/requests/validators"
 	"spiritFruit/pkg/response"
 
 	"github.com/gin-gonic/gin"

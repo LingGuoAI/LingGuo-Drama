@@ -4,7 +4,9 @@ import (
 	v1 "spiritFruit/app/http/controllers/admin/v1"
 	requests "spiritFruit/app/requests"
 	adminRequest "spiritFruit/app/requests/admin"
+	"spiritFruit/app/models/admins"
 	"spiritFruit/pkg/auth"
+	"spiritFruit/pkg/hash"
 	"spiritFruit/pkg/jwt"
 	"spiritFruit/pkg/response"
 
@@ -64,5 +66,38 @@ func (lc *LoginController) RefreshToken(c *gin.Context) {
 		response.JSON(c, gin.H{
 			"token": token,
 		})
+	}
+}
+
+// Register 注册
+func (lc *LoginController) Register(c *gin.Context) {
+	// 1. 验证表单
+	request := adminRequest.RegisterRequest{}
+	if ok := requests.Validate(c, &request, adminRequest.Register); !ok {
+		return
+	}
+
+	// 2. 创建用户
+	adminModel := admins.Admins{
+		Username: &request.Username,
+		Mobile:   &request.Mobile,
+		Email:    &request.Email,
+		Password: &request.Password,
+	}
+
+	// 密码加密
+	passwordHash := hash.BcryptHash(request.Password)
+	adminModel.Password = &passwordHash
+
+	adminModel.Create()
+
+	if adminModel.ID > 0 {
+		response.JSON(c, gin.H{
+			"code": 0,
+			"data": adminModel,
+			"message": "注册成功",
+		})
+	} else {
+		response.Abort500(c, "更新失败，请稍后尝试~")
 	}
 }

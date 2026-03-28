@@ -27,6 +27,7 @@ type AsyncTask struct {
 	RelID     uint64 `json:"rel_id" gorm:"index"`           // 关联的具体业务ID (如 script_id, character_id)
 	Type      string `json:"type" gorm:"size:64;index"`     // 任务类型
 	Status    int    `json:"status" gorm:"default:0;index"` // 状态
+	AdminID   *uint64 `json:"admin_id" gorm:"index"`         // 关联的管理员ID
 
 	Payload  string `json:"payload" gorm:"type:text"`   // 请求参数快照 (JSON)
 	Result   string `json:"result" gorm:"type:text"`    // 执行结果/错误信息 (JSON)

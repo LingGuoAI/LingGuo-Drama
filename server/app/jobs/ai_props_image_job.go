@@ -77,7 +77,7 @@ func HandleGeneratePropImageTask(ctx context.Context, t *asynq.Task) error {
 
 	// 2) 尝试从数据库加载优先级最高的 image (图片) 配置
 	aiService := new(services.AiConfigService)
-	errConfig, dbConfig := aiService.GetActiveConfigByType("image")
+	errConfig, dbConfig := aiService.GetActiveConfigByType("image", taskModel.AdminID)
 
 	if errConfig == nil && dbConfig.ID > 0 {
 		providerName := *dbConfig.Provider

@@ -23,11 +23,55 @@
       </t-form-item>
     </template>
 
+    <template v-else-if="type == 'register'">
+      <t-form-item name="username">
+        <t-input v-model="formData.username" size="large" placeholder="请输入用户名">
+          <template #prefix-icon>
+            <t-icon name="user" />
+          </template>
+        </t-input>
+      </t-form-item>
+
+      <t-form-item name="mobile">
+        <t-input v-model="formData.mobile" size="large" placeholder="请输入手机号">
+          <template #prefix-icon>
+            <t-icon name="mobile" />
+          </template>
+        </t-input>
+      </t-form-item>
+
+      <t-form-item name="email">
+        <t-input v-model="formData.email" size="large" placeholder="请输入邮箱">
+          <template #prefix-icon>
+            <t-icon name="mail" />
+          </template>
+        </t-input>
+      </t-form-item>
+
+      <t-form-item name="password">
+        <t-input v-model="formData.password" size="large" :type="showPsw ? 'text' : 'password'" clearable
+          :placeholder="`${t('pages.login.input.password')}`">
+          <template #prefix-icon>
+            <t-icon name="lock-on" />
+          </template>
+          <template #suffix-icon>
+            <t-icon :name="showPsw ? 'browse' : 'browse-off'" @click="showPsw = !showPsw" />
+          </template>
+        </t-input>
+      </t-form-item>
+    </template>
+
     <t-form-item v-if="type !== 'qrcode'" class="btn-container">
       <t-button block size="large" type="submit" :loading="isLoading" :disabled="isLoading">
-        {{ isLoading ? "登录中" : "登录" }}
+        {{ type === 'register' ? (isLoading ? '注册中...' : '注册') : (isLoading ? "登录中..." : "登录") }}
       </t-button>
     </t-form-item>
+
+    <div class="switch-container" style="text-align: right; margin-top: 10px;">
+      <t-link theme="primary" @click="toggleMode">
+        {{ type === 'register' ? '返回登录' : '立即注册' }}
+      </t-link>
+    </div>
   </t-form>
 </template>
 
@@ -44,12 +88,24 @@ const userStore = useUserStore();
 
 const INITIAL_DATA = {
   account: '',
-  password: ''
+  password: '',
+  username: '',
+  mobile: '',
+  email: ''
 };
 
 const FORM_RULES: Record<string, FormRule[]> = {
   account: [{ required: true, message: t('pages.login.required.account'), type: 'error' }],
   password: [{ required: true, message: t('pages.login.required.password'), type: 'error' }],
+  username: [{ required: true, message: '请输入用户名', type: 'error' }],
+  mobile: [
+    { required: true, message: '请输入手机号', type: 'error' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', type: 'error' }
+  ],
+  email: [
+    { required: true, message: '请输入邮箱', type: 'error' },
+    { email: true, message: '请输入正确的邮箱', type: 'error' }
+  ],
 };
 
 const type = ref('password');
@@ -60,6 +116,11 @@ const isLoading = ref(false);
 
 const router = useRouter();
 const route = useRoute();
+
+const toggleMode = () => {
+  type.value = type.value === 'password' ? 'register' : 'password';
+  formData.value = { ...INITIAL_DATA };
+};
 
 // 错误信息映射
 const getErrorMessage = (error: any): string => {
@@ -115,6 +176,22 @@ const onSubmit = async (ctx: SubmitContext) => {
     isLoading.value = true;
 
     try {
+      if (type.value === 'register') {
+        const registerParams = {
+          username: formData.value.username,
+          mobile: formData.value.mobile,
+          email: formData.value.email,
+          password: formData.value.password,
+        };
+        const success = await userStore.register(registerParams);
+        if (success) {
+          type.value = 'password';
+          formData.value.account = registerParams.username;
+          formData.value.password = '';
+        }
+        return;
+      }
+
       const loginParams = {
         login_id: formData.value.account.trim(),
         password: formData.value.password

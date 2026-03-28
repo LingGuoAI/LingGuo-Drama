@@ -9,7 +9,7 @@ import (
 type TaskService struct{}
 
 // CreateScriptGenerationTask 创建剧本生成任务
-func (s *TaskService) CreateScriptGenerationTask(projectID, scriptID uint64, prompt string) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreateScriptGenerationTask(adminID, projectID, scriptID uint64, prompt string) (*async_tasks.AsyncTask, error) {
 	// 1. 构造 Payload 数据
 	payload := asynq.GenerateScriptPayload{
 		ProjectID: projectID,
@@ -20,6 +20,7 @@ func (s *TaskService) CreateScriptGenerationTask(projectID, scriptID uint64, pro
 
 	// 2. 先在数据库创建记录 (状态: Pending)
 	task := async_tasks.AsyncTask{
+		AdminID:   &adminID,
 		ProjectID: projectID,
 		RelID:     scriptID,
 		Type:      async_tasks.TypeGenerateScript,
@@ -43,7 +44,7 @@ func (s *TaskService) CreateScriptGenerationTask(projectID, scriptID uint64, pro
 }
 
 // CreateImageGenerationTask 创建图片生成任务 (角色生图)
-func (s *TaskService) CreateImageGenerationTask(projectID, charID uint64, prompt string) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreateImageGenerationTask(adminID, projectID, charID uint64, prompt string) (*async_tasks.AsyncTask, error) {
 	// 1. 构造 Payload
 	payload := asynq.GenerateImagePayload{
 		ProjectID:   projectID,
@@ -54,6 +55,7 @@ func (s *TaskService) CreateImageGenerationTask(projectID, charID uint64, prompt
 
 	// 2. 创建数据库记录
 	task := async_tasks.AsyncTask{
+		AdminID:   &adminID,
 		ProjectID: projectID,
 		RelID:     charID, // 关联的角色ID
 		Type:      asynq.TypeGenerateImage,
@@ -76,7 +78,7 @@ func (s *TaskService) CreateImageGenerationTask(projectID, charID uint64, prompt
 }
 
 // CreateGenerateCharactersTask 创建角色生成任务
-func (s *TaskService) CreateGenerateCharactersTask(projectID uint64, count int, outline string) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreateGenerateCharactersTask(adminID, projectID uint64, count int, outline string) (*async_tasks.AsyncTask, error) {
 	// 1. 构造 Payload 数据
 	payload := asynq.GenerateCharactersPayload{
 		ProjectID: projectID,
@@ -87,6 +89,7 @@ func (s *TaskService) CreateGenerateCharactersTask(projectID uint64, count int, 
 
 	// 2. 先在数据库创建记录 (状态: Pending)
 	task := async_tasks.AsyncTask{
+		AdminID:   &adminID,
 		ProjectID: projectID,                    // 关联项目ID
 		Type:      asynq.TypeGenerateCharacters, // 使用 asynq 包中定义的类型常量
 		Status:    async_tasks.StatusPending,
@@ -108,7 +111,7 @@ func (s *TaskService) CreateGenerateCharactersTask(projectID uint64, count int, 
 }
 
 // CreateExtractScenesTask 创建场景提取任务
-func (s *TaskService) CreateExtractScenesTask(projectID, scriptId uint64) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreateExtractScenesTask(adminID, projectID, scriptId uint64) (*async_tasks.AsyncTask, error) {
 	// 1. 构造 Payload 数据
 	payload := asynq.ExtractScenesPayload{
 		ScriptID: scriptId,
@@ -117,6 +120,7 @@ func (s *TaskService) CreateExtractScenesTask(projectID, scriptId uint64) (*asyn
 
 	// 2. 先在数据库创建记录
 	task := async_tasks.AsyncTask{
+		AdminID:   &adminID,
 		ProjectID: projectID, // 尽量关联到项目ID，方便前端查询
 		RelID:     scriptId,  // 关联的章节ID
 		Type:      asynq.TypeExtractScenes,
@@ -139,7 +143,7 @@ func (s *TaskService) CreateExtractScenesTask(projectID, scriptId uint64) (*asyn
 }
 
 // CreateSceneImageGenerationTask 创建场景图片生成任务
-func (s *TaskService) CreateSceneImageGenerationTask(projectID, sceneID uint64, prompt string) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreateSceneImageGenerationTask(adminID, projectID, sceneID uint64, prompt string) (*async_tasks.AsyncTask, error) {
 	// 1. 构造 Payload
 	payload := asynq.GenerateSceneImagePayload{
 		ProjectID: projectID,
@@ -150,6 +154,7 @@ func (s *TaskService) CreateSceneImageGenerationTask(projectID, sceneID uint64, 
 
 	// 2. 创建数据库记录 (用于前端轮询)
 	task := async_tasks.AsyncTask{
+		AdminID:   &adminID,
 		ProjectID: projectID,
 		RelID:     sceneID, // 关联的场景ID
 		Type:      asynq.TypeGenerateSceneImage,
@@ -172,7 +177,7 @@ func (s *TaskService) CreateSceneImageGenerationTask(projectID, sceneID uint64, 
 }
 
 // CreateGenerateShotsTask 创建分镜拆分任务
-func (s *TaskService) CreateGenerateShotsTask(projectID, scriptID uint64, model string) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreateGenerateShotsTask(adminID, projectID, scriptID uint64, model string) (*async_tasks.AsyncTask, error) {
 	// 1. 构造 Payload
 	payload := asynq.GenerateShotsPayload{
 		ProjectID: projectID,
@@ -183,6 +188,7 @@ func (s *TaskService) CreateGenerateShotsTask(projectID, scriptID uint64, model 
 
 	// 2. 创建数据库记录
 	task := async_tasks.AsyncTask{
+		AdminID:   &adminID,
 		ProjectID: projectID,
 		RelID:     scriptID, // 关联的剧本/分集ID
 		Type:      asynq.TypeGenerateShots,
@@ -205,7 +211,7 @@ func (s *TaskService) CreateGenerateShotsTask(projectID, scriptID uint64, model 
 }
 
 // CreatePropImageGenerationTask 创建道具生图任务
-func (s *TaskService) CreatePropImageGenerationTask(projectID, propID uint64, prompt string) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreatePropImageGenerationTask(adminID, projectID, propID uint64, prompt string) (*async_tasks.AsyncTask, error) {
 	// 1. 构造 Payload
 	payload := asynq.GeneratePropImagePayload{
 		ProjectID: projectID,
@@ -216,6 +222,7 @@ func (s *TaskService) CreatePropImageGenerationTask(projectID, propID uint64, pr
 
 	// 2. 创建数据库记录
 	task := async_tasks.AsyncTask{
+		AdminID:   &adminID,
 		ProjectID: projectID,
 		RelID:     propID, // 关联的道具ID
 		Type:      asynq.TypeGeneratePropImage,
@@ -238,7 +245,7 @@ func (s *TaskService) CreatePropImageGenerationTask(projectID, propID uint64, pr
 }
 
 // CreateExtractPropsTask 创建剧本提取道具任务
-func (s *TaskService) CreateExtractPropsTask(projectID, episodeID uint64) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreateExtractPropsTask(adminID, projectID, episodeID uint64) (*async_tasks.AsyncTask, error) {
 	payload := asynq.ExtractPropsPayload{
 		ProjectID: projectID,
 		EpisodeID: episodeID,
@@ -246,6 +253,7 @@ func (s *TaskService) CreateExtractPropsTask(projectID, episodeID uint64) (*asyn
 	payloadBytes, _ := json.Marshal(payload)
 
 	task := async_tasks.AsyncTask{
+		AdminID:   &adminID,
 		ProjectID: projectID,
 		RelID:     episodeID, // 关联的剧集ID
 		Type:      asynq.TypeExtractProps,
@@ -266,7 +274,7 @@ func (s *TaskService) CreateExtractPropsTask(projectID, episodeID uint64) (*asyn
 }
 
 // CreateExtractFramePromptTask 创建提取帧提示词任务
-func (s *TaskService) CreateExtractFramePromptTask(projectID, shotID uint64, frameType, model string) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreateExtractFramePromptTask(adminID, projectID, shotID uint64, frameType, model string) (*async_tasks.AsyncTask, error) {
 	// 1. 构造 Payload 数据
 	payload := asynq.ExtractFramePromptPayload{
 		ProjectID: projectID,
@@ -278,6 +286,7 @@ func (s *TaskService) CreateExtractFramePromptTask(projectID, shotID uint64, fra
 
 	// 2. 先在数据库创建记录 (状态: Pending)
 	task := async_tasks.AsyncTask{
+		AdminID:   &adminID,
 		ProjectID: projectID,
 		RelID:     shotID, // 关联的分镜镜头ID
 		Type:      asynq.TypeExtractFramePrompt,
@@ -300,7 +309,7 @@ func (s *TaskService) CreateExtractFramePromptTask(projectID, shotID uint64, fra
 }
 
 // CreateGenerateFrameImageTask 创建根据帧提示词生成图片
-func (s *TaskService) CreateGenerateFrameImageTask(projectID, shotID uint64, frameType, prompt string) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreateGenerateFrameImageTask(adminID, projectID, shotID uint64, frameType, prompt string) (*async_tasks.AsyncTask, error) {
 	// 1. 构造 Payload 数据
 	payload := asynq.GenerateFrameImagePayload{
 		ProjectID: projectID,
@@ -312,6 +321,7 @@ func (s *TaskService) CreateGenerateFrameImageTask(projectID, shotID uint64, fra
 
 	// 2. 在数据库创建任务记录
 	task := async_tasks.AsyncTask{
+		AdminID:   &adminID,
 		ProjectID: projectID,
 		RelID:     shotID, // 关联的分镜ID
 		Type:      asynq.TypeGenerateFrameImage,
@@ -334,11 +344,12 @@ func (s *TaskService) CreateGenerateFrameImageTask(projectID, shotID uint64, fra
 }
 
 // CreateGenerateVideoTask 创建视频生成任务
-func (s *TaskService) CreateGenerateVideoTask(payload asynq.GenerateVideoPayload) (*async_tasks.AsyncTask, error) {
+func (s *TaskService) CreateGenerateVideoTask(adminID uint64, payload asynq.GenerateVideoPayload) (*async_tasks.AsyncTask, error) {
 	payloadBytes, _ := json.Marshal(payload)
 
 	// 1. 在数据库创建任务记录
 	task := async_tasks.AsyncTask{
+		AdminID:   &adminID,
 		ProjectID: payload.ProjectID,
 		RelID:     payload.ShotID, // 关联的分镜ID
 		Type:      asynq.TypeGenerateVideo,

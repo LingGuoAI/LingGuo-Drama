@@ -147,6 +147,27 @@ export const useUserStore = defineStore('user', {
       }
     },
 
+    async register(registerParams: any): Promise<boolean> {
+      try {
+        const response = await request.post<any>({
+          url: '/auth/register',
+          data: registerParams
+        });
+
+        if (response.code === 201 || response.code === 0 || response.success) {
+          MessagePlugin.success("注册成功");
+          return true;
+        } else {
+          MessagePlugin.error(response.message || '注册失败');
+          return false;
+        }
+      } catch (error: any) {
+        console.error('注册失败:', error);
+        MessagePlugin.error(error.message || '网络错误，请稍后尝试');
+        return false;
+      }
+    },
+
     async getUserInfo() {
       try {
         const userInfoStr = localStorage.getItem('userInfo');

@@ -16,6 +16,7 @@ type AiConfig struct {
 	Model       []string `json:"model" form:"model" gorm:"column:model;type:json;serializer:json;comment:支持的模型列表;"` // 自动序列化为JSON
 	Priority    *int     `json:"priority" form:"priority" gorm:"default:0;column:priority;comment:优先级;"`
 	IsActive    *int8    `json:"is_active" form:"is_active" gorm:"default:1;column:is_active;comment:状态 1-启用 0-禁用;"`
+	AdminID     *uint64  `json:"admin_id" form:"admin_id" gorm:"column:admin_id;index;comment:所属管理员ID;"`
 	models.CommonTimestampsField
 }
 
