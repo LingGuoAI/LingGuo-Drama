@@ -42,7 +42,7 @@ func NewProvider(cfg Config) Provider {
 		return &GetGoAPIClient{Config: cfg, client: globalHTTPClient}
 	case "gemini":
 		return &GeminiClient{Config: cfg, client: globalHTTPClient}
-	case "doubao", "volces":
+	case "doubao", "volces", "volcengine":
 		return &DoubaoClient{Config: cfg, client: globalHTTPClient}
 	case "vertex", "gcp":
 		return &VertexClient{Config: cfg, client: globalHTTPClient}

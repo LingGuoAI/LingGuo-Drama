@@ -139,7 +139,7 @@ func NewClient(provider, baseURL, apiKey, model, endpoint, queryEndpoint string)
 		return NewOpenAISoraClient(baseURL, apiKey, model), nil
 	case "minimax", "hailuo":
 		return NewMinimaxClient(baseURL, apiKey, model), nil
-	case "volces", "doubao":
+	case "volces", "volcengine", "doubao":
 		return NewVolcesArkClient(baseURL, apiKey, model, endpoint, queryEndpoint), nil
 	case "runway":
 		return NewRunwayClient(baseURL, apiKey, model), nil

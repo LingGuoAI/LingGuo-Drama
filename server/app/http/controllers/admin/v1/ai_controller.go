@@ -14,6 +14,7 @@ import (
 	"spiritFruit/app/requests"
 	"spiritFruit/app/services"
 	"spiritFruit/pkg/asynq"
+	"spiritFruit/pkg/console"
 	"spiritFruit/pkg/database"
 	"spiritFruit/pkg/openai"
 	"spiritFruit/pkg/response"
@@ -894,15 +895,25 @@ func (ctrl *AiController) TestVideoConfig(c *gin.Context) {
 		return
 	}
 
-	// 1. 将 Provider 映射为 video.NewClient 支持的底层驱动
+	// 1. 将 Provider 映射为 video.NewClient 支持的底层驱动名称
 	providerName := strings.ToLower(req.Provider)
+	endpoint := ""
 	switch providerName {
-	case "volcengine", "doubao":
+	case "volcengine", "volces", "doubao":
 		providerName = "volces"
+		endpoint = "/contents/generations/tasks"
 	case "chatfire", "getgoapi":
 		providerName = "getgoapi"
-	case "google", "gemini":
+	case "google", "gemini", "vertex":
 		providerName = "vertex"
+	case "minimax", "hailuo":
+		providerName = "minimax"
+	case "openai", "runway", "pika":
+		// 这些名字可以直接透传给 video.NewClient，保持原样
+		providerName = providerName
+	default:
+		// 无法识别时兜底为 getgoapi
+		providerName = "getgoapi"
 	}
 
 	modelName := ""
@@ -911,37 +922,53 @@ func (ctrl *AiController) TestVideoConfig(c *gin.Context) {
 	}
 
 	// 2. 初始化视频客户端
-	client, err := video.NewClient(providerName, req.BaseURL, req.APIKey, modelName, "", "")
+	client, err := video.NewClient(providerName, req.BaseURL, req.APIKey, modelName, endpoint, "")
 	if err != nil {
 		response.Abort500(c, "视频客户端初始化失败: "+err.Error())
 		return
 	}
 
-	// 智能判断测试时长
+	// 智能判断测试时长 (Sora 限制较多，一般测短一点)
 	testDuration := 5
 	if strings.Contains(strings.ToLower(modelName), "sora") {
 		testDuration = 4
 	}
 
-	// 🔴 3. 在本地数据库创建测试任务记录 (让前端去轮询这个内部ID)
+	// 3. 在本地数据库创建测试任务记录 (让前端去轮询这个内部ID)
 	task := async_tasks.AsyncTask{
 		ProjectID: 0, // 测试任务，无实际项目归属
 		Type:      "test_video_config",
-		Status:    async_tasks.StatusProcessing, // 设置为进行中 (通常是2)
+		Status:    async_tasks.StatusProcessing, // 设置为进行中 (通常是 1 或 2，视你系统定)
+		Process:   10,                           // 初始进度
 		Payload:   "{}",
 	}
-	database.DB.Create(&task)
+	if err := database.DB.Create(&task).Error; err != nil {
+		response.Abort500(c, "创建测试记录失败: "+err.Error())
+		return
+	}
 
 	// 4. 提交测试任务到厂商
 	result, err := client.GenerateVideo("A fast running dog in a green field", video.WithDuration(testDuration))
 	if err != nil {
-		task.MarkAsFailed(err)
+		// 提交被拒，更新数据库状态并返回报错
+		task.MarkAsFailed(err) // 假设你的 AsyncTask 模型有这个辅助方法
 		response.Abort500(c, "视频任务提交被拒 (请检查URL/Key/模型名): "+err.Error())
 		return
 	}
 
-	// 🔴 5. 开启后台协程，轮询算力厂商的任务进度，并回写到我们刚才创建的本地数据库记录中
+	// 5. 开启后台协程，轮询算力厂商的任务进度
 	go func(internalID uint64, externalID string) {
+		// 🔴 必备：防止协程 Panic 导致整个 Go 服务崩溃
+		defer func() {
+			if r := recover(); r != nil {
+				console.Error(fmt.Sprintf("视频测试轮询协程崩溃: %v", r))
+				database.DB.Model(&async_tasks.AsyncTask{}).Where("id = ?", internalID).Updates(map[string]interface{}{
+					"status":    async_tasks.StatusFailed, // 通常是 3 或 4
+					"error_msg": "内部系统错误 (Panic)",
+				})
+			}
+		}()
+
 		maxAttempts := 150
 		interval := 10 * time.Second
 
@@ -950,13 +977,13 @@ func (ctrl *AiController) TestVideoConfig(c *gin.Context) {
 
 			statusRes, checkErr := client.GetTaskStatus(externalID)
 			if checkErr != nil {
-				continue // 网络波动，继续查
+				continue // 网络波动，忽略本次错误，继续下一次查
 			}
 
 			// 如果厂商明确返回失败
 			if statusRes.Error != "" {
 				database.DB.Model(&async_tasks.AsyncTask{}).Where("id = ?", internalID).Updates(map[string]interface{}{
-					"status":    async_tasks.StatusFailed, // (通常是4或-1，请根据你的模型定义确认)
+					"status":    async_tasks.StatusFailed,
 					"error_msg": statusRes.Error,
 				})
 				return
@@ -968,15 +995,16 @@ func (ctrl *AiController) TestVideoConfig(c *gin.Context) {
 					"video_url": statusRes.VideoURL,
 				})
 				database.DB.Model(&async_tasks.AsyncTask{}).Where("id = ?", internalID).Updates(map[string]interface{}{
-					"status":  async_tasks.StatusSuccess, // (通常是3)
+					"status":  async_tasks.StatusSuccess, // 通常是 2
 					"result":  string(resBytes),
 					"process": 100,
 				})
 				return
 			}
 
-			// 更新下进度，让前端看到进度条在走
-			database.DB.Model(&async_tasks.AsyncTask{}).Where("id = ?", internalID).Update("process", 20+attempt)
+			// 🔴 修复进度条计算逻辑，将进度平滑控制在 20% ~ 99% 之间
+			prog := 20 + int(float64(attempt)/float64(maxAttempts)*79)
+			database.DB.Model(&async_tasks.AsyncTask{}).Where("id = ?", internalID).Update("process", prog)
 		}
 
 		// 超过轮询次数 (超时)

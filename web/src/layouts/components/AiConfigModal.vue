@@ -26,7 +26,6 @@
                 </template>
                 <template #op="{ row }">
                     <t-space size="small">
-                        <!-- 🔴 完善测试逻辑，让所有模型都能在列表直接测 -->
                         <t-button variant="text" theme="primary" @click="handleTest(row)">测试</t-button>
                         <t-button variant="text" theme="primary" @click="handleEdit(row)">编辑</t-button>
                         <t-button variant="text" theme="danger" @click="handleDelete(row)">删除</t-button>
@@ -49,12 +48,12 @@
                     <t-option v-for="provider in availableProviders" :key="provider.id" :label="provider.name"
                         :value="provider.id" :disabled="provider.disabled" />
                 </t-select>
-                <template #help>目前可用的厂商类型</template>
+                <t-comment help="目前可用的厂商类型" />
             </t-form-item>
 
             <t-form-item label="优先级" name="priority">
                 <t-input-number v-model="form.priority" :min="0" :max="100" :step="1" style="width: 100%" />
-                <template #help>数字越大优先级越高</template>
+                <t-comment help="数字越大优先级越高" />
             </t-form-item>
 
             <t-form-item label="支持的模型" name="model">
@@ -62,7 +61,7 @@
                     :min-collapsed-num="3">
                     <t-option v-for="model in availableModels" :key="model" :label="model" :value="model" />
                 </t-select>
-                <template #help>支持多选，可输入自定义模型名称后按回车添加（⚠️火山引擎请填写控制台接入点ID）</template>
+                <t-comment help="支持多选，可输入自定义模型名称后按回车添加（⚠️火山引擎请填写控制台接入点ID）" />
             </t-form-item>
 
             <t-form-item label="接口地址" name="base_url">
@@ -191,7 +190,7 @@ const providerConfigs: Record<string, ProviderConfig[]> = {
         { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4-turbo'] },
         { id: 'getgoapi', name: 'GetGo API', models: ['gemini-3-flash-preview', 'claude-sonnet-4-6', 'doubao-seed-1-8-251228'] },
         { id: 'gemini', name: 'Google Gemini', models: ['gemini-1.5-pro', 'gemini-3-flash-preview'] },
-        { id: 'doubao', name: '火山引擎', models: ['doubao-pro-32k', 'doubao-lite-32k'] }, // 🔴 成功归队
+        { id: 'doubao', name: '火山引擎', models: ['doubao-pro-32k', 'doubao-lite-32k'] },
     ],
     image: [
         { id: 'volcengine', name: '火山引擎', models: ['doubao-seedream-4-5-251128', 'doubao-seedream-4-0-250828'] },
@@ -288,15 +287,41 @@ const handleEdit = (config: any) => {
     dialogVisible.value = true;
 };
 
+// 🔴 已在此处完善所有服务类型及提供商的自动化切 URL 逻辑
 const handleProviderChange = () => {
     form.model = [];
-    if (form.provider === 'getgoapi') {
-        form.base_url = 'http://api.lingguoai.com/v1';
-    } else if (form.provider === 'gemini') {
-        form.base_url = 'https://generativelanguage.googleapis.com/v1beta';
-    } else if (form.provider === 'doubao') {
-        form.base_url = 'https://ark.cn-beijing.volces.com/api/v3'; // 火山引擎通用文本 Endpoint
+
+    const defaultUrls: Record<AIServiceType, Record<string, string>> = {
+        text: {
+            openai: 'https://api.openai.com/v1',
+            getgoapi: 'http://api.lingguoai.com/v1',
+            gemini: 'https://generativelanguage.googleapis.com/v1beta',
+            doubao: 'https://ark.cn-beijing.volces.com/api/v3',
+        },
+        image: {
+            volcengine: 'https://ark.cn-beijing.volces.com/api/v3',
+            getgoapi: 'http://api.lingguoai.com/v1',
+            openai: 'https://api.openai.com/v1',
+        },
+        video: {
+            volces: 'https://ark.cn-beijing.volces.com/api/v3',
+            openai: 'https://api.openai.com/v1',
+            minimax: 'https://api.minimax.chat/v1',
+            kling: 'https://api.klingai.com/v1',
+            runway: 'https://api.runwayml.com/v1',
+            pika: 'https://api.pika.art/v1',
+            google: 'https://generativelanguage.googleapis.com/v1beta',
+            getgoapi: 'http://api.lingguoai.com/v1',
+        }
+    };
+
+    const currentServiceType = form.service_type as AIServiceType;
+    if (defaultUrls[currentServiceType] && defaultUrls[currentServiceType][form.provider]) {
+        form.base_url = defaultUrls[currentServiceType][form.provider];
+    } else {
+        form.base_url = '';
     }
+
     if (!isEdit.value) {
         form.name = generateConfigName(form.provider, form.service_type as AIServiceType);
     }
