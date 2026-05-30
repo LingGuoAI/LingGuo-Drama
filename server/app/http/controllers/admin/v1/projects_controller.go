@@ -62,8 +62,8 @@ func (ctrl *ProjectsController) buildSearchConditions(c *gin.Context) map[string
 	where := map[string]interface{}{}
 
 	// 归属用户ID(默认1)搜索
-	adminId := auth.CurrentAdmin(c)
-	where["admin_id"] = adminId
+	adminInfo := auth.CurrentAdmin(c)
+	where["admin_id"] = adminInfo.ID
 
 	// 业务流水号搜索
 
