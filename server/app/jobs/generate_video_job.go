@@ -77,9 +77,9 @@ func mapDBProvider(dbProvider string, modelName string) string {
 }
 
 // 🔴 helper: 优先从数据库动态查询，无配置则根据模型名字兜底 .env
-func getProviderConfig(modelName string, adminID *uint64) (provider, baseURL, apiKey string, finalModel string) {
+func getProviderConfig(modelName string, adminID *uint64) (provider, baseURL, endpointValue, apiKey string, finalModel string) {
 	finalModel = modelName
-
+	var endpoint string
 	// 1. 优先查库：获取所有激活的 video 配置
 	aiService := new(services.AiConfigService)
 	err, configs := aiService.GetAllActiveConfigsByType("video", adminID)
@@ -90,7 +90,10 @@ func getProviderConfig(modelName string, adminID *uint64) (provider, baseURL, ap
 			for _, cfg := range configs {
 				for _, m := range cfg.Model {
 					if m == finalModel {
-						return mapDBProvider(*cfg.Provider, finalModel), *cfg.BaseUrl, *cfg.ApiKey, finalModel
+						if strings.Contains(finalModel, "doubao") || strings.Contains(finalModel, "seedance") {
+							endpoint = "/contents/generations/tasks"
+						}
+						return mapDBProvider(*cfg.Provider, finalModel), *cfg.BaseUrl, endpoint, *cfg.ApiKey, finalModel
 					}
 				}
 			}
@@ -100,8 +103,12 @@ func getProviderConfig(modelName string, adminID *uint64) (provider, baseURL, ap
 		topCfg := configs[0]
 		if finalModel == "" && len(topCfg.Model) > 0 {
 			finalModel = topCfg.Model[0] // 取数组第一个模型
+			if strings.Contains(finalModel, "doubao") || strings.Contains(finalModel, "seedance") {
+				endpoint = "/contents/generations/tasks"
+			}
 		}
-		return mapDBProvider(*topCfg.Provider, finalModel), *topCfg.BaseUrl, *topCfg.ApiKey, finalModel
+
+		return mapDBProvider(*topCfg.Provider, finalModel), *topCfg.BaseUrl, endpoint, *topCfg.ApiKey, finalModel
 	}
 
 	// 2. 降级查 .env
@@ -122,23 +129,23 @@ func getProviderConfig(modelName string, adminID *uint64) (provider, baseURL, ap
 	}
 
 	lowerModel := strings.ToLower(finalModel)
-
 	if strings.Contains(lowerModel, "veo") || strings.Contains(lowerModel, "vertex") {
-		return "vertex", "", cfg.VertexKey, finalModel
+		return "vertex", "", endpoint, cfg.VertexKey, finalModel
 	} else if strings.Contains(lowerModel, "doubao") || strings.Contains(lowerModel, "seedance") {
-		return "volces", cfg.VolcesBaseURL, cfg.VolcesKey, finalModel
+		endpoint = "/contents/generations/tasks"
+		return "volces", cfg.VolcesBaseURL, endpoint, cfg.VolcesKey, finalModel
 	} else if strings.Contains(lowerModel, "sora") {
-		return "openai", cfg.OpenAIBaseURL, cfg.OpenAIKey, finalModel
+		return "openai", cfg.OpenAIBaseURL, endpoint, cfg.OpenAIKey, finalModel
 	} else if strings.Contains(lowerModel, "runway") {
-		return "runway", cfg.RunwayBaseURL, cfg.RunwayKey, finalModel
+		return "runway", cfg.RunwayBaseURL, endpoint, cfg.RunwayKey, finalModel
 	} else if strings.Contains(lowerModel, "pika") {
-		return "pika", cfg.PikaBaseURL, cfg.PikaKey, finalModel
+		return "pika", cfg.PikaBaseURL, endpoint, cfg.PikaKey, finalModel
 	} else if strings.Contains(lowerModel, "minimax") || strings.Contains(lowerModel, "hailuo") {
-		return "minimax", cfg.MinimaxBaseURL, cfg.MinimaxKey, finalModel
+		return "minimax", cfg.MinimaxBaseURL, endpoint, cfg.MinimaxKey, finalModel
 	}
 
 	// 兜底默认使用 getgoapi 中转
-	return "getgoapi", cfg.GetGoBaseURL, cfg.GetGoKey, finalModel
+	return "getgoapi", cfg.GetGoBaseURL, endpoint, cfg.GetGoKey, finalModel
 }
 
 // HandleGenerateVideoTask 处理视频生成任务
@@ -160,9 +167,10 @@ func HandleGenerateVideoTask(ctx context.Context, t *asynq.Task) error {
 	taskModel.UpdateProgress(5)
 
 	// 🔴 使用重构后的辅助函数获取动态配置
-	provider, baseURL, apiKey, finalModel := getProviderConfig(p.Model, taskModel.AdminID)
-	console.Success(fmt.Sprintf("任务[%d] - 命中视频配置: Provider=%s, 最终Model=%s", p.AsyncTaskID, provider, finalModel))
-	client, err := video.NewClient(provider, baseURL, apiKey, finalModel, "", "")
+	provider, baseURL, endpoint, apiKey, finalModel := getProviderConfig(p.Model, taskModel.AdminID)
+	console.Success(fmt.Sprintf("任务[%d] - 命中视频配置: Provider=%s, 最终Model=%s, endpoint=%s", p.AsyncTaskID, provider, finalModel, endpoint))
+
+	client, err := video.NewClient(provider, baseURL, apiKey, finalModel, endpoint, "")
 	if err != nil {
 		taskModel.MarkAsFailed(err)
 		return err
