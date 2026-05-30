@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"spiritFruit/app/models/async_tasks"
+	"spiritFruit/app/models/ai_config"
 	"spiritFruit/app/models/projects"
 	"spiritFruit/app/models/scenes"
 	"spiritFruit/app/models/shot_frame_prompts"

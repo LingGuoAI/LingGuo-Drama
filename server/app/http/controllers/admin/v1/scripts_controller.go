@@ -123,7 +123,8 @@ func (ctrl *ScriptsController) Generate(c *gin.Context) {
 
 	// 2. 调用 TaskService 创建异步任务
 	taskService := new(services.TaskService)
-	task, err := taskService.CreateScriptGenerationTask(req.ProjectID, req.ScriptID, req.Prompt)
+	adminID := ctrl.GetAdminID(c)
+	task, err := taskService.CreateScriptGenerationTask(adminID, req.ProjectID, req.ScriptID, req.Prompt)
 
 	if err != nil {
 		response.Abort500(c, "任务启动失败: "+err.Error())

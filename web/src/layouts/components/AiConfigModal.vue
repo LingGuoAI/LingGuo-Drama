@@ -26,8 +26,8 @@
                 </template>
                 <template #op="{ row }">
                     <t-space size="small">
-                        <t-button v-if="activeTab === 'text'" variant="text" theme="primary"
-                            @click="handleTest(row)">测试</t-button>
+                        <!-- 🔴 完善测试逻辑，让所有模型都能在列表直接测 -->
+                        <t-button variant="text" theme="primary" @click="handleTest(row)">测试</t-button>
                         <t-button variant="text" theme="primary" @click="handleEdit(row)">编辑</t-button>
                         <t-button variant="text" theme="danger" @click="handleDelete(row)">删除</t-button>
                     </t-space>
@@ -62,7 +62,7 @@
                     :min-collapsed-num="3">
                     <t-option v-for="model in availableModels" :key="model" :label="model" :value="model" />
                 </t-select>
-                <template #help>支持多选，可输入自定义模型名称后按回车添加</template>
+                <template #help>支持多选，可输入自定义模型名称后按回车添加（⚠️火山引擎请填写控制台接入点ID）</template>
             </t-form-item>
 
             <t-form-item label="接口地址" name="base_url">
@@ -191,6 +191,7 @@ const providerConfigs: Record<string, ProviderConfig[]> = {
         { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4-turbo'] },
         { id: 'getgoapi', name: 'GetGo API', models: ['gemini-3-flash-preview', 'claude-sonnet-4-6', 'doubao-seed-1-8-251228'] },
         { id: 'gemini', name: 'Google Gemini', models: ['gemini-1.5-pro', 'gemini-3-flash-preview'] },
+        { id: 'doubao', name: '火山引擎', models: ['doubao-pro-32k', 'doubao-lite-32k'] }, // 🔴 成功归队
     ],
     image: [
         { id: 'volcengine', name: '火山引擎', models: ['doubao-seedream-4-5-251128', 'doubao-seedream-4-0-250828'] },
@@ -256,7 +257,7 @@ const handleTabChange = (value: AIServiceType) => {
 };
 
 const generateConfigName = (provider: string, serviceType: AIServiceType) => {
-    const providerNames: Record<string, string> = { getgoapi: 'GetGo', openai: 'OpenAI', gemini: 'Gemini', volces: 'Volc', volcengine: 'Volc' };
+    const providerNames: Record<string, string> = { getgoapi: 'GetGo', openai: 'OpenAI', gemini: 'Gemini', doubao: 'Volc', volces: 'Volc', volcengine: 'Volc' };
     const serviceNames: Record<AIServiceType, string> = { text: '文本', image: '图片', video: '视频' };
     const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     return `${providerNames[provider] || provider}-${serviceNames[serviceType] || serviceType}-${randomNum}`;
@@ -271,7 +272,6 @@ const showCreateDialog = () => {
     isEdit.value = false;
     editingId.value = undefined;
     resetForm();
-    // 恢复默认初始逻辑
     form.provider = 'getgoapi';
     form.base_url = 'http://api.lingguoai.com/v1';
     form.name = generateConfigName('getgoapi', activeTab.value);
@@ -290,13 +290,13 @@ const handleEdit = (config: any) => {
 
 const handleProviderChange = () => {
     form.model = [];
-    // 自动适配 BaseUrl 逻辑
     if (form.provider === 'getgoapi') {
         form.base_url = 'http://api.lingguoai.com/v1';
     } else if (form.provider === 'gemini') {
         form.base_url = 'https://generativelanguage.googleapis.com/v1beta';
+    } else if (form.provider === 'doubao') {
+        form.base_url = 'https://ark.cn-beijing.volces.com/api/v3'; // 火山引擎通用文本 Endpoint
     }
-    // 只有在创建模式下才自动更名
     if (!isEdit.value) {
         form.name = generateConfigName(form.provider, form.service_type as AIServiceType);
     }
@@ -336,7 +336,7 @@ const handleDelete = (config: any) => {
 };
 
 // ==========================================
-// 🔴 测试与轮询逻辑 
+// 测试与轮询逻辑 
 // ==========================================
 const testResultVisible = ref(false);
 const testPolling = ref(false);
@@ -357,7 +357,6 @@ const startPolling = (taskId: number | string, type: string) => {
             const res: any = await request.get({ url: `/tasks/${taskId}` });
             const task = res.data;
 
-            // 适配 status: 2, process: 100
             if (task.status === 2 && task.process === 100) {
                 testPolling.value = false;
                 let resultObj: any = {};

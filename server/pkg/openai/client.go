@@ -53,7 +53,7 @@ func NewProvider(cfg Config) Provider {
 	}
 }
 
-// doRequest 通用泛型请求 (保留你的风格)
+// doRequest 通用泛型请求
 func doRequest[T any](client *http.Client, method, url string, headers map[string]string, payload interface{}) (T, error) {
 	var result T
 	var reqBody io.Reader
