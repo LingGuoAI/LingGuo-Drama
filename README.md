@@ -154,6 +154,16 @@ cd web && npm run dev
 - 生产环境必须修改默认的 `APP_KEY`、数据库密码、Redis 密码和默认管理员密码。
 - 如果密钥曾经提交或泄漏，请立即吊销并重新生成。
 
+## API 配置站点
+
+2 分钟完成配置：[API 聚合站点](https://api.lingguoai.com/pricing)
+
+## 项目社群
+
+灵果短剧 (Lingo Short Video) 项目社群：
+
+![灵果短剧交流群二维码](https://img.aiaiapi.com/zhoudao.png)
+
 ## 参与贡献
 
 欢迎提交 Issue 和 Pull Request。建议优先补充部署体验、任务状态可观测性、API 契约、测试和工作台流程体验。
