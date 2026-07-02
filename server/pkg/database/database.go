@@ -4,7 +4,6 @@ package database
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"spiritFruit/pkg/config"
 
 	"gorm.io/gorm"
@@ -26,13 +25,13 @@ func Connect(dbConfig gorm.Dialector, _logger gormlogger.Interface) {
 	})
 	// 处理错误
 	if err != nil {
-		fmt.Println(err.Error())
+		panic(err)
 	}
 
 	// 获取底层的 sqlDB
 	SQLDB, err = DB.DB()
 	if err != nil {
-		fmt.Println(err.Error())
+		panic(err)
 	}
 }
 func CurrentDatabase() (dbname string) {

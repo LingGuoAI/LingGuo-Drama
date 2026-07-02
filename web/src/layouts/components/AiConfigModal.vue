@@ -188,13 +188,13 @@ interface ProviderConfig {
 const providerConfigs: Record<string, ProviderConfig[]> = {
     text: [
         { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4-turbo'] },
-        { id: 'getgoapi', name: 'GetGo API', models: ['gemini-3-flash-preview', 'claude-sonnet-4-6', 'doubao-seed-1-8-251228'] },
+        { id: 'getgoapi', name: 'NewRouter API', models: ['gemini-3-flash-preview', 'gpt-5.4'] },
         { id: 'gemini', name: 'Google Gemini', models: ['gemini-1.5-pro', 'gemini-3-flash-preview'] },
         { id: 'doubao', name: '火山引擎', models: ['doubao-pro-32k', 'doubao-lite-32k'] },
     ],
     image: [
         { id: 'volcengine', name: '火山引擎', models: ['doubao-seedream-4-5-251128', 'doubao-seedream-4-0-250828'] },
-        { id: 'getgoapi', name: 'GetGo API', models: ['doubao-seedream-4-5-251128', 'dall-e-3'] },
+        { id: 'getgoapi', name: 'NewRouter API', models: ['doubao-seedream-4-5-251128', 'dall-e-3'] },
         { id: 'openai', name: 'OpenAI', models: ['dall-e-3'] },
     ],
     video: [
@@ -205,7 +205,7 @@ const providerConfigs: Record<string, ProviderConfig[]> = {
         { id: 'runway', name: 'Runway', models: ['runway'] },
         { id: 'pika', name: 'Pika', models: ['pika'] },
         { id: 'google', name: 'Google Veo', models: ['veo-3.1-fast-generate-001'] },
-        { id: 'getgoapi', name: 'GetGo API', models: ['doubao-seedance-1-5-pro-251215', 'sora-2', 'MiniMax-Hailuo-02'] },
+        { id: 'getgoapi', name: 'NewRouter API', models: ['doubao-seedance-1-5-pro-251215', 'sora-2', 'MiniMax-Hailuo-02'] },
     ],
 };
 
@@ -272,7 +272,7 @@ const showCreateDialog = () => {
     editingId.value = undefined;
     resetForm();
     form.provider = 'getgoapi';
-    form.base_url = 'http://api.lingguoai.com/v1';
+    form.base_url = 'https://www.zdom.cn/v1';
     form.name = generateConfigName('getgoapi', activeTab.value);
     dialogVisible.value = true;
 };
@@ -294,13 +294,13 @@ const handleProviderChange = () => {
     const defaultUrls: Record<AIServiceType, Record<string, string>> = {
         text: {
             openai: 'https://api.openai.com/v1',
-            getgoapi: 'http://api.lingguoai.com/v1',
+            getgoapi: 'https://www.zdom.cn/v1',
             gemini: 'https://generativelanguage.googleapis.com/v1beta',
             doubao: 'https://ark.cn-beijing.volces.com/api/v3',
         },
         image: {
             volcengine: 'https://ark.cn-beijing.volces.com/api/v3',
-            getgoapi: 'http://api.lingguoai.com/v1',
+            getgoapi: 'https://www.zdom.cn/v1',
             openai: 'https://api.openai.com/v1',
         },
         video: {
@@ -311,7 +311,7 @@ const handleProviderChange = () => {
             runway: 'https://api.runwayml.com/v1',
             pika: 'https://api.pika.art/v1',
             google: 'https://generativelanguage.googleapis.com/v1beta',
-            getgoapi: 'http://api.lingguoai.com/v1',
+            getgoapi: 'https://www.zdom.cn/v1',
         }
     };
 

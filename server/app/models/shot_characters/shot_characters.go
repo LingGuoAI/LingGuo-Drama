@@ -1,15 +1,16 @@
 package shot_characters
 
 import (
-	"spiritFruit/app/models"
 	"spiritFruit/pkg/database"
+	"time"
 )
 
 type ShotCharacters struct {
-	models.BaseModel
-	ShotId      uint64 `json:"shotId" form:"shotId" gorm:"column:shot_id;not null;default:0;comment:分镜ID;"`
-	CharacterId uint64 `json:"characterId" form:"characterId" gorm:"column:character_id;not null; default:0;comment:角色ID"`
-	models.CommonTimestampsField
+	ShotId      uint64     `json:"shotId" form:"shotId" gorm:"column:shot_id;primaryKey;not null;default:0;comment:分镜ID;"`
+	CharacterId uint64     `json:"characterId" form:"characterId" gorm:"column:character_id;primaryKey;not null;default:0;comment:角色ID"`
+	CreatedAt   time.Time  `gorm:"column:created_at;index;" json:"createdAt,omitempty"`
+	UpdatedAt   time.Time  `gorm:"column:updated_at;index;" json:"updatedAt,omitempty"`
+	DeletedAt   *time.Time `gorm:"column:deleted_at;index;" json:"-"`
 }
 
 // TableName 分镜和角色中间表

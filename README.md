@@ -51,11 +51,60 @@ docker compose up -d --build
 
 ### 环境要求
 
-- Go 1.25+
-- Node.js 18+
-- MySQL 8.0+
-- Redis 6.0+
-- FFmpeg 4.0+
+如果使用 Docker Compose 部署，MySQL、Redis、FFmpeg 会随容器一起准备好；如果本地开发或直接运行后端，请先安装以下软件：
+
+| 依赖/软件 | 版本要求 | 说明 |
+| --- | --- | --- |
+| Go | 1.25+ | 后端运行与构建环境 |
+| Node.js | 18+ | 前端依赖安装与 Vite 开发服务 |
+| MySQL | 8.0+ | 核心业务数据库 |
+| Redis | 6.0+ | 缓存与 Asynq 异步任务队列 |
+| FFmpeg | 4.0+ | 视频合并、转码、时长分析等视频处理能力 |
+
+### 安装 FFmpeg
+
+视频生成和合成流程依赖 FFmpeg，本地运行后端或 Worker 前请确保 `ffmpeg` 已加入系统 PATH。
+
+macOS:
+
+```bash
+brew install ffmpeg
+```
+
+Ubuntu/Debian:
+
+```bash
+sudo apt update
+sudo apt install -y ffmpeg
+```
+
+CentOS/RHEL:
+
+```bash
+sudo dnf install -y ffmpeg
+```
+
+Windows:
+
+从 [FFmpeg 官网](https://ffmpeg.org/download.html) 下载构建包，解压后将 `bin` 目录加入系统环境变量 `PATH`。
+
+验证安装：
+
+```bash
+ffmpeg -version
+ffprobe -version
+```
+
+### 版本检查
+
+```bash
+go version
+node -v
+npm -v
+mysql --version
+redis-server --version
+ffmpeg -version
+```
 
 ### 后端
 

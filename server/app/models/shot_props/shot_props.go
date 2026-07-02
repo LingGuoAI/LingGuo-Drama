@@ -1,15 +1,16 @@
 package shot_props
 
 import (
-	"spiritFruit/app/models"
 	"spiritFruit/pkg/database"
+	"time"
 )
 
 type ShotProps struct {
-	models.BaseModel
-	ShotId  uint64 `json:"shotId" form:"shotId" gorm:"column:shot_id;not null;default:0;comment:分镜ID;"`
-	PropsId uint64 `json:"propsId" form:"propsId" gorm:"column:props_id;not null;default:0;comment:道具ID"`
-	models.CommonTimestampsField
+	ShotId    uint64     `json:"shotId" form:"shotId" gorm:"column:shot_id;primaryKey;not null;default:0;comment:分镜ID;"`
+	PropsId   uint64     `json:"propsId" form:"propsId" gorm:"column:props_id;primaryKey;not null;default:0;comment:道具ID"`
+	CreatedAt time.Time  `gorm:"column:created_at;index;" json:"createdAt,omitempty"`
+	UpdatedAt time.Time  `gorm:"column:updated_at;index;" json:"updatedAt,omitempty"`
+	DeletedAt *time.Time `gorm:"column:deleted_at;index;" json:"-"`
 }
 
 // TableName 分镜和道具中间表
